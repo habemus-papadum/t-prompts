@@ -15,6 +15,7 @@ nav:
   - Topics:
     - Few-Shot Prompts: demos/topics/few-shot-prompts.ipynb
     - Source Mapping: demos/topics/source-mapping.ipynb
+    - Source Location: demos/topics/source-location.ipynb
     - Format Spec Mini-Language: demos/topics/format-spec-mini-language.ipynb
     - Dedenting: demos/topics/dedenting.ipynb
     - Advanced Composition: demos/topics/advanced-composition.ipynb
