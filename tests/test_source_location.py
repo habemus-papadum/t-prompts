@@ -3,7 +3,6 @@
 This module tests the basic functionality of source location capture.
 """
 
-import pytest
 from t_prompts import SourceLocation, Static, StructuredPrompt, prompt
 
 
