@@ -9,7 +9,6 @@ from string.templatelib import Template
 from typing import Any, Literal, Optional, Union
 
 from .exceptions import (
-    DedentError,
     DuplicateKeyError,
     EmptyExpressionError,
     ImageRenderError,
@@ -17,6 +16,10 @@ from .exceptions import (
     NotANestedPromptError,
     UnsupportedValueTypeError,
 )
+from .parsing import parse_format_spec as _parse_format_spec
+from .parsing import parse_render_hints as _parse_render_hints
+from .parsing import parse_separator as _parse_separator
+from .text import process_dedent as _process_dedent
 
 
 # Workaround for Python 3.14.0b3 missing convert function
@@ -30,9 +33,11 @@ def convert(value: str, conversion: Literal["r", "s", "a"]) -> str:
         return ascii(value)
     return value
 
+
 # Try to import PIL for image support (optional dependency)
 try:
     from PIL import Image as PILImage
+
     HAS_PIL = True
 except ImportError:
     PILImage = None  # type: ignore
@@ -141,275 +146,6 @@ def _capture_source_location() -> Optional[SourceLocation]:
     return None
 
 
-def _process_dedent(
-    strings: tuple[str, ...],
-    *,
-    dedent: bool,
-    trim_leading: bool,
-    trim_empty_leading: bool,
-    trim_trailing: bool
-) -> tuple[str, ...]:
-    """
-    Process dedenting and trimming on template strings.
-
-    This function applies four optional transformations to the static text segments
-    of a t-string template:
-
-    1. **Trim leading line** (trim_leading): Remove the first line of the first static
-       if it ends in newline and contains only whitespace.
-    2. **Trim empty leading lines** (trim_empty_leading): After removing the first line,
-       remove any subsequent lines that are empty (just newline with no whitespace).
-    3. **Trim trailing lines** (trim_trailing): Remove trailing lines that are just
-       newlines from the last static.
-    4. **Dedent** (dedent): Find the first non-empty line across all statics, count
-       its leading spaces, and remove that many spaces from every line in all statics.
-
-    Parameters
-    ----------
-    strings : tuple[str, ...]
-        The static text segments from the t-string template.
-    dedent : bool
-        If True, dedent all lines by the indent level of the first non-empty line.
-    trim_leading : bool
-        If True, remove the first line if it's whitespace-only ending in newline.
-    trim_empty_leading : bool
-        If True, remove empty lines after the first line in the first static.
-    trim_trailing : bool
-        If True, remove trailing newline-only lines from the last static.
-
-    Returns
-    -------
-    tuple[str, ...]
-        The processed strings tuple.
-
-    Raises
-    ------
-    DedentError
-        If trim_leading=True but first line doesn't match the required pattern,
-        or if mixed tabs and spaces are found in indentation.
-    """
-    if not strings:
-        return strings
-
-    # Convert to list for mutation
-    result = list(strings)
-
-    # Step 1: Trim leading line
-    if trim_leading and result[0]:
-        first = result[0]
-        # Check if first line ends in newline and contains only whitespace
-        if "\n" in first:
-            first_line_end = first.index("\n") + 1
-            first_line = first[:first_line_end]
-            # Check if it's whitespace-only (excluding the newline)
-            if first_line[:-1].strip() == "":
-                # Remove this line
-                result[0] = first[first_line_end:]
-        elif first.startswith("\n"):
-            # Special case: starts with newline (empty first line)
-            result[0] = first[1:]
-
-    # Step 2: Trim empty leading lines
-    if trim_empty_leading and result[0]:
-        first = result[0]
-        # Remove lines that are just "\n" (no whitespace, just newline)
-        while first.startswith("\n"):
-            first = first[1:]
-        result[0] = first
-
-    # Step 3: Trim trailing lines
-    if trim_trailing and result[-1]:
-        last = result[-1]
-        # Remove all trailing whitespace (including newlines and spaces)
-        # Split into lines and work backwards
-        if last:
-            lines = last.split("\n")
-            # Remove trailing empty/whitespace-only lines
-            while lines and lines[-1].strip() == "":
-                lines.pop()
-            # Rejoin
-            result[-1] = "\n".join(lines)
-
-    # Step 4: Dedent
-    if dedent:
-        # Find the first non-empty line or whitespace-only line to determine indent level
-        indent_level = None
-        for s in result:
-            if not s:
-                continue
-            lines = s.split("\n")
-            for line in lines:
-                if line.strip():  # Non-empty line with content
-                    # Count leading spaces
-                    leading = line[:len(line) - len(line.lstrip())]
-                    # Check for tabs
-                    if "\t" in leading:
-                        raise DedentError("Mixed tabs and spaces in indentation are not allowed")
-                    indent_level = len(leading)
-                    break
-                elif line:  # Whitespace-only line (but not empty string)
-                    # Also consider whitespace-only lines for indent level
-                    # Check for tabs
-                    if "\t" in line:
-                        raise DedentError("Mixed tabs and spaces in indentation are not allowed")
-                    # Use this as indent level if we haven't found one yet
-                    if indent_level is None:
-                        indent_level = len(line)
-            if indent_level is not None:
-                break
-
-        # Apply dedenting if we found an indent level
-        if indent_level is not None and indent_level > 0:
-            for i, s in enumerate(result):
-                if not s:
-                    continue
-                lines = s.split("\n")
-                dedented_lines = []
-                for line in lines:
-                    if line.strip():  # Non-empty line
-                        # Remove indent_level spaces
-                        if line.startswith(" " * indent_level):
-                            dedented_lines.append(line[indent_level:])
-                        else:
-                            # Line has less indentation than expected
-                            # Remove what we can
-                            leading = line[:len(line) - len(line.lstrip())]
-                            if len(leading) > 0:
-                                dedented_lines.append(line[len(leading):])
-                            else:
-                                dedented_lines.append(line)
-                    else:
-                        # Empty line (just whitespace) - dedent it too
-                        if line.startswith(" " * indent_level):
-                            dedented_lines.append(line[indent_level:])
-                        else:
-                            # Line has less indentation than expected, remove what we can
-                            leading = line[:len(line) - len(line.lstrip())]
-                            if len(leading) > 0:
-                                dedented_lines.append(line[len(leading):])
-                            else:
-                                dedented_lines.append(line)
-                result[i] = "\n".join(dedented_lines)
-
-    return tuple(result)
-
-
-def _parse_format_spec(format_spec: str, expression: str) -> tuple[str, str]:
-    """
-    Parse format spec mini-language: "key : render_hints".
-
-    Rules:
-    - If format_spec is empty, key = expression
-    - If format_spec is "_", key = expression
-    - If format_spec contains ":", split on first colon:
-      - First part is key (trimmed if there's a colon, preserving whitespace in key name)
-      - Second part (if present) is render_hints
-    - Otherwise, format_spec is the key as-is (preserving any whitespace)
-
-    Parameters
-    ----------
-    format_spec : str
-        The format specification from the t-string
-    expression : str
-        The expression text (fallback for key derivation)
-
-    Returns
-    -------
-    tuple[str, str]
-        (key, render_hints) where render_hints may be empty string
-    """
-    if not format_spec or format_spec == "_":
-        # Use expression as key, no render hints
-        return expression, ""
-
-    # Split on first colon to separate key from render hints
-    if ":" in format_spec:
-        key_part, hints_part = format_spec.split(":", 1)
-        # Trim key when there's a colon delimiter
-        return key_part.strip(), hints_part
-    else:
-        # No colon, entire format_spec is the key (trim leading/trailing, preserve internal whitespace)
-        return format_spec.strip(), ""
-
-
-def _parse_separator(render_hints: str) -> str:
-    """
-    Parse the separator from render hints.
-
-    Looks for "sep=<value>" in the render hints. Returns "\n" as default.
-
-    Parameters
-    ----------
-    render_hints : str
-        The render hints string (everything after first colon in format spec).
-
-    Returns
-    -------
-    str
-        The separator value, or "\n" if not specified.
-    """
-    if not render_hints:
-        return "\n"
-
-    # Look for "sep=<value>" in render hints
-    for hint in render_hints.split(":"):
-        if hint.startswith("sep="):
-            return hint[4:]  # Extract everything after "sep="
-
-    return "\n"
-
-
-def _parse_render_hints(render_hints: str, key: str) -> dict[str, str]:
-    """
-    Parse render hints into a structured format.
-
-    Extracts special hints like xml=<value> and header=<heading> (or just header).
-    Leading and trailing whitespace is trimmed from hint specifications.
-
-    Parameters
-    ----------
-    render_hints : str
-        The render hints string (everything after first colon in format spec).
-    key : str
-        The interpolation key (used as default for header if no value specified).
-
-    Returns
-    -------
-    dict[str, str]
-        Dictionary with parsed hints. Possible keys: 'xml', 'header', 'sep'.
-    """
-    if not render_hints:
-        return {}
-
-    result = {}
-
-    # Split on colon and process each hint
-    for hint in render_hints.split(":"):
-        hint = hint.strip()  # Trim leading/trailing whitespace
-
-        if hint.startswith("xml="):
-            # Extract XML tag name (no whitespace allowed in value)
-            xml_value = hint[4:].strip()
-            if " " in xml_value or "\t" in xml_value or "\n" in xml_value:
-                raise ValueError(f"XML tag name cannot contain whitespace: {xml_value!r}")
-            result["xml"] = xml_value
-
-        elif hint.startswith("header="):
-            # Extract header text (whitespace allowed in heading)
-            header_value = hint[7:].strip()
-            result["header"] = header_value
-
-        elif hint == "header":
-            # No value specified, use the key as heading
-            result["header"] = key
-
-        elif hint.startswith("sep="):
-            # Extract separator value
-            result["sep"] = hint[4:]
-
-    return result
-
-
 @dataclass(frozen=True, slots=True)
 class TextChunk:
     """
@@ -422,6 +158,7 @@ class TextChunk:
     chunk_index : int
         Position of this chunk in the output sequence.
     """
+
     text: str
     chunk_index: int
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -441,6 +178,7 @@ class ImageChunk:
     id : str
         Unique identifier for this chunk (UUID4 string).
     """
+
     image: Any
     chunk_index: int
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -470,6 +208,7 @@ class SourceSpan:
     element_id : str
         UUID of the source element (from Element.id or StructuredPrompt.id).
     """
+
     start: int
     end: int
     key: Union[str, int]
@@ -510,7 +249,7 @@ class IntermediateRepresentation:
         self,
         chunks: list[Union[TextChunk, ImageChunk]],
         source_map: list[SourceSpan],
-        source_prompt: "StructuredPrompt"
+        source_prompt: "StructuredPrompt",
     ):
         self._chunks = chunks
         self._source_map = source_map
@@ -1018,7 +757,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         *,
         allow_duplicate_keys: bool = False,
         _processed_strings: Optional[tuple[str, ...]] = None,
-        _source_location: Optional[SourceLocation] = None
+        _source_location: Optional[SourceLocation] = None,
     ):
         self._template = template
         self._processed_strings = _processed_strings  # Dedented/trimmed strings if provided
@@ -1044,7 +783,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         interpolations = self._template.interpolations
 
         element_idx = 0  # Overall position in element sequence
-        interp_idx = 0   # Position within interpolations list
+        interp_idx = 0  # Position within interpolations list
 
         # Interleave statics and interpolations
         for static_key, static_text in enumerate(strings):
@@ -1240,10 +979,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
     # Rendering
 
     def render(
-        self,
-        _path: tuple[Union[str, int], ...] = (),
-        max_header_level: int = 4,
-        _header_level: int = 1
+        self, _path: tuple[Union[str, int], ...] = (), max_header_level: int = 4, _header_level: int = 1
     ) -> IntermediateRepresentation:
         """
         Render this StructuredPrompt to an IntermediateRepresentation with source mapping.
@@ -1300,15 +1036,17 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
 
                 # Create span for static (only if non-empty)
                 if rendered_text:
-                    source_map.append(SourceSpan(
-                        start=span_start,
-                        end=current_pos,
-                        key=element.key,
-                        path=_path,
-                        element_type="static",
-                        chunk_index=chunk_index,
-                        element_id=element.id
-                    ))
+                    source_map.append(
+                        SourceSpan(
+                            start=span_start,
+                            end=current_pos,
+                            key=element.key,
+                            path=_path,
+                            element_type="static",
+                            chunk_index=chunk_index,
+                            element_id=element.id,
+                        )
+                    )
 
             elif isinstance(element, ListInterpolation):
                 # Render list interpolation element
@@ -1327,44 +1065,57 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                 base_indent = ""
                 if out_parts:
                     last_part = out_parts[-1]
-                    if last_part and '\n' in last_part:
+                    if last_part and "\n" in last_part:
                         # Get text after last newline
-                        lines = last_part.split('\n')
+                        lines = last_part.split("\n")
                         last_line = lines[-1]
                         # If it's all whitespace, it's the base indent for list items
                         if last_line and last_line.strip() == "":
                             base_indent = last_line
 
+                # Calculate prefix length from render hints FIRST
+                prefix_len = 0  # Track total prefix length for span adjustment
+
+                if "xml" in hints:
+                    xml_tag = hints["xml"]
+                    xml_wrapper_start = f"<{xml_tag}>\n"
+                    prefix_len += len(xml_wrapper_start)
+
+                if "header" in hints:
+                    level = min(_header_level, max_header_level)
+                    header_prefix = "#" * level + " " + hints["header"] + "\n"
+                    prefix_len += len(header_prefix)
+
                 # Render each item and join with separator + base indent
                 rendered_parts = []
                 for item in node.items:
                     item_rendered = item.render(
-                        _path=_path + (node.key,),
-                        max_header_level=max_header_level,
-                        _header_level=next_header_level
+                        _path=_path + (node.key,), max_header_level=max_header_level, _header_level=next_header_level
                     )
                     rendered_parts.append(item_rendered.text)
                     # Add nested source spans with offset
-                    # Account for separator and base_indent between items
+                    # Account for prefix from render hints AND separator/base_indent between items
                     if len(rendered_parts) == 1:
-                        current_offset = span_start
+                        current_offset = span_start + prefix_len
                     else:
                         # Previous items + their separators and indents
                         prev_content_len = sum(len(p) for p in rendered_parts[:-1])
                         prev_seps_len = (len(rendered_parts) - 2) * (len(node.separator) + len(base_indent))
                         sep_and_indent_len = len(node.separator) + len(base_indent)
-                        current_offset = span_start + prev_content_len + prev_seps_len + sep_and_indent_len
+                        current_offset = span_start + prefix_len + prev_content_len + prev_seps_len + sep_and_indent_len
 
                     for nested_span in item_rendered.source_map:
-                        source_map.append(SourceSpan(
-                            start=current_offset + nested_span.start,
-                            end=current_offset + nested_span.end,
-                            key=nested_span.key,
-                            path=nested_span.path,
-                            element_type=nested_span.element_type,
-                            chunk_index=chunk_index,
-                            element_id=nested_span.element_id
-                        ))
+                        source_map.append(
+                            SourceSpan(
+                                start=current_offset + nested_span.start,
+                                end=current_offset + nested_span.end,
+                                key=nested_span.key,
+                                path=nested_span.path,
+                                element_type=nested_span.element_type,
+                                chunk_index=chunk_index,
+                                element_id=nested_span.element_id,
+                            )
+                        )
 
                 # Join with separator, adding base indent after each separator (except before first item)
                 if base_indent and len(rendered_parts) > 1:
@@ -1376,22 +1127,18 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                     rendered_text = node.separator.join(rendered_parts)
 
                 # Apply render hints (header first, then xml wrapper) to the entire list
-                prefix_len = 0  # Track total prefix length for span adjustment
-
                 if "xml" in hints:
                     # Wrap with XML tags (inner wrapper)
                     xml_tag = hints["xml"]
                     xml_wrapper_start = f"<{xml_tag}>\n"
                     xml_wrapper_end = f"\n</{xml_tag}>"
                     rendered_text = xml_wrapper_start + rendered_text + xml_wrapper_end
-                    prefix_len += len(xml_wrapper_start)
 
                 if "header" in hints:
                     # Prepend markdown header (outer wrapper)
                     level = min(_header_level, max_header_level)
                     header_prefix = "#" * level + " " + hints["header"] + "\n"
                     rendered_text = header_prefix + rendered_text
-                    prefix_len += len(header_prefix)
 
                 # Adjust span start for all added content
                 span_start += prefix_len
@@ -1415,22 +1162,22 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                 # Get value (render recursively if nested)
                 if isinstance(node.value, StructuredPrompt):
                     nested_rendered = node.value.render(
-                        _path=_path + (node.key,),
-                        max_header_level=max_header_level,
-                        _header_level=next_header_level
+                        _path=_path + (node.key,), max_header_level=max_header_level, _header_level=next_header_level
                     )
                     rendered_text = nested_rendered.text
                     # Add nested source spans with updated paths
                     for nested_span in nested_rendered.source_map:
-                        source_map.append(SourceSpan(
-                            start=span_start + nested_span.start,
-                            end=span_start + nested_span.end,
-                            key=nested_span.key,
-                            path=nested_span.path,
-                            element_type=nested_span.element_type,
-                            chunk_index=chunk_index,
-                            element_id=nested_span.element_id
-                        ))
+                        source_map.append(
+                            SourceSpan(
+                                start=span_start + nested_span.start,
+                                end=span_start + nested_span.end,
+                                key=nested_span.key,
+                                path=nested_span.path,
+                                element_type=nested_span.element_type,
+                                chunk_index=chunk_index,
+                                element_id=nested_span.element_id,
+                            )
+                        )
                 else:
                     rendered_text = node.value
                     # Apply conversion if present
@@ -1463,15 +1210,17 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                 current_pos += len(rendered_text)
                 if not isinstance(node.value, StructuredPrompt):
                     # Only add direct span if not nested (nested spans are already added above)
-                    source_map.append(SourceSpan(
-                        start=span_start,
-                        end=current_pos,
-                        key=node.key,
-                        path=_path,
-                        element_type="interpolation",
-                        chunk_index=chunk_index,
-                        element_id=element.id
-                    ))
+                    source_map.append(
+                        SourceSpan(
+                            start=span_start,
+                            end=current_pos,
+                            key=node.key,
+                            path=_path,
+                            element_type="interpolation",
+                            chunk_index=chunk_index,
+                            element_id=element.id,
+                        )
+                    )
 
                 out_parts.append(rendered_text)
 
@@ -1569,7 +1318,7 @@ def prompt(
     trim_empty_leading: bool = True,
     trim_trailing: bool = True,
     capture_source_location: bool = True,
-    **opts
+    **opts,
 ) -> StructuredPrompt:
     """
     Build a StructuredPrompt from a t-string Template with optional dedenting.
@@ -1651,10 +1400,7 @@ def prompt(
         # Create a new Template with processed strings
         # We need to pass the processed strings to StructuredPrompt
         return StructuredPrompt(
-            template,
-            _processed_strings=processed_strings,
-            _source_location=source_location,
-            **opts
+            template, _processed_strings=processed_strings, _source_location=source_location, **opts
         )
 
     return StructuredPrompt(template, _source_location=source_location, **opts)
@@ -1667,7 +1413,7 @@ def dedent(
     trim_leading: bool = True,
     trim_empty_leading: bool = True,
     trim_trailing: bool = True,
-    **opts
+    **opts,
 ) -> StructuredPrompt:
     """
     Build a StructuredPrompt from a t-string Template with dedenting enabled.
@@ -1723,5 +1469,5 @@ def dedent(
         trim_leading=trim_leading,
         trim_empty_leading=trim_empty_leading,
         trim_trailing=trim_trailing,
-        **opts
+        **opts,
     )

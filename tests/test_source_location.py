@@ -156,3 +156,21 @@ def test_source_location_with_list_interpolation():
     # List interpolation should have source location
     assert p['list'].source_location is not None
     assert p['list'].source_location.is_available
+
+
+def test_capture_source_location_false_doesnt_break_rendering():
+    """Test that disabling source location capture doesn't affect rendering."""
+    x = "hello"
+    y = "world"
+    p = prompt(t"{x} {y}", capture_source_location=False)
+
+    # Rendering should still work correctly
+    rendered = p.render()
+    assert rendered.text == "hello world"
+
+    # Source maps should still work
+    assert len(rendered.source_map) > 0
+
+    # Just the source_location field should be None
+    assert p['x'].source_location is None
+    assert p['y'].source_location is None

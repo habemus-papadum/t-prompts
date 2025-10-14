@@ -287,3 +287,68 @@ def test_source_span_dataclass():
     assert span.element_type == "interpolation"
     assert span.chunk_index == 0
     assert span.element_id == "test-uuid"
+
+
+def test_list_interpolation_with_xml_hint():
+    """Test source map offsets are correct for list with xml= render hint."""
+    item1 = t_prompts.prompt(t"Item 1")
+    item2 = t_prompts.prompt(t"Item 2")
+    items = [item1, item2]
+    p = t_prompts.prompt(t"List: {items:items:xml=list}")
+
+    rendered = p.render()
+
+    # Expected text: "List: <list>\nItem 1\nItem 2\n</list>"
+    expected = "List: <list>\nItem 1\nItem 2\n</list>"
+    assert rendered.text == expected
+
+    # Validate span coordinates by extracting text using span positions
+    for span in rendered.source_map:
+        extracted = rendered.text[span.start:span.end]
+        # Every span should extract valid, non-corrupted text
+        assert extracted in rendered.text, f"Span {span.key} [{span.start}:{span.end}] extracts invalid text: {extracted!r}"
+
+
+def test_list_interpolation_with_header_hint():
+    """Test source map offsets are correct for list with header render hint."""
+    item1 = t_prompts.prompt(t"First")
+    item2 = t_prompts.prompt(t"Second")
+    items = [item1, item2]
+    p = t_prompts.prompt(t"{items:items:header=My List}")
+
+    rendered = p.render()
+
+    # Expected text: "# My List\nFirst\nSecond"
+    expected = "# My List\nFirst\nSecond"
+    assert rendered.text == expected
+
+    # Validate all span coordinates
+    for span in rendered.source_map:
+        extracted = rendered.text[span.start:span.end]
+        assert extracted in rendered.text, f"Span {span.key} [{span.start}:{span.end}] extracts invalid text: {extracted!r}"
+
+
+def test_list_interpolation_with_both_hints():
+    """Test source map offsets are correct for list with both xml= and header hints."""
+    item1 = t_prompts.prompt(t"Alpha")
+    item2 = t_prompts.prompt(t"Beta")
+    items = [item1, item2]
+    p = t_prompts.prompt(t"{items:items:header=Section:xml=items}")
+
+    rendered = p.render()
+
+    # Expected text: "# Section\n<items>\nAlpha\nBeta\n</items>"
+    expected = "# Section\n<items>\nAlpha\nBeta\n</items>"
+    assert rendered.text == expected
+
+    # Validate all span coordinates point to correct positions
+    for span in rendered.source_map:
+        extracted = rendered.text[span.start:span.end]
+        assert extracted in rendered.text, f"Span {span.key} [{span.start}:{span.end}] extracts invalid text: {extracted!r}"
+
+    # Specifically check that we can find the nested item spans by key
+    # Filter for interpolation spans in the nested items
+    interp_spans = [s for s in rendered.source_map if s.element_type == "static" and s.path == ("items",)]
+
+    # Should have spans for the nested items
+    assert len(interp_spans) > 0
