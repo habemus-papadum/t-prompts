@@ -1,7 +1,9 @@
 """Core implementation of structured prompts."""
 
+import inspect
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from string.templatelib import Template, convert
 from typing import Any, Literal, Optional, Union
 
@@ -22,6 +24,108 @@ try:
 except ImportError:
     PILImage = None  # type: ignore
     HAS_PIL = False
+
+
+@dataclass(frozen=True, slots=True)
+class SourceLocation:
+    """
+    Source code location information for an Element.
+
+    All fields are optional to handle cases where source information is unavailable
+    (e.g., REPL, eval, exec). Use the is_available property to check if location
+    information is present.
+
+    This information is captured directly from Python stack frames without reading
+    source files, making it fast and lightweight.
+
+    Attributes
+    ----------
+    filename : str | None
+        Short filename (e.g., 'script.py', '<stdin>', '<string>').
+    filepath : str | None
+        Full absolute path to the file.
+    line : int | None
+        Line number where prompt was created (1-indexed).
+    """
+
+    filename: Optional[str] = None
+    filepath: Optional[str] = None
+    line: Optional[int] = None
+
+    @property
+    def is_available(self) -> bool:
+        """
+        Check if source location information is available.
+
+        Returns
+        -------
+        bool
+            True if location info is present (filename is not None), False otherwise.
+        """
+        return self.filename is not None
+
+    def format_location(self) -> str:
+        """
+        Format location as a readable string.
+
+        Returns
+        -------
+        str
+            Formatted location string (e.g., "script.py:42" or "<unavailable>").
+        """
+        if not self.is_available:
+            return "<unavailable>"
+        parts = [self.filename or "<unknown>"]
+        if self.line is not None:
+            parts.append(str(self.line))
+        return ":".join(parts)
+
+
+def _capture_source_location() -> Optional[SourceLocation]:
+    """
+    Capture source code location information from the call stack.
+
+    Walks up the stack to find the first frame outside this library
+    (the actual user code that called prompt()). Only uses information
+    directly available from the stack frame without reading source files.
+
+    Returns
+    -------
+    SourceLocation | None
+        Source location if available, None if unavailable.
+    """
+    # Walk up the stack to find the first non-library frame
+    frame = inspect.currentframe()
+    if frame is None:
+        return None
+
+    # Get the directory of this library to identify internal frames
+    library_dir = str(Path(__file__).parent.resolve())
+
+    try:
+        # Skip frames until we're out of this library
+        while frame is not None:
+            frame_file = frame.f_code.co_filename
+
+            # Check if we're outside the library
+            if not frame_file.startswith(library_dir):
+                # Found user code frame - extract info directly from frame
+                filename = Path(frame_file).name
+                filepath = str(Path(frame_file).resolve())
+                lineno = frame.f_lineno
+
+                return SourceLocation(
+                    filename=filename,
+                    filepath=filepath,
+                    line=lineno,
+                )
+
+            frame = frame.f_back
+    finally:
+        # Clean up frame references to avoid reference cycles
+        del frame
+
+    return None
 
 
 def _process_dedent(
@@ -469,11 +573,14 @@ class Element:
         The parent StructuredPrompt that contains this element.
     index : int
         The position of this element in the overall element sequence.
+    source_location : SourceLocation | None
+        Source code location information for this element (if available).
     """
 
     key: Union[str, int]
     parent: Optional["StructuredPrompt"]
     index: int
+    source_location: Optional[SourceLocation] = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -487,18 +594,17 @@ class Static(Element):
     ----------
     key : int
         The position of this static in the template's strings tuple.
-    value : str
-        The static text content.
     parent : StructuredPrompt | None
         The parent StructuredPrompt that contains this static.
     index : int
         The position of this element in the overall element sequence.
+    source_location : SourceLocation | None
+        Source code location information for this element (if available).
+    value : str
+        The static text content.
     """
 
-    key: int
-    value: str
-    parent: Optional["StructuredPrompt"]
-    index: int
+    value: str = ""  # Default not used, but required for dataclass field ordering
 
 
 @dataclass(frozen=True, slots=True)
@@ -510,6 +616,12 @@ class StructuredInterpolation(Element):
     ----------
     key : str
         The key used for dict-like access (parsed from format_spec or expression).
+    parent : StructuredPrompt | None
+        The parent StructuredPrompt that contains this interpolation.
+    index : int
+        The position of this element in the overall element sequence.
+    source_location : SourceLocation | None
+        Source code location information for this element (if available).
     expression : str
         The original expression text from the t-string (what was inside {}).
     conversion : str | None
@@ -520,20 +632,13 @@ class StructuredInterpolation(Element):
         Rendering hints parsed from format_spec (everything after first colon in format spec).
     value : str | StructuredPrompt
         The evaluated value (string or nested StructuredPrompt).
-    parent : StructuredPrompt | None
-        The parent StructuredPrompt that contains this interpolation.
-    index : int
-        The position of this element in the overall element sequence.
     """
 
-    key: str
-    expression: str
-    conversion: Optional[str]
-    format_spec: str
-    render_hints: str
-    value: Union[str, "StructuredPrompt"]
-    parent: Optional["StructuredPrompt"]
-    index: int
+    expression: str = ""
+    conversion: Optional[str] = None
+    format_spec: str = ""
+    render_hints: str = ""
+    value: Union[str, "StructuredPrompt"] = ""
 
     def __getitem__(self, key: str) -> "StructuredInterpolation":
         """
@@ -602,6 +707,12 @@ class ListInterpolation(Element):
     ----------
     key : str
         The key used for dict-like access (parsed from format_spec or expression).
+    parent : StructuredPrompt | None
+        The parent StructuredPrompt that contains this interpolation.
+    index : int
+        The position of this element in the overall element sequence.
+    source_location : SourceLocation | None
+        Source code location information for this element (if available).
     expression : str
         The original expression text from the t-string (what was inside {}).
     conversion : str | None
@@ -614,21 +725,14 @@ class ListInterpolation(Element):
         The list of StructuredPrompt items.
     separator : str
         The separator to use when joining items (parsed from render_hints, default "\n").
-    parent : StructuredPrompt | None
-        The parent StructuredPrompt that contains this interpolation.
-    index : int
-        The position of this element in the overall element sequence.
     """
 
-    key: str
-    expression: str
-    conversion: Optional[str]
-    format_spec: str
-    render_hints: str
-    items: list["StructuredPrompt"]
-    separator: str
-    parent: Optional["StructuredPrompt"]
-    index: int
+    expression: str = ""
+    conversion: Optional[str] = None
+    format_spec: str = ""
+    render_hints: str = ""
+    items: list["StructuredPrompt"] = None  # type: ignore
+    separator: str = "\n"
 
     def __getitem__(self, idx: int) -> "StructuredPrompt":
         """
@@ -675,6 +779,12 @@ class ImageInterpolation(Element):
     ----------
     key : str
         The key used for dict-like access (parsed from format_spec or expression).
+    parent : StructuredPrompt | None
+        The parent StructuredPrompt that contains this interpolation.
+    index : int
+        The position of this element in the overall element sequence.
+    source_location : SourceLocation | None
+        Source code location information for this element (if available).
     expression : str
         The original expression text from the t-string (what was inside {}).
     conversion : str | None
@@ -685,20 +795,13 @@ class ImageInterpolation(Element):
         Rendering hints parsed from format_spec (everything after first colon in format spec).
     value : Any
         The PIL Image object (typed as Any to avoid hard dependency on PIL).
-    parent : StructuredPrompt | None
-        The parent StructuredPrompt that contains this interpolation.
-    index : int
-        The position of this element in the overall element sequence.
     """
 
-    key: str
-    expression: str
-    conversion: Optional[str]
-    format_spec: str
-    render_hints: str
-    value: Any  # PIL Image type
-    parent: Optional["StructuredPrompt"]
-    index: int
+    expression: str = ""
+    conversion: Optional[str] = None
+    format_spec: str = ""
+    render_hints: str = ""
+    value: Any = None  # PIL Image type
 
     def __repr__(self) -> str:
         """Return a helpful debug representation."""
@@ -739,10 +842,12 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         template: Template,
         *,
         allow_duplicate_keys: bool = False,
-        _processed_strings: Optional[tuple[str, ...]] = None
+        _processed_strings: Optional[tuple[str, ...]] = None,
+        _source_location: Optional[SourceLocation] = None
     ):
         self._template = template
         self._processed_strings = _processed_strings  # Dedented/trimmed strings if provided
+        self._source_location = _source_location  # Source location for all elements in this prompt
         # All elements (Static, StructuredInterpolation, ListInterpolation, ImageInterpolation)
         self._elements: list[Element] = []
         # Only interpolations
@@ -772,6 +877,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                 value=static_text,
                 parent=self,
                 index=element_idx,
+                source_location=self._source_location,
             )
             self._elements.append(static)
             element_idx += 1
@@ -806,6 +912,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                         separator=separator,
                         parent=self,
                         index=element_idx,
+                        source_location=self._source_location,
                     )
                 elif HAS_PIL and PILImage and isinstance(val, PILImage.Image):
                     # Create ImageInterpolation node
@@ -818,6 +925,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                         value=val,
                         parent=self,
                         index=element_idx,
+                        source_location=self._source_location,
                     )
                 elif isinstance(val, StructuredPrompt) or isinstance(val, str):
                     # Create StructuredInterpolation node
@@ -830,6 +938,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                         value=val,
                         parent=self,
                         index=element_idx,
+                        source_location=self._source_location,
                     )
                 else:
                     raise UnsupportedValueTypeError(key, type(val), itp.expression)
@@ -1214,7 +1323,8 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         -------
         dict[str, Any]
             A dictionary with 'strings' (the static segments) and 'nodes'
-            (list of dicts with key, expression, conversion, format_spec, render_hints, and value info).
+            (list of dicts with key, expression, conversion, format_spec, render_hints, value info,
+            and source_location if available).
         """
         nodes_data = []
         for node in self._interps:
@@ -1226,6 +1336,15 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                 "render_hints": node.render_hints,
                 "index": node.index,
             }
+
+            # Add source location if available
+            if node.source_location is not None and node.source_location.is_available:
+                node_dict["source_location"] = {
+                    "filename": node.source_location.filename,
+                    "filepath": node.source_location.filepath,
+                    "line": node.source_location.line,
+                }
+
             if isinstance(node, ListInterpolation):
                 node_dict["value"] = [item.to_provenance() for item in node.items]
             elif isinstance(node, StructuredInterpolation):
@@ -1253,6 +1372,7 @@ def prompt(
     trim_leading: bool = True,
     trim_empty_leading: bool = True,
     trim_trailing: bool = True,
+    capture_source_location: bool = True,
     **opts
 ) -> StructuredPrompt:
     """
@@ -1276,6 +1396,9 @@ def prompt(
         first static. Default is True.
     trim_trailing : bool, optional
         If True, remove trailing newlines from the last static. Default is True.
+    capture_source_location : bool, optional
+        If True, capture source code location information for all elements.
+        Default is True. Set to False to disable (improves performance).
     **opts
         Additional options passed to StructuredPrompt constructor
         (e.g., allow_duplicate_keys=True).
@@ -1310,9 +1433,15 @@ def prompt(
     >>> print(str(p))
     You are a helpful assistant.
     Task: ...
+
+    Disable source location capture for performance:
+    >>> p = prompt(t"Hello {name}", capture_source_location=False)
     """
     if not isinstance(template, Template):
         raise TypeError("prompt(...) requires a t-string Template")
+
+    # Capture source location if enabled
+    source_location = _capture_source_location() if capture_source_location else None
 
     # Apply dedenting/trimming if any are enabled
     if dedent or trim_leading or trim_empty_leading or trim_trailing:
@@ -1325,9 +1454,9 @@ def prompt(
         )
         # Create a new Template with processed strings
         # We need to pass the processed strings to StructuredPrompt
-        return StructuredPrompt(template, _processed_strings=processed_strings, **opts)
+        return StructuredPrompt(template, _processed_strings=processed_strings, _source_location=source_location, **opts)
 
-    return StructuredPrompt(template, **opts)
+    return StructuredPrompt(template, _source_location=source_location, **opts)
 
 
 def dedent(
