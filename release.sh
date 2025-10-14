@@ -328,11 +328,12 @@ def create_release_tag(version: str) -> None:
     Args:
         version: Release version string
     """
-    print_step(f"Creating Release Tag: {version}")
+    tag_name = f"v{version}"
+    print_step(f"Creating Release Tag: {tag_name}")
 
     run_command(
-        ["git", "tag", "-a", version, "-m", version],
-        f"Creating tag {version}"
+        ["git", "tag", "-a", tag_name, "-m", version],
+        f"Creating tag {tag_name}"
     )
 
 
@@ -342,11 +343,12 @@ def push_tag(version: str) -> None:
     Args:
         version: Release version string
     """
-    print_step(f"Pushing Tag to Origin: {version}")
+    tag_name = f"v{version}"
+    print_step(f"Pushing Tag to Origin: {tag_name}")
 
     run_command(
-        ["git", "push", "origin", version],
-        f"Pushing tag {version}"
+        ["git", "push", "origin", tag_name],
+        f"Pushing tag {tag_name}"
     )
 
 
@@ -366,11 +368,12 @@ def create_github_release(version: str) -> None:
     Args:
         version: Release version string
     """
-    print_step(f"Creating GitHub Release: {version}")
+    tag_name = f"v{version}"
+    print_step(f"Creating GitHub Release: {tag_name}")
 
     run_command(
-        ["gh", "release", "create", version, "--title", version, "--generate-notes"],
-        f"Creating GitHub release {version}"
+        ["gh", "release", "create", tag_name, "--title", version, "--generate-notes"],
+        f"Creating GitHub release {tag_name}"
     )
 
 
@@ -512,9 +515,9 @@ def main() -> None:
     # Success!
     print_step("Release Complete!")
     print(f"✓ Released: {release_version}")
-    print(f"✓ Tagged and pushed: {release_version}")
+    print(f"✓ Tagged and pushed: v{release_version}")
     print(f"✓ Published to PyPI: {release_version}")
-    print(f"✓ Created GitHub release: {release_version}")
+    print(f"✓ Created GitHub release: v{release_version}")
     print(f"✓ Next development version: {next_dev_version}")
     print("\nThe GitHub release will trigger documentation deployment to GitHub Pages.")
 
