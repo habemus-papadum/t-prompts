@@ -4,13 +4,13 @@
 
 | Name                           |    Stmts |     Miss |   Cover |   Missing |
 |------------------------------- | -------: | -------: | ------: | --------: |
-| src/t\_prompts/\_\_init\_\_.py |        7 |        0 |    100% |           |
+| src/t\_prompts/\_\_init\_\_.py |        6 |        0 |    100% |           |
 | src/t\_prompts/core.py         |      436 |       31 |     93% |34, 42-44, 118, 146, 284, 307, 336, 341, 383, 404, 448, 450-451, 599-600, 665, 669, 673, 908, 950, 957, 1074, 1123-1125, 1306-1309 |
 | src/t\_prompts/exceptions.py   |       30 |        0 |    100% |           |
 | src/t\_prompts/parsing.py      |       33 |        0 |    100% |           |
 | src/t\_prompts/text.py         |       68 |        5 |     93% |48, 66, 110, 136, 145 |
-| src/t\_prompts/ui.py           |       28 |       22 |     21% |14-16, 36-72 |
-|                      **TOTAL** |  **602** |   **58** | **90%** |           |
+| src/t\_prompts/ui.py           |        0 |        0 |    100% |           |
+|                      **TOTAL** |  **573** |   **36** | **94%** |           |
 
 
 ## Setup coverage badge
