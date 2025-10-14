@@ -306,7 +306,8 @@ def test_list_interpolation_with_xml_hint():
     for span in rendered.source_map:
         extracted = rendered.text[span.start:span.end]
         # Every span should extract valid, non-corrupted text
-        assert extracted in rendered.text, f"Span {span.key} [{span.start}:{span.end}] extracts invalid text: {extracted!r}"
+        msg = f"Span {span.key} [{span.start}:{span.end}] extracts invalid text: {extracted!r}"
+        assert extracted in rendered.text, msg
 
 
 def test_list_interpolation_with_header_hint():
@@ -325,7 +326,8 @@ def test_list_interpolation_with_header_hint():
     # Validate all span coordinates
     for span in rendered.source_map:
         extracted = rendered.text[span.start:span.end]
-        assert extracted in rendered.text, f"Span {span.key} [{span.start}:{span.end}] extracts invalid text: {extracted!r}"
+        msg = f"Span {span.key} [{span.start}:{span.end}] extracts invalid text: {extracted!r}"
+        assert extracted in rendered.text, msg
 
 
 def test_list_interpolation_with_both_hints():
@@ -344,7 +346,8 @@ def test_list_interpolation_with_both_hints():
     # Validate all span coordinates point to correct positions
     for span in rendered.source_map:
         extracted = rendered.text[span.start:span.end]
-        assert extracted in rendered.text, f"Span {span.key} [{span.start}:{span.end}] extracts invalid text: {extracted!r}"
+        msg = f"Span {span.key} [{span.start}:{span.end}] extracts invalid text: {extracted!r}"
+        assert extracted in rendered.text, msg
 
     # Specifically check that we can find the nested item spans by key
     # Filter for interpolation spans in the nested items
