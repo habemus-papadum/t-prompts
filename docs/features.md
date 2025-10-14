@@ -390,6 +390,54 @@ print(json.dumps(prov, indent=2))
 # }
 ```
 
+### toJSON()
+
+Export complete structure as flat tree with ID-based references (optimized for analysis):
+
+```python
+from t_prompts import prompt
+import json
+
+# Create nested prompt
+inner = "inner_value"
+outer = "outer_value"
+p_inner = prompt(t"{inner:i}")
+p_outer = prompt(t"{outer:o} {p_inner:nested}")
+
+data = p_outer.toJSON()
+print(json.dumps(data, indent=2))
+# {
+#   "tree": [
+#     {"type": "static", "id": "...", "key": 0, "value": "", ...},
+#     {"type": "interpolation", "id": "...", "key": "o", "value": "outer_value", ...},
+#     {"type": "static", "id": "...", "key": 1, "value": " ", ...},
+#     {"type": "nested_prompt", "id": "...", "key": "nested", "prompt_id": "...", ...},
+#     {"type": "static", "id": "...", "key": 0, "value": "", ...},
+#     {"type": "interpolation", "id": "...", "key": "i", "value": "inner_value", ...},
+#     {"type": "static", "id": "...", "key": 1, "value": "", ...},
+#     {"type": "static", "id": "...", "key": 2, "value": "", ...}
+#   ],
+#   "id_to_path": {
+#     "element-uuid-1": [0],
+#     "element-uuid-2": [1],
+#     ...
+#   }
+# }
+```
+
+**Key features**:
+- **Flat tree**: All elements in a single list, avoiding circular references
+- **ID-based references**: Nested prompts reference by ID, not direct embedding
+- **Path mapping**: `id_to_path` maps element IDs to their positions (list of integers)
+- **Image support**: Images serialized as base64 with metadata (format, size, mode)
+- **Complete metadata**: Includes source location, render hints, conversions, format specs
+
+**Use cases**:
+- Complex prompt analysis and debugging
+- External tools processing prompt structure
+- Database storage with relational queries
+- Correlation with rendered output (via element IDs)
+
 ## Type Validation
 
 Only strings, prompts, and lists of prompts are allowed.
