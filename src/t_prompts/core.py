@@ -538,6 +538,22 @@ class IntermediateRepresentation:
         """Return a helpful debug representation."""
         return f"IntermediateRepresentation(chunks={len(self._chunks)}, spans={len(self._source_map)})"
 
+    def _repr_html_(self) -> str:
+        """
+        Return HTML representation for Jupyter notebook display.
+
+        This method is automatically called by Jupyter/IPython when displaying
+        an IntermediateRepresentation in a notebook cell.
+
+        Returns
+        -------
+        str
+            HTML string with widget visualization.
+        """
+        from .widget_renderer import render_ir_html
+
+        return render_ir_html(self)
+
 
 @dataclass(frozen=True, slots=True)
 class Element:
@@ -1551,6 +1567,22 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         if len(self) > 3:
             keys += ", ..."
         return f"StructuredPrompt(keys=[{keys}], num_interpolations={len(self._interps)})"
+
+    def _repr_html_(self) -> str:
+        """
+        Return HTML representation for Jupyter notebook display.
+
+        This method is automatically called by Jupyter/IPython when displaying
+        a StructuredPrompt in a notebook cell.
+
+        Returns
+        -------
+        str
+            HTML string with widget visualization.
+        """
+        from .widget_renderer import render_structured_prompt_html
+
+        return render_structured_prompt_html(self)
 
 
 def prompt(

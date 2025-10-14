@@ -21,6 +21,19 @@ function copyDistToPython() {
   }
 }
 
+function extractKatexCss() {
+  // Read KaTeX CSS and write it to dist
+  const katexCssPath = path.join(__dirname, 'node_modules', 'katex', 'dist', 'katex.min.css');
+  const outCssPath = path.join(__dirname, 'dist', 'katex.css');
+
+  if (fs.existsSync(katexCssPath)) {
+    fs.copyFileSync(katexCssPath, outCssPath);
+    console.log('  Extracted KaTeX CSS');
+  } else {
+    console.warn('  Warning: KaTeX CSS not found');
+  }
+}
+
 async function build() {
   const outdir = path.join(__dirname, 'dist');
 
@@ -43,9 +56,16 @@ async function build() {
       // Ensure deterministic output
       metafile: true,
       logLevel: 'info',
+      // External packages are bundled since we're targeting browser
+      loader: {
+        '.css': 'text',  // Import CSS as text string
+      },
     });
 
     console.log('✓ Build completed successfully');
+
+    // Extract KaTeX CSS
+    extractKatexCss();
 
     // Copy dist to Python package
     copyDistToPython();
