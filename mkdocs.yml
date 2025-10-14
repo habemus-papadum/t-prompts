@@ -1,0 +1,26 @@
+site_name: structured-prompts
+site_description: Structured prompts using template strings
+site_author: Nehal Patel
+repo_url: https://github.com/habemus-papadum/structured-prompts
+repo_name: structured-prompts
+
+theme:
+  name: "material"
+
+nav:
+  - Home: index.md
+  - API: reference.md
+
+# If you'd like to specify a separate docs directory, you can do so here
+docs_dir: docs
+
+# Plugins to enable
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_submodules: true
