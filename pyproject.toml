@@ -1,6 +1,6 @@
 [project]
 name = "t-prompts"
-version = "0.4.0-alpha"
+version = "0.4.0"
 description = "Structured prompts using template strings"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -54,7 +54,7 @@ dev = [
 ]
 
 [tool.ruff]
-target-version = "py314"
+target-version = "0.4.0"
 line-length = 120
 exclude = []
 

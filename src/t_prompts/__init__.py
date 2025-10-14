@@ -23,7 +23,7 @@ from .exceptions import (
     UnsupportedValueTypeError,
 )
 
-__version__ = "0.4.0-alpha"
+__version__ = "0.4.0"
 __all__ = [
     "StructuredPrompt",
     "StructuredInterpolation",
