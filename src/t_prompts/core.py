@@ -424,6 +424,7 @@ class TextChunk:
     """
     text: str
     chunk_index: int
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
 @dataclass(frozen=True, slots=True)
@@ -437,9 +438,12 @@ class ImageChunk:
         The PIL Image object (typed as Any to avoid hard dependency on PIL).
     chunk_index : int
         Position of this chunk in the output sequence.
+    id : str
+        Unique identifier for this chunk (UUID4 string).
     """
     image: Any
     chunk_index: int
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
 @dataclass(frozen=True, slots=True)
@@ -511,6 +515,7 @@ class IntermediateRepresentation:
         self._chunks = chunks
         self._source_map = source_map
         self._source_prompt = source_prompt
+        self._id = str(uuid.uuid4())  # Unique identifier for this IntermediateRepresentation
 
         # Build reverse index: element_id -> list of spans
         self._element_spans: dict[str, list[SourceSpan]] = {}
@@ -556,6 +561,11 @@ class IntermediateRepresentation:
     def source_prompt(self) -> "StructuredPrompt":
         """Return the source StructuredPrompt that was rendered."""
         return self._source_prompt
+
+    @property
+    def id(self) -> str:
+        """Return the unique identifier for this IntermediateRepresentation."""
+        return self._id
 
     def get_span_at(self, position_or_chunk: int, position: Optional[int] = None) -> Optional[SourceSpan]:
         """

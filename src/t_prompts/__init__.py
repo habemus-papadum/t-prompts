@@ -25,6 +25,7 @@ from .exceptions import (
     StructuredPromptsError,
     UnsupportedValueTypeError,
 )
+from .ui import render_ir_to_html
 
 __version__ = "0.8.0-alpha"
 __all__ = [
@@ -41,6 +42,7 @@ __all__ = [
     "ImageChunk",
     "prompt",
     "dedent",
+    "render_ir_to_html",
     "DedentError",
     "EmptyExpressionError",
     "DuplicateKeyError",
