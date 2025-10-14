@@ -14,7 +14,8 @@
       "Bash(git mv:*)",
       "Bash(git add:*)",
       "Bash(uv run jupyter nbconvert:*)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

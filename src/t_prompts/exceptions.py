@@ -56,3 +56,11 @@ class EmptyExpressionError(StructuredPromptsError):
         super().__init__(
             "Empty expression {{}} is not allowed. All interpolations must have a valid expression or format spec."
         )
+
+
+class DedentError(StructuredPromptsError):
+    """Raised when dedenting configuration is invalid or dedenting fails."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)

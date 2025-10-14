@@ -677,6 +677,143 @@ def render(self, _path: tuple[str, ...] = ()) -> IntermediateRepresentation:
     return IntermediateRepresentation(text, source_map, self)
 ```
 
+## 12) Dedenting Support
+
+### Motivation
+
+When writing multi-line prompts in source code, proper indentation with surrounding code is crucial for readability. However, this indentation should not appear in the final rendered prompt. The dedenting feature solves this problem by automatically removing common indentation from t-strings.
+
+### Design Philosophy
+
+Dedenting is **opt-in by default** via `dedent=True`, while **trimming is on by default**. This allows users to write indented t-strings in their source code without the indentation appearing in the rendered output, while still benefiting from automatic removal of leading/trailing whitespace lines.
+
+The processing happens **at construction time** in `_build_nodes()`, modifying the static text segments before creating `Static` elements. This means:
+
+1. Original template strings remain unchanged (provenance preserved)
+2. Source mapping points to dedented text (the actual rendered output)
+3. Dedenting is applied once and stored, not recalculated on each render
+
+### Processing Steps
+
+The `_process_dedent()` function applies four optional transformations to template strings:
+
+1. **Trim leading** (`trim_leading=True` by default)
+   - Removes the first line of the first static if it ends in newline and contains only whitespace
+   - Handles the common pattern: `t"""\n    content...`
+   - The leading newline + spaces are removed
+
+2. **Trim empty leading** (`trim_empty_leading=True` by default)
+   - After removing the first line, removes any subsequent lines that are just `\n`
+   - Allows for blank lines for readability after the opening `"""`
+
+3. **Dedent** (`dedent=False` by default, opt-in)
+   - Finds the first non-empty line across all statics
+   - Counts its leading spaces to determine indent level
+   - Removes that many spaces from every line in all statics
+   - Errors if tabs and spaces are mixed in indentation
+
+4. **Trim trailing** (`trim_trailing=True` by default)
+   - Removes trailing whitespace lines (lines that are just whitespace)
+   - Applied to the last static segment
+   - Cleans up the closing `"""` pattern
+
+### API Design
+
+```python
+def prompt(
+    template: Template,
+    /,
+    *,
+    dedent: bool = False,
+    trim_leading: bool = True,
+    trim_empty_leading: bool = True,
+    trim_trailing: bool = True,
+    **opts
+) -> StructuredPrompt:
+    """Build a StructuredPrompt with optional dedenting."""
+    ...
+```
+
+All dedenting parameters are **keyword-only** to prevent accidental positional arguments.
+
+### Implementation Details
+
+The `_process_dedent()` function:
+
+```python
+def _process_dedent(
+    strings: tuple[str, ...],
+    *,
+    dedent: bool,
+    trim_leading: bool,
+    trim_empty_leading: bool,
+    trim_trailing: bool
+) -> tuple[str, ...]:
+    """Process dedenting and trimming on template strings."""
+    # Returns a new tuple with processed strings
+    # Original strings remain in template for provenance
+```
+
+Processed strings are passed to `StructuredPrompt.__init__()` via a private `_processed_strings` parameter. The `_build_nodes()` method uses these processed strings instead of the original `template.strings`.
+
+### Source Mapping Implications
+
+Source mapping points to the **dedented text**, not the original indented source code. This is intentional and correct because:
+
+1. Users want to map positions in the **rendered** output back to structure
+2. Consistent with how conversions work (!r changes the text)
+3. The dedented version is what appears in `IntermediateRepresentation.text`
+4. Original strings remain available via `prompt.template.strings` for debugging
+
+### Edge Cases Handled
+
+1. **Empty first static**: When first static is empty (e.g., `t"{x:x} text"`), dedenting works on subsequent statics
+2. **Nested prompts**: Each prompt is dedented independently at construction time
+3. **Mixed indentation levels**: Dedents by the first non-empty line's indent level
+4. **Less indented lines**: Dedents as much as possible without negative indentation
+5. **No non-empty lines**: Dedenting does nothing (no error)
+6. **Tabs and spaces mixed**: Raises `DedentError` to prevent ambiguity
+
+### Rationale for Default Behavior
+
+- **Trims ON by default**: Most users want clean output without leading/trailing whitespace lines
+- **Dedent OFF by default**: Dedenting changes content more significantly, so it's opt-in
+- **All keyword-only**: Prevents accidental misuse and makes intent explicit
+
+### Example Transformation
+
+```python
+# Input with dedent=True:
+p = prompt(t"""
+    You are a helpful assistant.
+    Task: {task:t}
+    Please respond.
+    """, dedent=True)
+
+# Processing steps:
+# 1. Trim leading: Remove "\n"
+# 2. Trim empty leading: (none in this case)
+# 3. Dedent: First non-empty line has 4 spaces, remove 4 from all
+# 4. Trim trailing: Remove "\n    "
+
+# Result:
+# "You are a helpful assistant.\nTask: ...\nPlease respond."
+```
+
+### Testing Strategy
+
+Comprehensive test suite (46 tests in `test_dedent.py`) covering:
+
+- Basic dedenting with various indentation patterns
+- Each trim feature independently
+- All features combined
+- Edge cases (empty statics, nested prompts, mixed indentation)
+- Error conditions (tabs/spaces mixed)
+- Source mapping with dedented text
+- Provenance preservation
+- List interpolations with dedenting
+- Realistic LLM prompt patterns
+
 ## Summary
 
 This library leverages Python 3.14's t-strings to give you string rendering + structured provenance for LLM prompts. It stays close to the standard library's `Template`/`Interpolation` model (no monkey-patching), keeps the API small, and emphasizes strong, no-mock tests that exercise real runtime behavior.

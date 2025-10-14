@@ -107,6 +107,75 @@ print(str(p2))
 
 **Separator syntax**: Use `sep=<value>` in render hints to specify a custom separator. The default is a newline (`\n`).
 
+### Dedenting for Readability
+
+When writing multi-line prompts in your source code, indentation can make the code hard to read. The `dedent=True` parameter automatically removes common indentation:
+
+```python
+def create_prompt(task, context):
+    # Without dedent: awkward to write
+    p_awkward = prompt(t"""You are a helpful assistant.
+Task: {task:t}
+Context: {context:c}
+Please help.""")
+
+    # With dedent: clean and readable
+    p_clean = prompt(t"""
+        You are a helpful assistant.
+        Task: {task:t}
+        Context: {context:c}
+        Please help.
+        """, dedent=True)
+
+    # Both render to the same output:
+    # "You are a helpful assistant.\nTask: ...\nContext: ...\nPlease help."
+    assert str(p_awkward) == str(p_clean)
+```
+
+**Dedenting options** (all keyword-only):
+
+- `dedent=False` (default): No dedenting, text used as-is
+- `trim_leading=True` (default): Remove first line if it's whitespace-only
+- `trim_empty_leading=True` (default): Remove empty lines after the first line
+- `trim_trailing=True` (default): Remove trailing whitespace lines
+
+**How it works:**
+
+1. First line of first static (usually just `\n`) is removed (if `trim_leading=True`)
+2. Empty lines after that are removed (if `trim_empty_leading=True`)
+3. If `dedent=True`, find the first non-empty line's indentation and remove that many spaces from all lines
+4. Trailing whitespace lines are removed (if `trim_trailing=True`)
+
+**Example with all features:**
+
+```python
+task = "translate to French"
+examples = [
+    prompt(t"English: {eng:eng} -> French: {fr:fr}")
+    for eng, fr in [("hello", "bonjour"), ("goodbye", "au revoir")]
+]
+
+p = prompt(t"""
+    Task: {task:t}
+
+    Examples:
+    {examples:ex}
+
+    Now translate:
+    """, dedent=True)
+
+print(str(p))
+# Task: translate to French
+#
+# Examples:
+# English: hello -> French: bonjour
+# English: goodbye -> French: au revoir
+#
+# Now translate:
+```
+
+**Note**: The trim options are ON by default, so even without `dedent=True`, leading and trailing whitespace lines are removed. Set them to `False` to preserve original formatting.
+
 ### Provenance Access
 
 ```python
@@ -258,6 +327,7 @@ print(rendered.text[interp_span.start:interp_span.end])  # "Alice"
 - **Dict-like access**: `p['key']` returns the interpolation node
 - **Nested composition**: Prompts can contain other prompts
 - **List support**: Interpolate lists of prompts with customizable separators
+- **Dedenting support**: Automatic indentation removal for readable source code
 - **Format spec mini-language**: `key : render_hints` for extensible metadata
 - **Complete source mapping**: Bidirectional mapping for ALL text (static and interpolated)
 - **Element hierarchy**: Unified `Element` base class for `Static` and `StructuredInterpolation`

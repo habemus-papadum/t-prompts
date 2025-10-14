@@ -6,12 +6,150 @@ from string.templatelib import Template, convert
 from typing import Any, Literal, Optional, Union
 
 from .exceptions import (
+    DedentError,
     DuplicateKeyError,
     EmptyExpressionError,
     MissingKeyError,
     NotANestedPromptError,
     UnsupportedValueTypeError,
 )
+
+
+def _process_dedent(
+    strings: tuple[str, ...],
+    *,
+    dedent: bool,
+    trim_leading: bool,
+    trim_empty_leading: bool,
+    trim_trailing: bool
+) -> tuple[str, ...]:
+    """
+    Process dedenting and trimming on template strings.
+
+    This function applies four optional transformations to the static text segments
+    of a t-string template:
+
+    1. **Trim leading line** (trim_leading): Remove the first line of the first static
+       if it ends in newline and contains only whitespace.
+    2. **Trim empty leading lines** (trim_empty_leading): After removing the first line,
+       remove any subsequent lines that are empty (just newline with no whitespace).
+    3. **Trim trailing lines** (trim_trailing): Remove trailing lines that are just
+       newlines from the last static.
+    4. **Dedent** (dedent): Find the first non-empty line across all statics, count
+       its leading spaces, and remove that many spaces from every line in all statics.
+
+    Parameters
+    ----------
+    strings : tuple[str, ...]
+        The static text segments from the t-string template.
+    dedent : bool
+        If True, dedent all lines by the indent level of the first non-empty line.
+    trim_leading : bool
+        If True, remove the first line if it's whitespace-only ending in newline.
+    trim_empty_leading : bool
+        If True, remove empty lines after the first line in the first static.
+    trim_trailing : bool
+        If True, remove trailing newline-only lines from the last static.
+
+    Returns
+    -------
+    tuple[str, ...]
+        The processed strings tuple.
+
+    Raises
+    ------
+    DedentError
+        If trim_leading=True but first line doesn't match the required pattern,
+        or if mixed tabs and spaces are found in indentation.
+    """
+    if not strings:
+        return strings
+
+    # Convert to list for mutation
+    result = list(strings)
+
+    # Step 1: Trim leading line
+    if trim_leading and result[0]:
+        first = result[0]
+        # Check if first line ends in newline and contains only whitespace
+        if "\n" in first:
+            first_line_end = first.index("\n") + 1
+            first_line = first[:first_line_end]
+            # Check if it's whitespace-only (excluding the newline)
+            if first_line[:-1].strip() == "":
+                # Remove this line
+                result[0] = first[first_line_end:]
+        elif first.startswith("\n"):
+            # Special case: starts with newline (empty first line)
+            result[0] = first[1:]
+
+    # Step 2: Trim empty leading lines
+    if trim_empty_leading and result[0]:
+        first = result[0]
+        # Remove lines that are just "\n" (no whitespace, just newline)
+        while first.startswith("\n"):
+            first = first[1:]
+        result[0] = first
+
+    # Step 3: Trim trailing lines
+    if trim_trailing and result[-1]:
+        last = result[-1]
+        # Remove all trailing whitespace (including newlines and spaces)
+        # Split into lines and work backwards
+        if last:
+            lines = last.split("\n")
+            # Remove trailing empty/whitespace-only lines
+            while lines and lines[-1].strip() == "":
+                lines.pop()
+            # Rejoin
+            result[-1] = "\n".join(lines)
+
+    # Step 4: Dedent
+    if dedent:
+        # Find the first non-empty line to determine indent level
+        indent_level = None
+        for s in result:
+            if not s:
+                continue
+            lines = s.split("\n")
+            for line in lines:
+                if line.strip():  # Non-empty line
+                    # Count leading spaces
+                    leading = line[:len(line) - len(line.lstrip())]
+                    # Check for tabs
+                    if "\t" in leading:
+                        raise DedentError("Mixed tabs and spaces in indentation are not allowed")
+                    indent_level = len(leading)
+                    break
+            if indent_level is not None:
+                break
+
+        # Apply dedenting if we found an indent level
+        if indent_level is not None and indent_level > 0:
+            for i, s in enumerate(result):
+                if not s:
+                    continue
+                lines = s.split("\n")
+                dedented_lines = []
+                for line in lines:
+                    if line.strip():  # Non-empty line
+                        # Remove indent_level spaces
+                        if line.startswith(" " * indent_level):
+                            dedented_lines.append(line[indent_level:])
+                        else:
+                            # Line has less indentation than expected
+                            # Remove what we can
+                            leading = line[:len(line) - len(line.lstrip())]
+                            if len(leading) > 0:
+                                dedented_lines.append(line[len(leading):])
+                            else:
+                                dedented_lines.append(line)
+                    else:
+                        # Empty line (just whitespace) - keep it
+                        dedented_lines.append(line)
+                result[i] = "\n".join(dedented_lines)
+
+    return tuple(result)
 
 
 def _parse_format_spec(format_spec: str, expression: str) -> tuple[str, str]:
@@ -50,6 +188,33 @@ def _parse_format_spec(format_spec: str, expression: str) -> tuple[str, str]:
     else:
         # No colon, entire format_spec is the key (trim leading/trailing, preserve internal whitespace)
         return format_spec.strip(), ""
+
+
+def _parse_separator(render_hints: str) -> str:
+    """
+    Parse the separator from render hints.
+
+    Looks for "sep=<value>" in the render hints. Returns "\n" as default.
+
+    Parameters
+    ----------
+    render_hints : str
+        The render hints string (everything after first colon in format spec).
+
+    Returns
+    -------
+    str
+        The separator value, or "\n" if not specified.
+    """
+    if not render_hints:
+        return "\n"
+
+    # Look for "sep=<value>" in render hints
+    for hint in render_hints.split(":"):
+        if hint.startswith("sep="):
+            return hint[4:]  # Extract everything after "sep="
+
+    return "\n"
 
 
 @dataclass(frozen=True, slots=True)
@@ -277,8 +442,8 @@ class StructuredInterpolation(Element):
         The format specification string (everything after :), or empty string.
     render_hints : str
         Rendering hints parsed from format_spec (everything after first colon in format spec).
-    value : str | StructuredPrompt | list[StructuredPrompt]
-        The evaluated value (string, nested StructuredPrompt, or list of StructuredPrompts).
+    value : str | StructuredPrompt
+        The evaluated value (string or nested StructuredPrompt).
     parent : StructuredPrompt | None
         The parent StructuredPrompt that contains this interpolation.
     index : int
@@ -290,7 +455,7 @@ class StructuredInterpolation(Element):
     conversion: Optional[str]
     format_spec: str
     render_hints: str
-    value: Union[str, "StructuredPrompt", list["StructuredPrompt"]]
+    value: Union[str, "StructuredPrompt"]
     parent: Optional["StructuredPrompt"]
     index: int
 
@@ -349,7 +514,80 @@ class StructuredInterpolation(Element):
         )
 
 
-class StructuredPrompt(Mapping[str, StructuredInterpolation]):
+@dataclass(frozen=True, slots=True)
+class ListInterpolation(Element):
+    """
+    Immutable record of a list interpolation in a StructuredPrompt.
+
+    Represents interpolations where the value is a list of StructuredPrompts.
+    Stores the separator as a field for proper handling during rendering.
+
+    Attributes
+    ----------
+    key : str
+        The key used for dict-like access (parsed from format_spec or expression).
+    expression : str
+        The original expression text from the t-string (what was inside {}).
+    conversion : str | None
+        The conversion flag if present (!s, !r, !a), or None.
+    format_spec : str
+        The format specification string (everything after :), or empty string.
+    render_hints : str
+        Rendering hints parsed from format_spec (everything after first colon in format spec).
+    items : list[StructuredPrompt]
+        The list of StructuredPrompt items.
+    separator : str
+        The separator to use when joining items (parsed from render_hints, default "\n").
+    parent : StructuredPrompt | None
+        The parent StructuredPrompt that contains this interpolation.
+    index : int
+        The position of this element in the overall element sequence.
+    """
+
+    key: str
+    expression: str
+    conversion: Optional[str]
+    format_spec: str
+    render_hints: str
+    items: list["StructuredPrompt"]
+    separator: str
+    parent: Optional["StructuredPrompt"]
+    index: int
+
+    def __getitem__(self, idx: int) -> "StructuredPrompt":
+        """
+        Access list items by index.
+
+        Parameters
+        ----------
+        idx : int
+            The index of the item to access.
+
+        Returns
+        -------
+        StructuredPrompt
+            The item at the given index.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of bounds.
+        """
+        return self.items[idx]
+
+    def __len__(self) -> int:
+        """Return the number of items in the list."""
+        return len(self.items)
+
+    def __repr__(self) -> str:
+        """Return a helpful debug representation."""
+        return (
+            f"ListInterpolation(key={self.key!r}, expression={self.expression!r}, "
+            f"separator={self.separator!r}, items={len(self.items)}, index={self.index})"
+        )
+
+
+class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpolation]]):
     """
     A provenance-preserving, navigable tree representation of a t-string.
 
@@ -375,10 +613,17 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
         If an empty expression {} is encountered.
     """
 
-    def __init__(self, template: Template, *, allow_duplicate_keys: bool = False):
+    def __init__(
+        self,
+        template: Template,
+        *,
+        allow_duplicate_keys: bool = False,
+        _processed_strings: Optional[tuple[str, ...]] = None
+    ):
         self._template = template
-        self._elements: list[Element] = []  # All elements (Static and StructuredInterpolation)
-        self._interps: list[StructuredInterpolation] = []  # Backward compat: only interpolations
+        self._processed_strings = _processed_strings  # Dedented/trimmed strings if provided
+        self._elements: list[Element] = []  # All elements (Static, StructuredInterpolation, ListInterpolation)
+        self._interps: list[Union[StructuredInterpolation, ListInterpolation]] = []  # Only interpolations
         self._allow_duplicates = allow_duplicate_keys
 
         # Index maps keys to interpolation indices (within _interps list)
@@ -389,7 +634,8 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
     def _build_nodes(self) -> None:
         """Build Element nodes (Static and StructuredInterpolation) from the template."""
-        strings = self._template.strings
+        # Use processed strings if available (from dedenting), otherwise use original
+        strings = self._processed_strings if self._processed_strings is not None else self._template.strings
         interpolations = self._template.interpolations
 
         element_idx = 0  # Overall position in element sequence
@@ -418,31 +664,41 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
                 if not key:
                     raise EmptyExpressionError()
 
-                # Validate and extract value
+                # Validate and extract value - create appropriate node type
                 val = itp.value
-                if isinstance(val, StructuredPrompt):
-                    node_val = val
-                elif isinstance(val, str):
-                    node_val = val
-                elif isinstance(val, list):
+                if isinstance(val, list):
                     # Check that all items in the list are StructuredPrompts
                     if not all(isinstance(item, StructuredPrompt) for item in val):
                         raise UnsupportedValueTypeError(key, type(val), itp.expression)
-                    node_val = val
+
+                    # Create ListInterpolation node
+                    separator = _parse_separator(render_hints)
+                    node = ListInterpolation(
+                        key=key,
+                        expression=itp.expression,
+                        conversion=itp.conversion,
+                        format_spec=itp.format_spec,
+                        render_hints=render_hints,
+                        items=val,
+                        separator=separator,
+                        parent=self,
+                        index=element_idx,
+                    )
+                elif isinstance(val, StructuredPrompt) or isinstance(val, str):
+                    # Create StructuredInterpolation node
+                    node = StructuredInterpolation(
+                        key=key,
+                        expression=itp.expression,
+                        conversion=itp.conversion,
+                        format_spec=itp.format_spec,
+                        render_hints=render_hints,
+                        value=val,
+                        parent=self,
+                        index=element_idx,
+                    )
                 else:
                     raise UnsupportedValueTypeError(key, type(val), itp.expression)
 
-                # Create the interpolation node
-                node = StructuredInterpolation(
-                    key=key,
-                    expression=itp.expression,
-                    conversion=itp.conversion,
-                    format_spec=itp.format_spec,
-                    render_hints=render_hints,
-                    value=node_val,
-                    parent=self,
-                    index=element_idx,
-                )
                 self._interps.append(node)
                 self._elements.append(node)
                 element_idx += 1
@@ -461,7 +717,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
     # Mapping protocol implementation
 
-    def __getitem__(self, key: str) -> StructuredInterpolation:
+    def __getitem__(self, key: str) -> Union[StructuredInterpolation, ListInterpolation]:
         """
         Get the interpolation node for the given key.
 
@@ -472,7 +728,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
         Returns
         -------
-        StructuredInterpolation
+        StructuredInterpolation | ListInterpolation
             The interpolation node for this key.
 
         Raises
@@ -505,7 +761,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
         """Return the number of unique keys."""
         return len(set(node.key for node in self._interps))
 
-    def get_all(self, key: str) -> list[StructuredInterpolation]:
+    def get_all(self, key: str) -> list[Union[StructuredInterpolation, ListInterpolation]]:
         """
         Get all interpolation nodes for a given key (for duplicate keys).
 
@@ -516,7 +772,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
         Returns
         -------
-        list[StructuredInterpolation]
+        list[StructuredInterpolation | ListInterpolation]
             List of all interpolation nodes with this key.
 
         Raises
@@ -546,7 +802,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
         return self._template.strings
 
     @property
-    def interpolations(self) -> tuple[StructuredInterpolation, ...]:
+    def interpolations(self) -> tuple[Union[StructuredInterpolation, ListInterpolation], ...]:
         """Return all interpolation nodes in order."""
         return tuple(self._interps)
 
@@ -604,40 +860,66 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
                         element_type="static"
                     ))
 
+            elif isinstance(element, ListInterpolation):
+                # Render list interpolation element
+                node = element
+
+                # Check if the preceding static has trailing whitespace on the same line
+                # This will be used as base indentation for all list items after the first
+                base_indent = ""
+                if out_parts:
+                    last_part = out_parts[-1]
+                    if last_part and '\n' in last_part:
+                        # Get text after last newline
+                        lines = last_part.split('\n')
+                        last_line = lines[-1]
+                        # If it's all whitespace, it's the base indent for list items
+                        if last_line and last_line.strip() == "":
+                            base_indent = last_line
+
+                # Render each item and join with separator + base indent
+                rendered_parts = []
+                for item in node.items:
+                    item_rendered = item.render(_path=_path + (node.key,))
+                    rendered_parts.append(item_rendered.text)
+                    # Add nested source spans with offset
+                    # Account for separator and base_indent between items
+                    if len(rendered_parts) == 1:
+                        current_offset = span_start
+                    else:
+                        # Previous items + their separators and indents
+                        prev_content_len = sum(len(p) for p in rendered_parts[:-1])
+                        prev_seps_len = (len(rendered_parts) - 2) * (len(node.separator) + len(base_indent))
+                        current_offset = span_start + prev_content_len + prev_seps_len + len(node.separator) + len(base_indent)
+
+                    for nested_span in item_rendered.source_map:
+                        source_map.append(SourceSpan(
+                            start=current_offset + nested_span.start,
+                            end=current_offset + nested_span.end,
+                            key=nested_span.key,
+                            path=nested_span.path,
+                            element_type=nested_span.element_type
+                        ))
+
+                # Join with separator, adding base indent after each separator (except before first item)
+                if base_indent and len(rendered_parts) > 1:
+                    # First item has no prefix, subsequent items get separator + base_indent
+                    rendered_text = rendered_parts[0]
+                    for part in rendered_parts[1:]:
+                        rendered_text += node.separator + base_indent + part
+                else:
+                    rendered_text = node.separator.join(rendered_parts)
+
+                # Update position
+                current_pos += len(rendered_text)
+                out_parts.append(rendered_text)
+
             elif isinstance(element, StructuredInterpolation):
                 # Render interpolation element
                 node = element
 
-                # Get value (render recursively if nested or list)
-                if isinstance(node.value, list):
-                    # Handle list of StructuredPrompts
-                    # Parse separator from render_hints (default: newline)
-                    separator = "\n"
-                    if node.render_hints:
-                        # Look for "sep=<value>" in render hints
-                        for hint in node.render_hints.split(":"):
-                            if hint.startswith("sep="):
-                                separator = hint[4:]  # Extract everything after "sep="
-                                break
-
-                    # Render each item and join with separator
-                    rendered_parts = []
-                    for item in node.value:
-                        item_rendered = item.render(_path=_path + (node.key,))
-                        rendered_parts.append(item_rendered.text)
-                        # Add nested source spans with offset
-                        current_offset = span_start + sum(len(p) + len(separator) for p in rendered_parts[:-1])
-                        for nested_span in item_rendered.source_map:
-                            source_map.append(SourceSpan(
-                                start=current_offset + nested_span.start,
-                                end=current_offset + nested_span.end,
-                                key=nested_span.key,
-                                path=nested_span.path,
-                                element_type=nested_span.element_type
-                            ))
-                    rendered_text = separator.join(rendered_parts)
-
-                elif isinstance(node.value, StructuredPrompt):
+                # Get value (render recursively if nested)
+                if isinstance(node.value, StructuredPrompt):
                     nested_rendered = node.value.render(_path=_path + (node.key,))
                     rendered_text = nested_rendered.text
                     # Add nested source spans with updated paths
@@ -649,7 +931,6 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
                             path=nested_span.path,
                             element_type=nested_span.element_type
                         ))
-
                 else:
                     rendered_text = node.value
                     # Apply conversion if present
@@ -659,8 +940,8 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
                 # Add span for this interpolation
                 current_pos += len(rendered_text)
-                if not isinstance(node.value, (StructuredPrompt, list)):
-                    # Only add direct span if not nested or list (nested spans are already added above)
+                if not isinstance(node.value, StructuredPrompt):
+                    # Only add direct span if not nested (nested spans are already added above)
                     source_map.append(SourceSpan(
                         start=span_start,
                         end=current_pos,
@@ -693,14 +974,15 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
         """
         result = {}
         for node in self._interps:
-            if isinstance(node.value, list):
-                result[node.key] = [item.to_values() for item in node.value]
-            elif isinstance(node.value, StructuredPrompt):
-                result[node.key] = node.value.to_values()
-            else:
-                # Get rendered value for this node
-                rendered = node.render()
-                result[node.key] = rendered if isinstance(rendered, str) else rendered.text
+            if isinstance(node, ListInterpolation):
+                result[node.key] = [item.to_values() for item in node.items]
+            elif isinstance(node, StructuredInterpolation):
+                if isinstance(node.value, StructuredPrompt):
+                    result[node.key] = node.value.to_values()
+                else:
+                    # Get rendered value for this node
+                    rendered = node.render()
+                    result[node.key] = rendered if isinstance(rendered, str) else rendered.text
         return result
 
     def to_provenance(self) -> dict[str, Any]:
@@ -723,12 +1005,13 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
                 "render_hints": node.render_hints,
                 "index": node.index,
             }
-            if isinstance(node.value, list):
-                node_dict["value"] = [item.to_provenance() for item in node.value]
-            elif isinstance(node.value, StructuredPrompt):
-                node_dict["value"] = node.value.to_provenance()
-            else:
-                node_dict["value"] = node.value
+            if isinstance(node, ListInterpolation):
+                node_dict["value"] = [item.to_provenance() for item in node.items]
+            elif isinstance(node, StructuredInterpolation):
+                if isinstance(node.value, StructuredPrompt):
+                    node_dict["value"] = node.value.to_provenance()
+                else:
+                    node_dict["value"] = node.value
             nodes_data.append(node_dict)
 
         return {"strings": list(self._template.strings), "nodes": nodes_data}
@@ -741,16 +1024,37 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
         return f"StructuredPrompt(keys=[{keys}], num_interpolations={len(self._interps)})"
 
 
-def prompt(template: Template, /, **opts) -> StructuredPrompt:
+def prompt(
+    template: Template,
+    /,
+    *,
+    dedent: bool = False,
+    trim_leading: bool = True,
+    trim_empty_leading: bool = True,
+    trim_trailing: bool = True,
+    **opts
+) -> StructuredPrompt:
     """
-    Build a StructuredPrompt from a t-string Template.
+    Build a StructuredPrompt from a t-string Template with optional dedenting.
 
-    This is the main entry point for creating structured prompts.
+    This is the main entry point for creating structured prompts. Supports automatic
+    dedenting and trimming to make indented t-strings in source code more readable.
 
     Parameters
     ----------
     template : Template
         The Template object from a t-string literal (e.g., t"...").
+    dedent : bool, optional
+        If True, dedent all static text by the indent level of the first non-empty line.
+        Default is False (no dedenting).
+    trim_leading : bool, optional
+        If True, remove the first line of the first static if it's whitespace-only
+        and ends in a newline. Default is True.
+    trim_empty_leading : bool, optional
+        If True, remove empty lines (just newlines) after the first line in the
+        first static. Default is True.
+    trim_trailing : bool, optional
+        If True, remove trailing newlines from the last static. Default is True.
     **opts
         Additional options passed to StructuredPrompt constructor
         (e.g., allow_duplicate_keys=True).
@@ -764,16 +1068,109 @@ def prompt(template: Template, /, **opts) -> StructuredPrompt:
     ------
     TypeError
         If template is not a Template object.
+    DedentError
+        If dedenting fails due to invalid configuration or mixed tabs/spaces.
 
     Examples
     --------
+    Basic usage:
     >>> instructions = "Always answer politely."
     >>> p = prompt(t"Obey {instructions:inst}")
     >>> str(p)
     'Obey Always answer politely.'
     >>> p['inst'].expression
     'instructions'
+
+    With dedenting:
+    >>> p = prompt(t\"\"\"
+    ...     You are a helpful assistant.
+    ...     Task: {task:t}
+    ... \"\"\", dedent=True)
+    >>> print(str(p))
+    You are a helpful assistant.
+    Task: ...
     """
     if not isinstance(template, Template):
         raise TypeError("prompt(...) requires a t-string Template")
+
+    # Apply dedenting/trimming if any are enabled
+    if dedent or trim_leading or trim_empty_leading or trim_trailing:
+        processed_strings = _process_dedent(
+            template.strings,
+            dedent=dedent,
+            trim_leading=trim_leading,
+            trim_empty_leading=trim_empty_leading,
+            trim_trailing=trim_trailing,
+        )
+        # Create a new Template with processed strings
+        # We need to pass the processed strings to StructuredPrompt
+        return StructuredPrompt(template, _processed_strings=processed_strings, **opts)
+
     return StructuredPrompt(template, **opts)
+
+
+def dedent(
+    template: Template,
+    /,
+    *,
+    trim_leading: bool = True,
+    trim_empty_leading: bool = True,
+    trim_trailing: bool = True,
+    **opts
+) -> StructuredPrompt:
+    """
+    Build a StructuredPrompt from a t-string Template with dedenting enabled.
+
+    This is a convenience function that forwards to `prompt()` with `dedent=True`.
+    Use this when writing indented multi-line prompts to keep your source code
+    readable while producing clean output without indentation.
+
+    Parameters
+    ----------
+    template : Template
+        The Template object from a t-string literal (e.g., t"...").
+    trim_leading : bool, optional
+        If True, remove the first line of the first static if it's whitespace-only
+        and ends in a newline. Default is True.
+    trim_empty_leading : bool, optional
+        If True, remove empty lines (just newlines) after the first line in the
+        first static. Default is True.
+    trim_trailing : bool, optional
+        If True, remove trailing newlines from the last static. Default is True.
+    **opts
+        Additional options passed to StructuredPrompt constructor
+        (e.g., allow_duplicate_keys=True).
+
+    Returns
+    -------
+    StructuredPrompt
+        The structured prompt object with dedenting applied.
+
+    Raises
+    ------
+    TypeError
+        If template is not a Template object.
+    DedentError
+        If dedenting fails due to invalid configuration or mixed tabs/spaces.
+
+    Examples
+    --------
+    >>> task = "translate to French"
+    >>> p = dedent(t\"\"\"
+    ...     You are a helpful assistant.
+    ...     Task: {task:t}
+    ...     Please respond.
+    ... \"\"\")
+    >>> print(str(p))
+    You are a helpful assistant.
+    Task: translate to French
+    Please respond.
+    """
+    return prompt(
+        template,
+        dedent=True,
+        trim_leading=trim_leading,
+        trim_empty_leading=trim_empty_leading,
+        trim_trailing=trim_trailing,
+        **opts
+    )

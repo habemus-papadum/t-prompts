@@ -16,6 +16,7 @@ nav:
     - Few-Shot Prompts: demos/topics/few-shot-prompts.ipynb
     - Source Mapping: demos/topics/source-mapping.ipynb
     - Format Spec Mini-Language: demos/topics/format-spec-mini-language.ipynb
+    - Dedenting: demos/topics/dedenting.ipynb
     - Advanced Composition: demos/topics/advanced-composition.ipynb
   - Architecture: architecture.md
   - API: reference.md
