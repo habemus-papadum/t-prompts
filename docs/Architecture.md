@@ -1,43 +1,39 @@
-structured-prompts — Architecture & Implementation Plan
+# structured-prompts — Architecture & Implementation Plan
 
-Target Python: 3.14+ (uses new template string literals / t-strings)
-Status: Design document (v1)
+**Target Python:** 3.14+ (uses new template string literals / t-strings)
+**Status:** Design document (v1)
 
-1) High‑level description & motivation
+## 1) High-level description & motivation
 
-structured-prompts is a tiny Python library that turns t-strings (t"...") into a provenance‑preserving, navigable tree we call a StructuredPrompt. It lets you:
+`structured-prompts` is a tiny Python library that turns t-strings (`t"..."`) into a provenance-preserving, navigable tree we call a `StructuredPrompt`. It lets you:
 
-Render to a plain string (like an f-string), and
+- Render to a plain string (like an f-string), and
+- Retain the full origin of each interpolated value (original expression text, optional conversion flag, and format spec), so you can inspect and address parts of a composed prompt after the fact.
 
-Retain the full origin of each interpolated value (original expression text, optional conversion flag, and format spec), so you can inspect and address parts of a composed prompt after the fact.
+This is enabled by Python 3.14's template string literals, which produce a `Template` object with:
 
-This is enabled by Python 3.14’s template string literals, which produce a Template object with:
+- the static string segments (`.strings`)
+- a tuple of `Interpolation` objects (`.interpolations`) carrying:
+  - `value` (the evaluated object)
+  - `expression` (the source text inside `{}`),
+  - `conversion` (e.g., `!r`/`!s`/`!a`),
+  - `format_spec` (arbitrary string following `:`)
 
-the static string segments (.strings)
+*Python documentation*
 
-a tuple of Interpolation objects (.interpolations) carrying:
+Unlike f-strings, t-strings return structure rather than a `str`, leaving it to libraries like this one to decide how to use conversions and format specs.
 
-value (the evaluated object)
+*Python documentation*
 
-expression (the source text inside {}),
+### Why this matters for LLM work
 
-conversion (e.g., !r/!s/!a),
+- **Traceability / reproducibility:** Knowing which expression produced a given span is crucial when post-processing, auditing, or debugging prompts.
+- **Structured access:** Address nested pieces (`p2['p']['inst']`) to edit, log, or feed into tools.
+- **Composable:** Interpolations can be strings or other `StructuredPrompt`s, enabling trees of prompt fragments that can still be rendered and inspected as a whole.
 
-format_spec (arbitrary string following :) 
-Python documentation
+## 2) User-facing syntax (examples)
 
-Unlike f-strings, t-strings return structure rather than a str, leaving it to libraries like this one to decide how to use conversions and format specs. 
-Python documentation
-
-Why this matters for LLM work
-
-Traceability / reproducibility: Knowing which expression produced a given span is crucial when post‑processing, auditing, or debugging prompts.
-
-Structured access: Address nested pieces (p2['p']['inst']) to edit, log, or feed into tools.
-
-Composable: Interpolations can be strings or other StructuredPrompts, enabling trees of prompt fragments that can still be rendered and inspected as a whole.
-
-2) User‑facing syntax (examples)
+```python
 from structured_prompts import prompt
 
 instructions = "Always answer politely."
@@ -48,10 +44,11 @@ assert str(p) == "Obey Always answer politely."
 node = p['inst']             # -> StructuredInterpolation
 assert node.expression == "instructions"
 assert node.value == "Always answer politely."
+```
 
+**Nesting (compose prompts):**
 
-Nesting (compose prompts):
-
+```python
 from structured_prompts import prompt
 
 instructions = "Always answer politely."
@@ -65,99 +62,86 @@ assert str(p2) == "bazz bar Obey Always answer politely."
 assert isinstance(p2['p'], structured_prompts.StructuredInterpolation)
 assert isinstance(p2['p'].value, structured_prompts.StructuredPrompt)
 assert p2['p']['inst'].value == "Always answer politely."
+```
 
+**Keying rule:**
 
-Keying rule:
+- If the interpolation has a format spec (`:{key}`), that key is used in the structured mapping (e.g., `{instructions:inst}` → key `"inst"`).
+- If there is no format spec, the expression text becomes the key (e.g., `{foo}` → key `"foo"`).
 
-If the interpolation has a format spec (:{key}), that key is used in the structured mapping (e.g., {instructions:inst} → key "inst").
+(We intentionally repurpose the format spec as a label; t-strings do not apply format specs automatically, leaving interpretation to the consumer.)
 
-If there is no format spec, the expression text becomes the key (e.g., {foo} → key "foo").
-(We intentionally repurpose the format spec as a label; t-strings do not apply format specs automatically, leaving interpretation to the consumer.) 
-Python documentation
+*Python documentation*
 
-3) Core concepts & data model
-3.1 Types
+## 3) Core concepts & data model
 
-StructuredPrompt
+### 3.1 Types
 
-Wraps a string.templatelib.Template (the original t-string structure). 
-Python documentation
+**StructuredPrompt**
 
-Dict‑like access to StructuredInterpolation nodes.
+- Wraps a `string.templatelib.Template` (the original t-string structure). *Python documentation*
+- Dict-like access to `StructuredInterpolation` nodes.
+- Preserves ordering of interpolations.
+- Can render to `str` (f-string-like), optionally applying conversion semantics.
 
-Preserves ordering of interpolations.
-
-Can render to str (f-string‑like), optionally applying conversion semantics.
-
-StructuredInterpolation
+**StructuredInterpolation**
 
 Immutable record of one interpolation occurrence:
 
-key: str — chosen by rule above
+- `key: str` — chosen by rule above
+- `expression: str` — original expression text (from t-string)
+- `conversion: Literal['a','r','s'] | None`
+- `format_spec: str` — preserved verbatim (used as key if non-empty)
+- `value: str | StructuredPrompt`
+- `parent: StructuredPrompt | None`
+- `index: int` — position among interpolations
 
-expression: str — original expression text (from t-string)
+Dict-like delegation when value is a `StructuredPrompt`:
 
-conversion: Literal['a','r','s'] | None
+- `node['inst']` → look into child prompt and return its interpolation node.
 
-format_spec: str — preserved verbatim (used as key if non-empty)
+**KeyPolicy (internal)**
 
-value: str | StructuredPrompt
+Encodes rules for deriving keys from `Interpolation`s (default: use `format_spec` as key if provided else `expression`).
 
-parent: StructuredPrompt | None
+**Exceptions**
 
-index: int — position among interpolations
+- `UnsupportedValueTypeError` (value is neither `str` nor `StructuredPrompt`)
+- `DuplicateKeyError` (two interpolations derive the same key and duplicates are not allowed)
+- `MissingKeyError` (dict-like access fails)
+- `NotANestedPromptError` (attempt to index into a non-nested interpolation)
 
-Dict‑like delegation when value is a StructuredPrompt:
+### 3.2 Rendering semantics
 
-node['inst'] → look into child prompt and return its interpolation node.
+By default, `StructuredPrompt.render()` (and `__str__`) will:
 
-KeyPolicy (internal)
+1. Walk the original `Template.strings` & `Template.interpolations`.
+2. For each interpolation:
+   - If `value` is `StructuredPrompt`, render that child recursively.
+   - Else treat `value` as `str`.
+   - If a `conversion` exists, apply it via `string.templatelib.convert(value, conversion)` to emulate f-string `!s`/`!r`/`!a`. *Python documentation*
+   - Do **not** apply `format_spec` by default (we use it as a key label).
+   - Optional: `render(apply_format_spec=True)` attempts `format(value, format_spec)` only if the spec looks like a valid Format Specification Mini-Language; otherwise spec is ignored to avoid breaking key semantics.
 
-Encodes rules for deriving keys from Interpolations (default: use format_spec as key if provided else expression).
+**Rationale:** t-strings explicitly defer how conversions & format specs are applied; we prioritize key labeling and predictable rendering for prompts.
 
-Exceptions
+*Python documentation*
 
-UnsupportedValueTypeError (value is neither str nor StructuredPrompt)
+### 3.3 Key uniqueness
 
-DuplicateKeyError (two interpolations derive the same key and duplicates are not allowed)
+- **Default:** keys must be unique in a given `StructuredPrompt`. If not, `DuplicateKeyError` suggests either labeling collisions differently or using `allow_duplicate_keys=True`.
+- If `allow_duplicate_keys=True`, `__getitem__` raises on ambiguity, and `get_all(key)` returns a list of `StructuredInterpolation`.
 
-MissingKeyError (dict-like access fails)
+## 4) Public API (proposed)
 
-NotANestedPromptError (attempt to index into a non-nested interpolation)
-
-3.2 Rendering semantics
-
-By default, StructuredPrompt.render() (and __str__) will:
-
-Walk the original Template.strings & Template.interpolations.
-
-For each interpolation:
-
-If value is StructuredPrompt, render that child recursively.
-
-Else treat value as str.
-
-If a conversion exists, apply it via string.templatelib.convert(value, conversion) to emulate f-string !s/!r/!a. 
-Python documentation
-
-Do not apply format_spec by default (we use it as a key label).
-Optional: render(apply_format_spec=True) attempts format(value, format_spec) only if the spec looks like a valid Format Specification Mini‑Language; otherwise spec is ignored to avoid breaking key semantics.
-
-Rationale: t-strings explicitly defer how conversions & format specs are applied; we prioritize key labeling and predictable rendering for prompts. 
-Python documentation
-
-3.3 Key uniqueness
-
-Default: keys must be unique in a given StructuredPrompt. If not, DuplicateKeyError suggests either labeling collisions differently or using allow_duplicate_keys=True.
-
-If allow_duplicate_keys=True, __getitem__ raises on ambiguity, and get_all(key) returns a list of StructuredInterpolation.
-
-4) Public API (proposed)
+```python
 # structured_prompts/__init__.py
 from .core import StructuredPrompt, StructuredInterpolation, prompt
 
 __all__ = ["StructuredPrompt", "StructuredInterpolation", "prompt"]
+```
 
+```python
 # structured_prompts/core.py (high-level sketch)
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Optional, Union
@@ -230,60 +214,55 @@ def prompt(template: Template, /, **opts) -> StructuredPrompt:
     if not isinstance(template, Template):
         raise TypeError("prompt(...) requires a t-string Template")
     return StructuredPrompt(template, **opts)
+```
 
+**Notes from Python 3.14 t-strings (relevant to the implementation above):**
 
-Notes from Python 3.14 t-strings (relevant to the implementation above):
+- `Template` exposes `.strings`, `.interpolations`, and `.values` (values mirror interpolation values).
+- Each `Interpolation` carries `value`, `expression` (raw text), `conversion`, and `format_spec`.
+- Conversions can be applied using `string.templatelib.convert`.
 
-Template exposes .strings, .interpolations, and .values (values mirror interpolation values).
+These are precisely the hooks we rely on to build provenance and handle rendering.
 
-Each Interpolation carries value, expression (raw text), conversion, and format_spec.
+*Python documentation*
 
-Conversions can be applied using string.templatelib.convert.
-These are precisely the hooks we rely on to build provenance and handle rendering. 
-Python documentation
+## 5) Behavior details & edge cases
 
-5) Behavior details & edge cases
+**Allowed interpolation value types**
 
-Allowed interpolation value types
+- `str` or `StructuredPrompt`.
+- Anything else → `UnsupportedValueTypeError` with a clear message showing the offending `expression` and actual `type(value)`.
 
-str or StructuredPrompt.
+**Key derivation**
 
-Anything else → UnsupportedValueTypeError with a clear message showing the offending expression (expression) and actual type(value).
+- If `format_spec` is non-empty, `key = format_spec`.
+- Else, `key = expression` (preserved verbatim, including whitespace).
+- Empty expression (`{}`) is not allowed; guard with a clear error.
 
-Key derivation
+**Duplicate keys**
 
-If format_spec is non-empty, key = format_spec.
+- Default: raise `DuplicateKeyError`.
+- Optional: `allow_duplicate_keys=True`; then `get_all("key")` → `list[StructuredInterpolation]`.
 
-Else, key = expression (preserved verbatim, including whitespace).
+**Rendering**
 
-Empty expression ({}) is not allowed; guard with a clear error.
+- Conversions are applied; format spec is ignored by default.
+- `apply_format_spec=True`: apply `format(value, format_spec)` iff value is not a `StructuredPrompt` and the spec looks reasonably valid (heuristic: starts with characters from the Format Spec mini-language; otherwise warn/ignore).
 
-Duplicate keys
+**Nesting**
 
-Default: raise DuplicateKeyError.
+- If an interpolation's value is a `StructuredPrompt`, we keep it nested; `__str__` recurses.
+- Index chaining works via `StructuredInterpolation.__getitem__`.
 
-Optional: allow_duplicate_keys=True; then get_all("key") -> list[StructuredInterpolation].
+**Ordering**
 
-Rendering
+- `StructuredPrompt` preserves the original interpolation order for iteration and repr.
 
-Conversions are applied; format spec is ignored by default.
+**Provenance export**
 
-apply_format_spec=True: apply format(value, format_spec) iff value is not a StructuredPrompt and the spec looks reasonably valid (heuristic: starts with characters from the Format Spec mini-language; otherwise warn/ignore).
+`to_provenance()` returns a nested dict like:
 
-Nesting
-
-If an interpolation’s value is a StructuredPrompt, we keep it nested; __str__ recurses.
-
-Index chaining works via StructuredInterpolation.__getitem__.
-
-Ordering
-
-StructuredPrompt preserves the original interpolation order for iteration and repr.
-
-Provenance export
-
-to_provenance() returns a nested dict like:
-
+```json
 {
   "strings": ["prefix ", " ", ""],
   "nodes": [
@@ -291,190 +270,159 @@ to_provenance() returns a nested dict like:
     {"key":"p","expression":"p","conversion":null,"format_spec":""}
   ]
 }
+```
 
+`to_values()` returns only rendered values (strings), resolving child prompts.
 
-to_values() returns only rendered values (strings), resolving child prompts.
-
-6) Example walkthrough
+## 6) Example walkthrough
 
 Given:
 
+```python
 instructions = "Always answer politely."
 foo = "bar"
 p  = prompt(t"Obey {instructions:inst}")
 p2 = prompt(t"bazz {foo} {p}")
+```
 
+**p has:**
 
-p has:
+- `strings = ("Obey ", "")`
+- One interpolation → `StructuredInterpolation`:
+  - `key = "inst"` (from `format_spec`)
+  - `expression = "instructions"`
+  - `value = "Always answer politely."` (type `str`)
 
-strings = ("Obey ", "")
+**p2 has:**
 
-One interpolation → StructuredInterpolation:
+- `strings = ("bazz ", " ", "")`
+- Interpolations:
+  - `key = "foo"` → value `"bar"`
+  - `key = "p"` → value is the `StructuredPrompt` `p`
 
-key = "inst" (from format_spec)
+`p2['p']['inst']` returns the child node for `"inst"` with full provenance (`expression` `"instructions"`, etc.).
 
-expression = "instructions"
+(The shape & fields of `Template` and `Interpolation` used above come from the CPython 3.14 docs.)
 
-value = "Always answer politely." (type str)
+*Python documentation*
 
-p2 has:
+## 7) Implementation plan
 
-strings = ("bazz ", " ", "")
+### Phase 0 — Scaffolding
 
-Interpolations:
+- Package skeleton: `structured_prompts/` (`core.py`, `exceptions.py`, `utils.py`, `__init__.py`)
+- `pyproject.toml` with `requires-python = ">=3.14"`
+- Strict tooling: ruff, mypy, pytest, coverage, pre-commit
+- CI: GitHub Actions on 3.14 (and 3.15-dev later)
 
-key = "foo" → value "bar"
+### Phase 1 — Data model
 
-key = "p" → value is the StructuredPrompt p
+- Implement `StructuredInterpolation` (immutable dataclass, `slots=True`)
+- Implement `StructuredPrompt` with `Mapping` interface; store `Template` and derived nodes
+- Implement `prompt()` thin wrapper
 
-p2['p']['inst'] returns the child node for "inst" with full provenance (expression "instructions", etc.).
+### Phase 2 — Key policy & parsing
 
-(The shape & fields of Template and Interpolation used above come from the CPython 3.14 docs.) 
-Python documentation
+- Convert `Template.interpolations` to `StructuredInterpolation`s
+- Enforce key uniqueness (configurable)
+- Validate interpolation values (must be `str` or `StructuredPrompt`)
 
-7) Implementation plan
-Phase 0 — Scaffolding
+### Phase 3 — Rendering
 
-Package skeleton: structured_prompts/ (core.py, exceptions.py, utils.py, __init__.py)
+- Implement `render()` and `__str__`
+- Apply conversions using `string.templatelib.convert` (doc-backed) *Python documentation*
+- Optional format-spec application flag & heuristic validator
 
-pyproject.toml with requires-python = ">=3.14"
+### Phase 4 — Navigation & utilities
 
-Strict tooling: ruff, mypy, pytest, coverage, pre-commit
+- `__getitem__`, `get_all`, iteration order
+- `to_values()` and `to_provenance()` (JSON-safe)
+- Friendly `__repr__` for debugging
 
-CI: GitHub Actions on 3.14 (and 3.15-dev later)
+### Phase 5 — Errors & docs
 
-Phase 1 — Data model
+- Implement custom exceptions with helpful context (include `expression` and `key`)
+- API docs / README with examples & rationale
 
-Implement StructuredInterpolation (immutable dataclass, slots=True)
+### Phase 6 — Tests (heavy emphasis; no mocks)
 
-Implement StructuredPrompt with Mapping interface; store Template and derived nodes
+**Philosophy:** This library wraps pure data (3.14 `Template` & `Interpolation`). There's no I/O; use real objects, not mocks.
 
-Implement prompt() thin wrapper
+**Coverage goals:** ≥95% statements/branches.
 
-Phase 2 — Key policy & parsing
+**Test matrix:**
 
-Convert Template.interpolations to StructuredInterpolations
+#### Happy paths
 
-Enforce key uniqueness (configurable)
+- Single interpolation with key: `{instructions:inst}`
+- No format spec (key from expression): `{foo}`
+- Conversions `!s`/`!r`/`!a` applied via `convert`
+- Nesting depth 2–3; rendering and navigation
 
-Validate interpolation values (must be str or StructuredPrompt)
+#### Edge cases
 
-Phase 3 — Rendering
+- Duplicate keys → error / `allow_duplicate_keys`
+- Expression with whitespace → key equality & retrieval
+- Empty strings among `Template.strings` (doc shows they can occur) *Python documentation*
+- Interpolation adjacent to another (tests alignment of strings vs nodes) *Python documentation*
+- Format spec used as key that looks like a mini-language → ensure default `render()` does not treat it as formatting
 
-Implement render() and __str__
+#### Unsupported values
 
-Apply conversions using string.templatelib.convert (doc-backed) 
-Python documentation
+- `{42}` → `UnsupportedValueTypeError`
 
-Optional format-spec application flag & heuristic validator
+#### Round-trips
 
-Phase 4 — Navigation & utilities
+`str(prompt(t"..."))` equals expected f-string rendering when:
 
-__getitem__, get_all, iteration order
+- no format spec is provided, and/or
+- provided spec is ignored by default
+- With `apply_format_spec=True`, specs that are valid are applied
 
-to_values() and to_provenance() (JSON-safe)
+#### Provenance
 
-Friendly __repr__ for debugging
+- `to_provenance()` includes `expression`, `conversion`, `format_spec`, positions, and matches the source
+- `to_values()` produces nested dict of plain strings
 
-Phase 5 — Errors & docs
+#### Property tests (optional stretch)
 
-Implement custom exceptions with helpful context (include expression and key)
+Generate random strings and simple interpolations to ensure strings and interpolations alignment is preserved.
 
-API docs / README with examples & rationale
+We rely on real `Template`/`Interpolation` structures produced by t-strings. The CPython docs specify the exact attributes we introspect; no mocks are needed to get stable, meaningful tests.
 
-Phase 6 — Tests (heavy emphasis; no mocks)
+*Python documentation*
 
-Philosophy: This library wraps pure data (3.14 Template & Interpolation). There’s no I/O; use real objects, not mocks.
+## 8) Extensibility & future work
 
-Coverage goals: ≥95% statements/branches.
+- **Source locations:** Augment `StructuredInterpolation` with `code_location` (filename, line/col, function) when 3.14+ APIs expose this (or via inspect/tracebacks during construction).
+- **Key policy plug-in:** alternative key extraction strategies (e.g., use `=name` debugging syntax if/when surfaced by t-strings).
+- **Validation modes:** strict identifier keys vs free-form.
+- **Render hooks:** allow user-supplied renderer (`Callable[[StructuredInterpolation], str]`) to support domain-specific formatting.
+- **Stable JSON schema:** define a versioned schema for provenance exchange across services.
 
-Test matrix:
+## 9) Risks & mitigations
 
-Happy paths
+**Spec evolution:** t-strings are new; small behavioral changes may land in 3.14.x.
 
-Single interpolation with key: {instructions:inst}
+**Mitigation:** keep coupling minimal; use only documented attributes (`strings`, `interpolations`, `values`, and `convert`). Track CPython "What's New" notes.
 
-No format spec (key from expression): {foo}
+*Python documentation*
 
-Conversions !s/!r/!a applied via convert
+**Format spec ambiguity:** We intentionally appropriate `format_spec` as a key label.
 
-Nesting depth 2–3; rendering and navigation
+**Mitigation:** default rendering ignores it; opt-in formatting is guarded and best-effort.
 
-Edge cases
+## 10) References
 
-Duplicate keys → error / allow_duplicate_keys
+- `string.templatelib` docs (types, fields, and `convert`) — Python 3.14 stdlib. *Python documentation*
+- What's New in Python 3.14 (overview of template strings / t-strings). *Python documentation*
+- PEP 750 — Template Strings (motivating design, formalization). *Python Enhancement Proposals (PEPs)*
 
-Expression with whitespace → key equality & retrieval
+## 11) Appendix — Minimal internal algorithms
 
-Empty strings among Template.strings (doc shows they can occur) 
-Python documentation
+### Building the tree
 
-Interpolation adjacent to another (tests alignment of strings vs nodes) 
-Python documentation
-
-Format spec used as key that looks like a mini-language → ensure default render() does not treat it as formatting
-
-Unsupported values
-
-{42} → UnsupportedValueTypeError
-
-Round-trips
-
-str(prompt(t"...")) equals expected f-string rendering when:
-
-no format spec is provided, and/or
-
-provided spec is ignored by default
-
-With apply_format_spec=True, specs that are valid are applied
-
-Provenance
-
-to_provenance() includes expression, conversion, format_spec, positions, and matches the source
-
-to_values() produces nested dict of plain strings
-
-Property tests (optional stretch): generate random strings and simple interpolations to ensure strings and interpolations alignment is preserved.
-
-We rely on real Template/Interpolation structures produced by t-strings. The CPython docs specify the exact attributes we introspect; no mocks are needed to get stable, meaningful tests. 
-Python documentation
-
-8) Extensibility & future work
-
-Source locations: Augment StructuredInterpolation with code_location (filename, line/col, function) when 3.14+ APIs expose this (or via inspect/tracebacks during construction).
-
-Key policy plug‑in: alternative key extraction strategies (e.g., use =name debugging syntax if/when surfaced by t-strings).
-
-Validation modes: strict identifier keys vs free‑form.
-
-Render hooks: allow user‑supplied renderer (Callable[[StructuredInterpolation], str]) to support domain‑specific formatting.
-
-Stable JSON schema: define a versioned schema for provenance exchange across services.
-
-9) Risks & mitigations
-
-Spec evolution: t-strings are new; small behavioral changes may land in 3.14.x.
-Mitigation: keep coupling minimal; use only documented attributes (strings, interpolations, values, and convert). Track CPython “What’s New” notes. 
-Python documentation
-
-Format spec ambiguity: We intentionally appropriate format_spec as a key label.
-Mitigation: default rendering ignores it; opt-in formatting is guarded and best-effort.
-
-10) References
-
-string.templatelib docs (types, fields, and convert) — Python 3.14 stdlib. 
-Python documentation
-
-What’s New in Python 3.14 (overview of template strings / t-strings). 
-Python documentation
-
-PEP 750 — Template Strings (motivating design, formalization). 
-Python Enhancement Proposals (PEPs)
-
-11) Appendix — Minimal internal algorithms
-
-Building the tree
-
+```python
 def _build_nodes(self, template: Template, allow_dupes: bool) -> None:
     for idx, itp in enumerate(template.interpolations):
         key = itp.format_spec if itp.format_spec else itp.expression
@@ -498,10 +446,11 @@ def _build_nodes(self, template: Template, allow_dupes: bool) -> None:
             if key in self._index:
                 raise DuplicateKeyError(key)
             self._index[key] = idx
+```
 
+### Rendering
 
-Rendering
-
+```python
 def render(self, *, apply_format_spec: bool = False) -> str:
     out = []
     strings = list(self._template.strings)
@@ -520,9 +469,10 @@ def render(self, *, apply_format_spec: bool = False) -> str:
         out.append(v)
         out.append(s)
     return "".join(out)
+```
 
+## Summary
 
-Summary:
-This library leverages Python 3.14’s t-strings to give you string rendering + structured provenance for LLM prompts. It stays close to the standard library’s Template/Interpolation model (no monkey‑patching), keeps the API small, and emphasizes strong, no‑mock tests that exercise real runtime behavior. 
-Python documentation
-+1
+This library leverages Python 3.14's t-strings to give you string rendering + structured provenance for LLM prompts. It stays close to the standard library's `Template`/`Interpolation` model (no monkey-patching), keeps the API small, and emphasizes strong, no-mock tests that exercise real runtime behavior.
+
+*Python documentation*

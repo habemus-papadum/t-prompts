@@ -9,6 +9,8 @@ theme:
 
 nav:
   - Home: index.md
+  - Demo: demos/demo.ipynb
+  - Architecture: architecture.md
   - API: reference.md
 
 # If you'd like to specify a separate docs directory, you can do so here
@@ -17,6 +19,7 @@ docs_dir: docs
 # Plugins to enable
 plugins:
   - search
+  - mkdocs-jupyter
   - mkdocstrings:
       default_handler: python
       handlers:
