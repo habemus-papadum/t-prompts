@@ -29,6 +29,9 @@ nav:
     - Dedenting: demos/topics/dedenting.ipynb
     - Advanced Composition: demos/topics/advanced-composition.ipynb
   - Architecture: Architecture.md
+  - Developer:
+    - Setup: developer/setup.md
+    - toJSON Format: developer/to-json-format.md
   - API Reference: reference.md
 
 

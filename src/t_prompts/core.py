@@ -720,6 +720,71 @@ class ImageInterpolation(Element):
         )
 
 
+def _serialize_source_location(source_location: Optional[SourceLocation]) -> Optional[dict[str, Any]]:
+    """
+    Serialize a SourceLocation to a JSON-compatible dict.
+
+    Parameters
+    ----------
+    source_location : SourceLocation | None
+        The source location to serialize.
+
+    Returns
+    -------
+    dict[str, Any] | None
+        Dictionary with filename, filepath, line if available, None otherwise.
+    """
+    if source_location is None or not source_location.is_available:
+        return None
+    return {
+        "filename": source_location.filename,
+        "filepath": source_location.filepath,
+        "line": source_location.line,
+    }
+
+
+def _serialize_image(image: Any) -> dict[str, Any]:
+    """
+    Serialize a PIL Image to a JSON-compatible dict with base64 data and metadata.
+
+    Parameters
+    ----------
+    image : PIL.Image.Image
+        The PIL Image object to serialize.
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary with base64_data, format, size (width, height), mode, and other metadata.
+    """
+    import base64
+    import io
+
+    if not HAS_PIL or PILImage is None:
+        return {"error": "PIL not available"}
+
+    try:
+        # Get image metadata
+        width, height = image.size
+        mode = image.mode
+        img_format = image.format or "PNG"  # Default to PNG if format not set
+
+        # Encode image to base64
+        buffer = io.BytesIO()
+        image.save(buffer, format=img_format)
+        base64_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        return {
+            "base64_data": base64_data,
+            "format": img_format,
+            "width": width,
+            "height": height,
+            "mode": mode,
+        }
+    except Exception as e:
+        return {"error": f"Failed to serialize image: {e}"}
+
+
 class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpolation, ImageInterpolation]]):
     """
     A provenance-preserving, navigable tree representation of a t-string.
@@ -1300,6 +1365,125 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
             nodes_data.append(node_dict)
 
         return {"strings": list(self._template.strings), "nodes": nodes_data}
+
+    def toJSON(self) -> dict[str, Any]:
+        """
+        Export complete structured prompt as JSON with flat tree and ID-to-path mapping.
+
+        This method provides a comprehensive JSON representation optimized for analysis,
+        avoiding circular references by using a flat tree structure with ID-based references.
+
+        The output has two main components:
+        1. **tree**: Flat list of all elements (statics, interpolations, nested prompts, lists)
+        2. **id_to_path**: Mapping from element IDs to their paths (list of integer indices)
+
+        Images are serialized as base64-encoded data with metadata (format, size, mode).
+
+        Returns
+        -------
+        dict[str, Any]
+            JSON-serializable dictionary with 'tree' and 'id_to_path' keys.
+
+        Examples
+        --------
+        >>> x = "value"
+        >>> p = prompt(t"{x:x}")
+        >>> data = p.toJSON()
+        >>> data.keys()
+        dict_keys(['tree', 'id_to_path'])
+        """
+        tree: list[dict[str, Any]] = []
+        id_to_path: dict[str, list[int]] = {}
+
+        def _add_prompt_elements(
+            prompt: "StructuredPrompt", path: list[int]
+        ) -> None:
+            """Recursively add all elements from a prompt to the tree."""
+            for element in prompt.elements:
+                element_path = path + [len(tree)]
+                id_to_path[element.id] = element_path
+
+                if isinstance(element, Static):
+                    tree.append({
+                        "type": "static",
+                        "id": element.id,
+                        "key": element.key,
+                        "value": element.value,
+                        "index": element.index,
+                        "source_location": _serialize_source_location(element.source_location),
+                    })
+
+                elif isinstance(element, StructuredInterpolation):
+                    if isinstance(element.value, StructuredPrompt):
+                        # Nested prompt - store reference and recurse
+                        tree.append({
+                            "type": "nested_prompt",
+                            "id": element.id,
+                            "key": element.key,
+                            "expression": element.expression,
+                            "conversion": element.conversion,
+                            "format_spec": element.format_spec,
+                            "render_hints": element.render_hints,
+                            "index": element.index,
+                            "prompt_id": element.value.id,
+                            "source_location": _serialize_source_location(element.source_location),
+                        })
+                        # Recursively add nested prompt's elements
+                        _add_prompt_elements(element.value, element_path)
+                    else:
+                        # String interpolation
+                        tree.append({
+                            "type": "interpolation",
+                            "id": element.id,
+                            "key": element.key,
+                            "expression": element.expression,
+                            "conversion": element.conversion,
+                            "format_spec": element.format_spec,
+                            "render_hints": element.render_hints,
+                            "value": element.value,
+                            "index": element.index,
+                            "source_location": _serialize_source_location(element.source_location),
+                        })
+
+                elif isinstance(element, ListInterpolation):
+                    # List interpolation - store item IDs and recurse into each
+                    item_ids = [item.id for item in element.items]
+                    tree.append({
+                        "type": "list",
+                        "id": element.id,
+                        "key": element.key,
+                        "expression": element.expression,
+                        "conversion": element.conversion,
+                        "format_spec": element.format_spec,
+                        "render_hints": element.render_hints,
+                        "separator": element.separator,
+                        "item_ids": item_ids,
+                        "index": element.index,
+                        "source_location": _serialize_source_location(element.source_location),
+                    })
+                    # Recursively add each item's elements
+                    for item in element.items:
+                        _add_prompt_elements(item, element_path)
+
+                elif isinstance(element, ImageInterpolation):
+                    # Image interpolation - serialize with base64
+                    tree.append({
+                        "type": "image",
+                        "id": element.id,
+                        "key": element.key,
+                        "expression": element.expression,
+                        "conversion": element.conversion,
+                        "format_spec": element.format_spec,
+                        "render_hints": element.render_hints,
+                        "image_data": _serialize_image(element.value),
+                        "index": element.index,
+                        "source_location": _serialize_source_location(element.source_location),
+                    })
+
+        # Start recursion from root
+        _add_prompt_elements(self, [])
+
+        return {"tree": tree, "id_to_path": id_to_path}
 
     def __repr__(self) -> str:
         """Return a helpful debug representation."""
