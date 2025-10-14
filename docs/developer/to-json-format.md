@@ -1,28 +1,44 @@
 # toJSON Format Reference
 
-The `toJSON()` method exports a complete structured prompt as a flat tree with ID-based references, optimized for analysis and external processing.
+The `toJSON()` method exports a complete structured prompt as a hierarchical tree with explicit children arrays and parent references, optimized for analysis and external processing.
 
 ## Top-Level Structure
 
 ```python
 {
-  "tree": [<element>, <element>, ...],    # Flat list of all elements
-  "id_to_path": {                          # Map from element ID to tree path
-    "uuid-1": [0],                         # Root element at index 0
-    "uuid-2": [3, 5],                      # Nested element
+  "prompt_id": "root-uuid",         # UUID of the root StructuredPrompt
+  "children": [                     # Array of child elements
+    {
+      "type": "static",
+      "id": "uuid-1",
+      "parent_id": "root-uuid",
+      "key": 0,
+      "value": "...",
+      ...
+    },
+    {
+      "type": "nested_prompt",
+      "id": "uuid-2",
+      "parent_id": "root-uuid",
+      "prompt_id": "nested-uuid",
+      "children": [                  # Nested children
+        ...
+      ],
+      ...
+    },
     ...
-  }
+  ]
 }
 ```
 
 ### Fields
 
-- **`tree`**: A flat array containing all elements (statics, interpolations, nested prompts, lists, images) in depth-first traversal order
-- **`id_to_path`**: A mapping from element UUID strings to their paths in the tree (represented as arrays of integers)
+- **`prompt_id`**: UUID of the root StructuredPrompt
+- **`children`**: Array of child elements, each with their own `children` if nested
 
 ## Element Types
 
-Each element in the `tree` array is a dictionary with a `type` field indicating its kind.
+Each element in the `children` array is a dictionary with a `type` field indicating its kind. All elements include a `parent_id` field referencing their parent element by UUID.
 
 ### 1. Static Element
 
@@ -32,6 +48,7 @@ Represents literal text between interpolations.
 {
   "type": "static",
   "id": "uuid-string",
+  "parent_id": "parent-uuid",  # UUID of parent element
   "key": 0,                    # Integer index in strings tuple
   "value": "literal text",
   "index": 0,                  # Position in parent's element sequence
@@ -51,6 +68,7 @@ Represents a simple string interpolation (not a nested prompt).
 {
   "type": "interpolation",
   "id": "uuid-string",
+  "parent_id": "parent-uuid",        # UUID of parent element
   "key": "variable_name",            # String key from format spec
   "expression": "variable_name",     # Original expression in {}
   "conversion": "r",                 # "r", "s", "a", or null
@@ -70,6 +88,7 @@ Represents an interpolation containing another StructuredPrompt.
 {
   "type": "nested_prompt",
   "id": "uuid-string",
+  "parent_id": "parent-uuid",            # UUID of parent element
   "key": "prompt_key",
   "expression": "prompt_variable",
   "conversion": null,
@@ -77,11 +96,20 @@ Represents an interpolation containing another StructuredPrompt.
   "render_hints": "",
   "index": 3,
   "prompt_id": "uuid-of-nested-prompt",  # References the nested prompt's ID
+  "children": [                          # Nested prompt's elements
+    {
+      "type": "static",
+      "id": "...",
+      "parent_id": "uuid-string",        # References this nested_prompt element
+      ...
+    },
+    ...
+  ],
   "source_location": { ... }
 }
 ```
 
-**Important**: The nested prompt's elements follow immediately after this element in the tree.
+**Important**: The nested prompt's elements are contained in the `children` array.
 
 ### 4. List Interpolation
 
@@ -91,22 +119,33 @@ Represents a list of StructuredPrompts.
 {
   "type": "list",
   "id": "uuid-string",
+  "parent_id": "parent-uuid",           # UUID of parent element
   "key": "items",
   "expression": "items_variable",
   "conversion": null,
   "format_spec": "items:sep=, ",
   "render_hints": "sep=, ",
   "separator": ", ",                    # Parsed separator (default: "\n")
-  "item_ids": [                         # UUIDs of each item prompt
-    "item-uuid-1",
-    "item-uuid-2"
+  "children": [                         # Array of child prompt structures
+    {
+      "prompt_id": "item-uuid-1",       # UUID of first item prompt
+      "children": [                     # First item's elements
+        ...
+      ]
+    },
+    {
+      "prompt_id": "item-uuid-2",       # UUID of second item prompt
+      "children": [                     # Second item's elements
+        ...
+      ]
+    }
   ],
   "index": 5,
   "source_location": { ... }
 }
 ```
 
-**Important**: Each item's elements follow this element in the tree.
+**Important**: Each item is represented as `{"prompt_id": "...", "children": [...]}` in the `children` array.
 
 ### 5. Image Interpolation
 
@@ -116,6 +155,7 @@ Represents a PIL Image object (requires PIL/Pillow).
 {
   "type": "image",
   "id": "uuid-string",
+  "parent_id": "parent-uuid",           # UUID of parent element
   "key": "image_key",
   "expression": "img",
   "conversion": null,
@@ -135,85 +175,118 @@ Represents a PIL Image object (requires PIL/Pillow).
 
 ## Traversing the Tree
 
-### Finding Elements by ID
+The hierarchical structure with explicit `children` arrays makes traversal natural and intuitive.
 
-The `id_to_path` mapping provides the path to any element:
+### Walking the Tree Recursively
 
-```python
-# Python example
-def get_element_by_id(data, element_id):
-    """Get element by its ID using the id_to_path mapping."""
-    path = data["id_to_path"][element_id]
-    # Path is a list of indices, but tree is flat
-    # Just use the last index to get the element from tree
-    tree_index = path[-1] if path else None
-    return data["tree"][tree_index] if tree_index is not None else None
-```
-
-```javascript
-// JavaScript example
-function getElementById(data, elementId) {
-  const path = data.id_to_path[elementId];
-  if (!path || path.length === 0) return null;
-
-  // Last index in path is the element's position in flat tree
-  const treeIndex = path[path.length - 1];
-  return data.tree[treeIndex];
-}
-```
-
-### Finding Child Elements
-
-Elements are stored in depth-first order. To find children of a nested prompt or list:
+Process all elements in depth-first order:
 
 ```python
-def get_children(data, parent_element):
-    """Get all child elements of a nested prompt or list."""
-    parent_id = parent_element["id"]
-    parent_path = data["id_to_path"][parent_id]
+def walk_tree(children, callback, depth=0):
+    """Visit each element recursively."""
+    for element in children:
+        callback(element, depth)
 
-    children = []
-    for elem in data["tree"]:
-        elem_path = data["id_to_path"][elem["id"]]
-        # Check if this element's path starts with parent's path
-        # and is one level deeper
-        if (len(elem_path) == len(parent_path) + 1 and
-            elem_path[:len(parent_path)] == parent_path):
-            children.append(elem)
+        # Recurse into nested children
+        if "children" in element:
+            if isinstance(element["children"], list):
+                # Could be regular children or list items
+                if element["children"] and "prompt_id" in element["children"][0]:
+                    # List items - recurse into each
+                    for item in element["children"]:
+                        walk_tree(item["children"], callback, depth + 1)
+                else:
+                    # Regular element children
+                    walk_tree(element["children"], callback, depth + 1)
 
+# Example: Print all elements with indentation
+def print_structure(data):
+    def visitor(elem, depth):
+        indent = "  " * depth
+        if elem["type"] == "interpolation":
+            print(f"{indent}{elem['key']}: {elem['value']}")
+        elif elem["type"] == "nested_prompt":
+            print(f"{indent}[nested: {elem['key']}]")
+        elif elem["type"] == "list":
+            print(f"{indent}[list: {elem['key']}]")
+        elif elem["type"] == "static":
+            print(f"{indent}(static: {repr(elem['value'][:20])}...)")
+
+    walk_tree(data["children"], visitor)
+```
+
+### Finding Elements by Parent ID
+
+Find all direct children of an element:
+
+```python
+def get_children(element):
+    """Get direct children of an element."""
+    if "children" not in element:
+        return []
+
+    children = element["children"]
+
+    # Handle list items (which have prompt_id and children)
+    if children and isinstance(children[0], dict) and "prompt_id" in children[0]:
+        # This is a list - return the list item structures
+        return children
+
+    # Regular element children
     return children
 ```
 
-### Walking the Tree
+### Finding Parent Element
 
-Process all elements in order:
+Navigate upward using `parent_id`:
 
 ```python
-def walk_tree(data, callback):
-    """Visit each element in the tree."""
-    for element in data["tree"]:
-        callback(element)
+def find_element_by_id(children, target_id):
+    """Recursively find an element by its ID."""
+    for elem in children:
+        if elem["id"] == target_id:
+            return elem
 
-# Example: Print all interpolation values
-def print_interpolations(data):
-    def visitor(elem):
-        if elem["type"] == "interpolation":
-            print(f"{elem['key']}: {elem['value']}")
+        if "children" in elem:
+            if elem["children"] and isinstance(elem["children"][0], dict):
+                if "prompt_id" in elem["children"][0]:
+                    # List items
+                    for item in elem["children"]:
+                        result = find_element_by_id(item["children"], target_id)
+                        if result:
+                            return result
+                else:
+                    # Regular children
+                    result = find_element_by_id(elem["children"], target_id)
+                    if result:
+                        return result
+    return None
 
-    walk_tree(data, visitor)
+def get_parent(data, element):
+    """Get the parent element using parent_id."""
+    parent_id = element["parent_id"]
+
+    # Check if parent is root
+    if parent_id == data["prompt_id"]:
+        return None  # Root has no parent element
+
+    # Find parent element in tree
+    return find_element_by_id(data["children"], parent_id)
 ```
 
-### Finding Root Elements
-
-Root-level elements have single-element paths:
+### Collecting All Interpolations
 
 ```python
-def get_root_elements(data):
-    """Get all elements at the root level."""
-    return [
-        elem for elem in data["tree"]
-        if len(data["id_to_path"][elem["id"]]) == 1
-    ]
+def collect_interpolations(data):
+    """Collect all interpolation values."""
+    values = {}
+
+    def visitor(elem, depth):
+        if elem["type"] == "interpolation":
+            values[elem["key"]] = elem["value"]
+
+    walk_tree(data["children"], visitor)
+    return values
 ```
 
 ## Example: Complete Traversal
@@ -235,39 +308,102 @@ data = p.toJSON()
 
 # Analyze the structure
 def analyze_prompt(data):
-    print(f"Total elements: {len(data['tree'])}")
+    # Count elements recursively
+    def count_elements(children):
+        count = 0
+        for elem in children:
+            count += 1
+            if "children" in elem:
+                if elem["children"] and isinstance(elem["children"][0], dict):
+                    if "prompt_id" in elem["children"][0]:
+                        # List items
+                        for item in elem["children"]:
+                            count += count_elements(item["children"])
+                    else:
+                        # Regular children
+                        count += count_elements(elem["children"])
+        return count
+
+    total = count_elements(data["children"])
+    print(f"Total elements: {total}")
 
     # Count element types
     type_counts = {}
-    for elem in data["tree"]:
-        t = elem["type"]
-        type_counts[t] = type_counts.get(t, 0) + 1
+
+    def count_types(children):
+        for elem in children:
+            t = elem["type"]
+            type_counts[t] = type_counts.get(t, 0) + 1
+
+            if "children" in elem:
+                if elem["children"] and isinstance(elem["children"][0], dict):
+                    if "prompt_id" in elem["children"][0]:
+                        for item in elem["children"]:
+                            count_types(item["children"])
+                    else:
+                        count_types(elem["children"])
+
+    count_types(data["children"])
 
     print("\nElement types:")
     for elem_type, count in sorted(type_counts.items()):
         print(f"  {elem_type}: {count}")
 
-    # Find all interpolations
+    # Find all interpolations with depth
     print("\nInterpolations:")
-    for elem in data["tree"]:
-        if elem["type"] == "interpolation":
-            path = data["id_to_path"][elem["id"]]
-            depth = len(path) - 1
-            indent = "  " * depth
-            print(f"{indent}{elem['key']}: {elem['value']}")
+
+    def print_interps(children, depth=0):
+        for elem in children:
+            if elem["type"] == "interpolation":
+                indent = "  " * depth
+                print(f"{indent}{elem['key']}: {elem['value']}")
+
+            if "children" in elem:
+                if elem["children"] and isinstance(elem["children"][0], dict):
+                    if "prompt_id" in elem["children"][0]:
+                        for item in elem["children"]:
+                            print_interps(item["children"], depth + 1)
+                    else:
+                        print_interps(elem["children"], depth + 1)
+
+    print_interps(data["children"])
 
     # Find nested prompts
     print("\nNested prompts:")
-    for elem in data["tree"]:
-        if elem["type"] == "nested_prompt":
-            print(f"  {elem['key']} (prompt_id: {elem['prompt_id']})")
+
+    def find_nested(children):
+        for elem in children:
+            if elem["type"] == "nested_prompt":
+                print(f"  {elem['key']} (prompt_id: {elem['prompt_id']})")
+
+            if "children" in elem:
+                if elem["children"] and isinstance(elem["children"][0], dict):
+                    if "prompt_id" in elem["children"][0]:
+                        for item in elem["children"]:
+                            find_nested(item["children"])
+                    else:
+                        find_nested(elem["children"])
+
+    find_nested(data["children"])
 
     # Find lists
     print("\nLists:")
-    for elem in data["tree"]:
-        if elem["type"] == "list":
-            print(f"  {elem['key']}: {len(elem['item_ids'])} items")
-            print(f"    separator: {repr(elem['separator'])}")
+
+    def find_lists(children):
+        for elem in children:
+            if elem["type"] == "list":
+                print(f"  {elem['key']}: {len(elem['children'])} items")
+                print(f"    separator: {repr(elem['separator'])}")
+
+            if "children" in elem:
+                if elem["children"] and isinstance(elem["children"][0], dict):
+                    if "prompt_id" in elem["children"][0]:
+                        for item in elem["children"]:
+                            find_lists(item["children"])
+                    else:
+                        find_lists(elem["children"])
+
+    find_lists(data["children"])
 
 analyze_prompt(data)
 ```
@@ -284,7 +420,6 @@ Element types:
 
 Interpolations:
   i: inner_value
-    Item 1: (from static in tree)
 
 Nested prompts:
   nested (prompt_id: abc-123-def)
@@ -294,54 +429,70 @@ Lists:
     separator: '\n'
 ```
 
-## Path Format
-
-The `id_to_path` values are arrays of integers representing the element's location:
-
-- `[0]` - First element at root level (tree index 0)
-- `[3]` - Fourth element at root level (tree index 3)
-- `[3, 5]` - Element at tree index 5, which is a child of element at index 3
-- `[3, 5, 8]` - Element at tree index 8, grandchild of element 3 via element 5
-
-The last integer in the path is always the element's index in the flat `tree` array.
-
 ## Language-Agnostic Pseudocode
 
-Here's pseudocode for common operations:
+Here's pseudocode for common operations with the hierarchical structure:
 
 ```
-// Get element by ID
-function get_element(data, element_id):
-    path = data.id_to_path[element_id]
-    tree_index = path[length(path) - 1]
-    return data.tree[tree_index]
+// Walk tree recursively
+function walk_tree(children, callback, depth=0):
+    for element in children:
+        callback(element, depth)
 
-// Check if element is a child of another
-function is_child_of(data, child_id, parent_id):
-    child_path = data.id_to_path[child_id]
-    parent_path = data.id_to_path[parent_id]
+        if "children" in element:
+            if element.children is list and length(element.children) > 0:
+                if "prompt_id" in element.children[0]:
+                    // List items
+                    for item in element.children:
+                        walk_tree(item.children, callback, depth + 1)
+                else:
+                    // Regular children
+                    walk_tree(element.children, callback, depth + 1)
 
-    if length(child_path) != length(parent_path) + 1:
-        return false
+// Find element by ID recursively
+function find_by_id(children, target_id):
+    for element in children:
+        if element.id == target_id:
+            return element
 
-    for i from 0 to length(parent_path) - 1:
-        if child_path[i] != parent_path[i]:
-            return false
+        if "children" in element:
+            if element.children is list and length(element.children) > 0:
+                if "prompt_id" in element.children[0]:
+                    for item in element.children:
+                        result = find_by_id(item.children, target_id)
+                        if result != null:
+                            return result
+                else:
+                    result = find_by_id(element.children, target_id)
+                    if result != null:
+                        return result
+    return null
 
-    return true
-
-// Get nesting depth of element
-function get_depth(data, element_id):
-    path = data.id_to_path[element_id]
-    return length(path) - 1
-
-// Collect all values from interpolations
-function collect_values(data):
+// Collect all interpolation values
+function collect_values(children):
     values = {}
-    for element in data.tree:
-        if element.type == "interpolation":
-            values[element.key] = element.value
+
+    function visit(elem, depth):
+        if elem.type == "interpolation":
+            values[elem.key] = elem.value
+
+    walk_tree(children, visit)
     return values
+
+// Get nesting depth
+function get_depth(data, element):
+    // Count parent_id chain back to root
+    depth = 0
+    current_id = element.parent_id
+
+    while current_id != data.prompt_id:
+        parent = find_by_id(data.children, current_id)
+        if parent == null:
+            break
+        current_id = parent.parent_id
+        depth += 1
+
+    return depth
 ```
 
 ## Use Cases
