@@ -1,8 +1,9 @@
 """Core implementation of structured prompts."""
 
 import inspect
+import uuid
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from string.templatelib import Template, convert
 from typing import Any, Literal, Optional, Union
@@ -575,12 +576,15 @@ class Element:
         The position of this element in the overall element sequence.
     source_location : SourceLocation | None
         Source code location information for this element (if available).
+    id : str
+        Unique identifier for this element (UUID4 string).
     """
 
     key: Union[str, int]
     parent: Optional["StructuredPrompt"]
     index: int
     source_location: Optional[SourceLocation] = None
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
 @dataclass(frozen=True, slots=True)
@@ -848,6 +852,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         self._template = template
         self._processed_strings = _processed_strings  # Dedented/trimmed strings if provided
         self._source_location = _source_location  # Source location for all elements in this prompt
+        self._id = str(uuid.uuid4())  # Unique identifier for this StructuredPrompt
         # All elements (Static, StructuredInterpolation, ListInterpolation, ImageInterpolation)
         self._elements: list[Element] = []
         # Only interpolations
@@ -1034,6 +1039,11 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
             return [self._interps[idx]]
 
     # Properties for provenance
+
+    @property
+    def id(self) -> str:
+        """Return the unique identifier for this StructuredPrompt."""
+        return self._id
 
     @property
     def template(self) -> Template:
