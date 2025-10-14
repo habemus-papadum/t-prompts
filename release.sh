@@ -7,12 +7,14 @@ This script automates the release process:
 3. Calculates release version (strips -alpha)
 4. Runs all validation (tests, notebooks in read-only mode, linting, docs build)
 5. Updates version files to release version
-6. Creates release commit and tag
-7. Pushes tag to origin
-8. Publishes to PyPI
-9. Creates GitHub release (triggers docs deployment)
-10. Bumps to next development version with -alpha
-11. Commits and pushes development version
+6. Updates uv.lock with new version
+7. Creates release commit and tag
+8. Pushes tag to origin
+9. Publishes to PyPI
+10. Creates GitHub release (triggers docs deployment)
+11. Bumps to next development version with -alpha
+12. Updates uv.lock with new dev version
+13. Commits and pushes development version
 """
 
 import argparse
@@ -249,6 +251,15 @@ def update_version_files(version: str) -> None:
     print(f"✓ Updated version to {version} in both files")
 
 
+def update_lockfile() -> None:
+    """Update uv.lock to reflect version changes in pyproject.toml."""
+    print_step("Updating Lockfile")
+    run_command(
+        ["uv", "lock"],
+        "Updating uv.lock with new version"
+    )
+
+
 def run_tests() -> None:
     """Run unit tests."""
     print_step("Running Unit Tests")
@@ -301,8 +312,8 @@ def create_release_commit(version: str) -> None:
     print_step(f"Creating Release Commit: {version}")
 
     run_command(
-        ["git", "add", str(PYPROJECT_TOML), str(INIT_PY)],
-        "Staging version files"
+        ["git", "add", str(PYPROJECT_TOML), str(INIT_PY), "uv.lock"],
+        "Staging version files and lockfile"
     )
 
     run_command(
@@ -372,8 +383,8 @@ def create_dev_commit(version: str) -> None:
     print_step(f"Creating Development Version Commit: {version}")
 
     run_command(
-        ["git", "add", str(PYPROJECT_TOML), str(INIT_PY)],
-        "Staging version files"
+        ["git", "add", str(PYPROJECT_TOML), str(INIT_PY), "uv.lock"],
+        "Staging version files and lockfile"
     )
 
     run_command(
@@ -461,35 +472,41 @@ def main() -> None:
     # Step 9: Update version files for release
     update_version_files(release_version)
 
-    # Step 10: Create release commit
+    # Step 10: Update lockfile with new version
+    update_lockfile()
+
+    # Step 11: Create release commit
     create_release_commit(release_version)
 
-    # Step 11: Create release tag
+    # Step 12: Create release tag
     create_release_tag(release_version)
 
-    # Step 12: Push tag to origin
+    # Step 13: Push tag to origin
     push_tag(release_version)
 
-    # Step 13: Publish to PyPI
+    # Step 14: Publish to PyPI
     publish_to_pypi()
 
-    # Step 14: Create GitHub release
+    # Step 15: Create GitHub release
     create_github_release(release_version)
 
-    # Step 15: Calculate next development version
+    # Step 16: Calculate next development version
     next_version = bump_version(release_version, args.bump_level)
     next_dev_version = f"{next_version}-alpha"
 
     print_step(f"Preparing Next Development Version: {next_dev_version}")
     print(f"  Next development version: {next_dev_version}")
 
-    # Step 16: Update to next development version
+    # Step 17: Update to next development version
     update_version_files(next_dev_version)
 
-    # Step 17: Create development commit
+    # Step 18: Update lockfile with new dev version
+    update_lockfile()
+
+    # Step 19: Create development commit
     create_dev_commit(next_dev_version)
 
-    # Step 18: Push development commit
+    # Step 20: Push development commit
     push_dev_commit()
 
     # Success!
