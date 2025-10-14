@@ -15,26 +15,30 @@ def test_to_json_simple():
     data = p.toJSON()
 
     # Check structure
-    assert "tree" in data
-    assert "id_to_path" in data
-    assert isinstance(data["tree"], list)
-    assert isinstance(data["id_to_path"], dict)
+    assert "prompt_id" in data
+    assert "children" in data
+    assert isinstance(data["prompt_id"], str)
+    assert isinstance(data["children"], list)
 
-    # Should have 5 elements: static "", interp x, static " ", interp y, static ""
-    assert len(data["tree"]) == 5
+    # Should have 5 children: static "", interp x, static " ", interp y, static ""
+    assert len(data["children"]) == 5
 
     # Check element types
-    assert data["tree"][0]["type"] == "static"
-    assert data["tree"][1]["type"] == "interpolation"
-    assert data["tree"][2]["type"] == "static"
-    assert data["tree"][3]["type"] == "interpolation"
-    assert data["tree"][4]["type"] == "static"
+    assert data["children"][0]["type"] == "static"
+    assert data["children"][1]["type"] == "interpolation"
+    assert data["children"][2]["type"] == "static"
+    assert data["children"][3]["type"] == "interpolation"
+    assert data["children"][4]["type"] == "static"
+
+    # Check parent_id references
+    for child in data["children"]:
+        assert child["parent_id"] == data["prompt_id"]
 
     # Check interpolation values
-    assert data["tree"][1]["key"] == "x"
-    assert data["tree"][1]["value"] == "X"
-    assert data["tree"][3]["key"] == "y"
-    assert data["tree"][3]["value"] == "Y"
+    assert data["children"][1]["key"] == "x"
+    assert data["children"][1]["value"] == "X"
+    assert data["children"][3]["key"] == "y"
+    assert data["children"][3]["value"] == "Y"
 
 
 def test_to_json_with_conversion():
@@ -46,7 +50,7 @@ def test_to_json_with_conversion():
     data = p.toJSON()
 
     # Find the interpolation element
-    interp = [e for e in data["tree"] if e["type"] == "interpolation"][0]
+    interp = [e for e in data["children"] if e["type"] == "interpolation"][0]
 
     assert interp["conversion"] == "r"
     assert interp["expression"] == "text"
@@ -64,24 +68,30 @@ def test_to_json_nested():
 
     data = p_outer.toJSON()
 
-    # Should have elements from both prompts
-    # Outer: static "", interp o, static " ", nested_prompt, static ""
-    # Inner (nested under nested_prompt): static "", interp i, static ""
-    assert len(data["tree"]) > 5
+    # Outer should have 5 children: static "", interp o, static " ", nested_prompt, static ""
+    assert len(data["children"]) == 5
 
     # Find the nested prompt element
-    nested_elem = [e for e in data["tree"] if e["type"] == "nested_prompt"][0]
+    nested_elem = [e for e in data["children"] if e["type"] == "nested_prompt"][0]
     assert nested_elem["key"] == "nested"
     assert "prompt_id" in nested_elem
+    assert nested_elem["prompt_id"] == p_inner.id
 
-    # Check that nested elements have correct paths
-    nested_elem_path = data["id_to_path"][nested_elem["id"]]
-    # Elements after the nested prompt should have paths starting with nested_elem_path
-    nested_children = [e for e in data["tree"]
-                      if e["id"] in data["id_to_path"]
-                      and data["id_to_path"][e["id"]][:len(nested_elem_path)] == nested_elem_path
-                      and e["id"] != nested_elem["id"]]
-    assert len(nested_children) > 0
+    # Nested prompt should have children array
+    assert "children" in nested_elem
+    assert isinstance(nested_elem["children"], list)
+
+    # Inner prompt has 3 children: static "", interp i, static ""
+    assert len(nested_elem["children"]) == 3
+
+    # Find the interpolation in nested children
+    nested_interp = [e for e in nested_elem["children"] if e["type"] == "interpolation"][0]
+    assert nested_interp["key"] == "i"
+    assert nested_interp["value"] == "inner_value"
+
+    # Check parent_id references - nested children should reference nested_elem
+    for child in nested_elem["children"]:
+        assert child["parent_id"] == nested_elem["id"]
 
 
 def test_to_json_deeply_nested():
@@ -93,18 +103,32 @@ def test_to_json_deeply_nested():
 
     data = p3.toJSON()
 
-    # Should have nested_prompt elements
-    nested_prompts = [e for e in data["tree"] if e["type"] == "nested_prompt"]
-    assert len(nested_prompts) == 2  # p2 and p1
+    # p3 should have 3 children: static "", nested_prompt (p2), static ""
+    assert len(data["children"]) == 3
 
-    # Find the innermost interpolation
-    innermost = [e for e in data["tree"]
-                if e["type"] == "interpolation" and e["key"] == "a"][0]
+    # Find p2 nested prompt
+    p2_elem = [e for e in data["children"] if e["type"] == "nested_prompt"][0]
+    assert p2_elem["key"] == "p2"
+    assert p2_elem["prompt_id"] == p2.id
+    assert "children" in p2_elem
+
+    # p2 should have 3 children: static "", nested_prompt (p1), static ""
+    assert len(p2_elem["children"]) == 3
+    p1_elem = [e for e in p2_elem["children"] if e["type"] == "nested_prompt"][0]
+    assert p1_elem["key"] == "p1"
+    assert p1_elem["prompt_id"] == p1.id
+    assert "children" in p1_elem
+
+    # p1 should have 3 children: static "", interpolation (a), static ""
+    assert len(p1_elem["children"]) == 3
+    innermost = [e for e in p1_elem["children"] if e["type"] == "interpolation"][0]
+    assert innermost["key"] == "a"
     assert innermost["value"] == "A"
 
-    # Check path depth - innermost element should have longer path
-    innermost_path = data["id_to_path"][innermost["id"]]
-    assert len(innermost_path) > 2  # Should be nested at least 2 levels deep
+    # Verify parent_id chain
+    assert p2_elem["parent_id"] == data["prompt_id"]
+    assert p1_elem["parent_id"] == p2_elem["id"]
+    assert innermost["parent_id"] == p1_elem["id"]
 
 
 def test_to_json_with_list():
@@ -117,14 +141,16 @@ def test_to_json_with_list():
     data = p.toJSON()
 
     # Find the list element
-    list_elem = [e for e in data["tree"] if e["type"] == "list"][0]
+    list_elem = [e for e in data["children"] if e["type"] == "list"][0]
     assert list_elem["key"] == "items"
-    assert "item_ids" in list_elem
-    assert len(list_elem["item_ids"]) == 2
+    assert "children" in list_elem
+    assert len(list_elem["children"]) == 2
 
-    # Check that item IDs match actual prompts
-    assert list_elem["item_ids"][0] == item1.id
-    assert list_elem["item_ids"][1] == item2.id
+    # Check that each child has prompt_id and children
+    assert list_elem["children"][0]["prompt_id"] == item1.id
+    assert "children" in list_elem["children"][0]
+    assert list_elem["children"][1]["prompt_id"] == item2.id
+    assert "children" in list_elem["children"][1]
 
 
 def test_to_json_list_with_nested_prompts():
@@ -139,15 +165,20 @@ def test_to_json_list_with_nested_prompts():
     data = p.toJSON()
 
     # Find list element
-    list_elem = [e for e in data["tree"] if e["type"] == "list"][0]
-    assert len(list_elem["item_ids"]) == 2
+    list_elem = [e for e in data["children"] if e["type"] == "list"][0]
+    assert len(list_elem["children"]) == 2
 
-    # Find interpolations from nested items
-    interpolations = [e for e in data["tree"]
-                     if e["type"] == "interpolation" and e["key"] == "v"]
-    assert len(interpolations) == 2
-    assert interpolations[0]["value"] == "first"
-    assert interpolations[1]["value"] == "second"
+    # Navigate into first item's children
+    item1_children = list_elem["children"][0]["children"]
+    interp1 = [e for e in item1_children if e["type"] == "interpolation"][0]
+    assert interp1["key"] == "v"
+    assert interp1["value"] == "first"
+
+    # Navigate into second item's children
+    item2_children = list_elem["children"][1]["children"]
+    interp2 = [e for e in item2_children if e["type"] == "interpolation"][0]
+    assert interp2["key"] == "v"
+    assert interp2["value"] == "second"
 
 
 def test_to_json_with_separator():
@@ -157,7 +188,7 @@ def test_to_json_with_separator():
 
     data = p.toJSON()
 
-    list_elem = [e for e in data["tree"] if e["type"] == "list"][0]
+    list_elem = [e for e in data["children"] if e["type"] == "list"][0]
     assert list_elem["separator"] == " | "
 
 
@@ -168,45 +199,8 @@ def test_to_json_with_render_hints():
 
     data = p.toJSON()
 
-    interp = [e for e in data["tree"] if e["type"] == "interpolation"][0]
+    interp = [e for e in data["children"] if e["type"] == "interpolation"][0]
     assert interp["render_hints"] == "xml=data:header=Section"
-
-
-def test_to_json_id_to_path_correctness():
-    """Test that id_to_path mapping is correct."""
-    x = "X"
-    y = "Y"
-    p = t_prompts.prompt(t"{x:x} {y:y}")
-
-    data = p.toJSON()
-
-    # Each element ID should map to its index in the tree
-    for idx, element in enumerate(data["tree"]):
-        path = data["id_to_path"][element["id"]]
-        assert path == [idx]
-
-
-def test_to_json_nested_id_to_path():
-    """Test id_to_path for nested prompts."""
-    inner = "inner"
-    p_inner = t_prompts.prompt(t"{inner:i}")
-    p_outer = t_prompts.prompt(t"{p_inner:p}")
-
-    data = p_outer.toJSON()
-
-    # Find the nested prompt element
-    nested_elem = [e for e in data["tree"] if e["type"] == "nested_prompt"][0]
-    nested_path = data["id_to_path"][nested_elem["id"]]
-
-    # Find elements that are children of the nested prompt
-    # They should have paths that start with nested_path
-    for element in data["tree"]:
-        elem_path = data["id_to_path"][element["id"]]
-        if element["id"] != nested_elem["id"] and len(elem_path) > len(nested_path):
-            # Check if this element is under the nested prompt
-            if elem_path[:len(nested_path)] == nested_path:
-                # This is a child - verify it comes after the nested prompt in tree
-                assert data["tree"].index(element) > data["tree"].index(nested_elem)
 
 
 def test_to_json_source_location():
@@ -216,7 +210,7 @@ def test_to_json_source_location():
 
     data = p.toJSON()
 
-    interp = [e for e in data["tree"] if e["type"] == "interpolation"][0]
+    interp = [e for e in data["children"] if e["type"] == "interpolation"][0]
 
     # Source location might be None or a dict depending on capture_source_location
     if interp["source_location"] is not None:
@@ -232,7 +226,7 @@ def test_to_json_no_source_location():
 
     data = p.toJSON()
 
-    interp = [e for e in data["tree"] if e["type"] == "interpolation"][0]
+    interp = [e for e in data["children"] if e["type"] == "interpolation"][0]
     assert interp["source_location"] is None
 
 
@@ -259,9 +253,9 @@ def test_to_json_empty_prompt():
     data = p.toJSON()
 
     # Should have 1 static element
-    assert len(data["tree"]) == 1
-    assert data["tree"][0]["type"] == "static"
-    assert data["tree"][0]["value"] == "Just static text"
+    assert len(data["children"]) == 1
+    assert data["children"][0]["type"] == "static"
+    assert data["children"][0]["value"] == "Just static text"
 
 
 def test_to_json_empty_list():
@@ -271,8 +265,8 @@ def test_to_json_empty_list():
 
     data = p.toJSON()
 
-    list_elem = [e for e in data["tree"] if e["type"] == "list"][0]
-    assert list_elem["item_ids"] == []
+    list_elem = [e for e in data["children"] if e["type"] == "list"][0]
+    assert list_elem["children"] == []
 
 
 def test_to_json_with_image():
@@ -290,7 +284,7 @@ def test_to_json_with_image():
     data = p.toJSON()
 
     # Find the image element
-    image_elem = [e for e in data["tree"] if e["type"] == "image"][0]
+    image_elem = [e for e in data["children"] if e["type"] == "image"][0]
     assert image_elem["key"] == "img"
     assert "image_data" in image_elem
 
@@ -318,9 +312,9 @@ def test_to_json_element_indices():
 
     # Element indices should match original positions
     # Element sequence: "" (0), a (1), " " (2), b (3), " " (4), c (5), "" (6)
-    a_elem = [e for e in data["tree"] if e.get("key") == "a"][0]
-    b_elem = [e for e in data["tree"] if e.get("key") == "b"][0]
-    c_elem = [e for e in data["tree"] if e.get("key") == "c"][0]
+    a_elem = [e for e in data["children"] if e.get("key") == "a"][0]
+    b_elem = [e for e in data["children"] if e.get("key") == "b"][0]
+    c_elem = [e for e in data["children"] if e.get("key") == "c"][0]
 
     assert a_elem["index"] == 1
     assert b_elem["index"] == 3
@@ -347,8 +341,25 @@ def test_to_json_all_element_types():
 
     data = p.toJSON()
 
+    # Helper function to collect types recursively
+    def collect_types(children):
+        types = set()
+        for elem in children:
+            types.add(elem["type"])
+            if "children" in elem:
+                if isinstance(elem["children"], list):
+                    # Could be element children or list item children
+                    if elem["children"] and "prompt_id" in elem["children"][0]:
+                        # List items - recurse into their children
+                        for item in elem["children"]:
+                            types.update(collect_types(item["children"]))
+                    else:
+                        # Regular element children
+                        types.update(collect_types(elem["children"]))
+        return types
+
     # Check all types are present
-    types = {e["type"] for e in data["tree"]}
+    types = collect_types(data["children"])
     assert "static" in types
     assert "interpolation" in types
     assert "nested_prompt" in types
@@ -364,7 +375,7 @@ def test_to_json_format_spec_preservation():
 
     data = p.toJSON()
 
-    interp = [e for e in data["tree"] if e["type"] == "interpolation"][0]
+    interp = [e for e in data["children"] if e["type"] == "interpolation"][0]
     assert interp["format_spec"] == "custom_key:hint1:hint2"
     assert interp["key"] == "custom_key"
     assert interp["render_hints"] == "hint1:hint2"

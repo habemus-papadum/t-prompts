@@ -1368,21 +1368,26 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
 
     def toJSON(self) -> dict[str, Any]:
         """
-        Export complete structured prompt as JSON with flat tree and ID-to-path mapping.
+        Export complete structured prompt as hierarchical JSON tree.
 
-        This method provides a comprehensive JSON representation optimized for analysis,
-        avoiding circular references by using a flat tree structure with ID-based references.
+        This method provides a comprehensive JSON representation optimized for analysis
+        and traversal, using a natural tree structure with explicit children arrays and
+        parent references.
 
-        The output has two main components:
-        1. **tree**: Flat list of all elements (statics, interpolations, nested prompts, lists)
-        2. **id_to_path**: Mapping from element IDs to their paths (list of integer indices)
+        The output has a root structure with:
+        1. **prompt_id**: UUID of the root StructuredPrompt
+        2. **children**: Array of child elements, each with their own children if nested
+
+        Each element includes:
+        - **parent_id**: UUID of the parent element (enables upward traversal)
+        - **children**: Array of nested elements (for nested_prompt and list types)
 
         Images are serialized as base64-encoded data with metadata (format, size, mode).
 
         Returns
         -------
         dict[str, Any]
-            JSON-serializable dictionary with 'tree' and 'id_to_path' keys.
+            JSON-serializable dictionary with 'prompt_id' and 'children' keys.
 
         Examples
         --------
@@ -1390,100 +1395,76 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         >>> p = prompt(t"{x:x}")
         >>> data = p.toJSON()
         >>> data.keys()
-        dict_keys(['tree', 'id_to_path'])
+        dict_keys(['prompt_id', 'children'])
+        >>> len(data['children'])  # Static "", interpolation, static ""
+        3
         """
-        tree: list[dict[str, Any]] = []
-        id_to_path: dict[str, list[int]] = {}
 
-        def _add_prompt_elements(
-            prompt: "StructuredPrompt", path: list[int]
-        ) -> None:
-            """Recursively add all elements from a prompt to the tree."""
-            for element in prompt.elements:
-                element_path = path + [len(tree)]
-                id_to_path[element.id] = element_path
+        def _build_element_tree(element: Element, parent_id: str) -> dict[str, Any]:
+            """Build JSON representation of a single element with its children."""
+            base = {
+                "type": "",  # Will be set below
+                "id": element.id,
+                "parent_id": parent_id,
+                "key": element.key,
+                "index": element.index,
+                "source_location": _serialize_source_location(element.source_location),
+            }
 
-                if isinstance(element, Static):
-                    tree.append({
-                        "type": "static",
-                        "id": element.id,
-                        "key": element.key,
-                        "value": element.value,
-                        "index": element.index,
-                        "source_location": _serialize_source_location(element.source_location),
-                    })
+            if isinstance(element, Static):
+                base["type"] = "static"
+                base["value"] = element.value
 
-                elif isinstance(element, StructuredInterpolation):
-                    if isinstance(element.value, StructuredPrompt):
-                        # Nested prompt - store reference and recurse
-                        tree.append({
-                            "type": "nested_prompt",
-                            "id": element.id,
-                            "key": element.key,
-                            "expression": element.expression,
-                            "conversion": element.conversion,
-                            "format_spec": element.format_spec,
-                            "render_hints": element.render_hints,
-                            "index": element.index,
-                            "prompt_id": element.value.id,
-                            "source_location": _serialize_source_location(element.source_location),
-                        })
-                        # Recursively add nested prompt's elements
-                        _add_prompt_elements(element.value, element_path)
-                    else:
-                        # String interpolation
-                        tree.append({
-                            "type": "interpolation",
-                            "id": element.id,
-                            "key": element.key,
-                            "expression": element.expression,
-                            "conversion": element.conversion,
-                            "format_spec": element.format_spec,
-                            "render_hints": element.render_hints,
-                            "value": element.value,
-                            "index": element.index,
-                            "source_location": _serialize_source_location(element.source_location),
-                        })
+            elif isinstance(element, StructuredInterpolation):
+                base.update({
+                    "expression": element.expression,
+                    "conversion": element.conversion,
+                    "format_spec": element.format_spec,
+                    "render_hints": element.render_hints,
+                })
 
-                elif isinstance(element, ListInterpolation):
-                    # List interpolation - store item IDs and recurse into each
-                    item_ids = [item.id for item in element.items]
-                    tree.append({
-                        "type": "list",
-                        "id": element.id,
-                        "key": element.key,
-                        "expression": element.expression,
-                        "conversion": element.conversion,
-                        "format_spec": element.format_spec,
-                        "render_hints": element.render_hints,
-                        "separator": element.separator,
-                        "item_ids": item_ids,
-                        "index": element.index,
-                        "source_location": _serialize_source_location(element.source_location),
-                    })
-                    # Recursively add each item's elements
-                    for item in element.items:
-                        _add_prompt_elements(item, element_path)
+                if isinstance(element.value, StructuredPrompt):
+                    # Nested prompt - recurse
+                    base["type"] = "nested_prompt"
+                    base["prompt_id"] = element.value.id
+                    base["children"] = _build_children_tree(element.value, element.id)
+                else:
+                    # String interpolation
+                    base["type"] = "interpolation"
+                    base["value"] = element.value
 
-                elif isinstance(element, ImageInterpolation):
-                    # Image interpolation - serialize with base64
-                    tree.append({
-                        "type": "image",
-                        "id": element.id,
-                        "key": element.key,
-                        "expression": element.expression,
-                        "conversion": element.conversion,
-                        "format_spec": element.format_spec,
-                        "render_hints": element.render_hints,
-                        "image_data": _serialize_image(element.value),
-                        "index": element.index,
-                        "source_location": _serialize_source_location(element.source_location),
-                    })
+            elif isinstance(element, ListInterpolation):
+                base["type"] = "list"
+                base.update({
+                    "expression": element.expression,
+                    "conversion": element.conversion,
+                    "format_spec": element.format_spec,
+                    "render_hints": element.render_hints,
+                    "separator": element.separator,
+                })
+                # Build array of child prompt structures
+                base["children"] = [
+                    {"prompt_id": item.id, "children": _build_children_tree(item, element.id)}
+                    for item in element.items
+                ]
 
-        # Start recursion from root
-        _add_prompt_elements(self, [])
+            elif isinstance(element, ImageInterpolation):
+                base["type"] = "image"
+                base.update({
+                    "expression": element.expression,
+                    "conversion": element.conversion,
+                    "format_spec": element.format_spec,
+                    "render_hints": element.render_hints,
+                    "image_data": _serialize_image(element.value),
+                })
 
-        return {"tree": tree, "id_to_path": id_to_path}
+            return base
+
+        def _build_children_tree(prompt: "StructuredPrompt", parent_id: str) -> list[dict[str, Any]]:
+            """Build children array for a prompt."""
+            return [_build_element_tree(elem, parent_id) for elem in prompt.elements]
+
+        return {"prompt_id": self._id, "children": _build_children_tree(self, self._id)}
 
     def __repr__(self) -> str:
         """Return a helpful debug representation."""
