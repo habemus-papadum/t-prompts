@@ -2,8 +2,8 @@
 
 import pytest
 
-import structured_prompts
-from structured_prompts.exceptions import DuplicateKeyError
+import t_prompts
+from t_prompts.exceptions import DuplicateKeyError
 
 
 def test_duplicate_keys_raise_error():
@@ -12,7 +12,7 @@ def test_duplicate_keys_raise_error():
     b = "B"
 
     with pytest.raises(DuplicateKeyError) as exc_info:
-        structured_prompts.prompt(t"{a:x} {b:x}")
+        t_prompts.prompt(t"{a:x} {b:x}")
 
     assert "Duplicate key 'x'" in str(exc_info.value)
     assert "allow_duplicate_keys=True" in str(exc_info.value)
@@ -23,7 +23,7 @@ def test_duplicate_keys_allowed():
     a = "A"
     b = "B"
 
-    p = structured_prompts.prompt(t"{a:x} {b:x}", allow_duplicate_keys=True)
+    p = t_prompts.prompt(t"{a:x} {b:x}", allow_duplicate_keys=True)
 
     # Rendering still works
     assert str(p) == "A B"
@@ -46,7 +46,7 @@ def test_expression_with_whitespace():
     value = "test"
     # Note: Python t-strings normalize expression whitespace
     # To preserve whitespace in keys, use format spec
-    p = structured_prompts.prompt(t"{value: value }")
+    p = t_prompts.prompt(t"{value: value }")
 
     # Key comes from format spec which preserves whitespace
     assert " value " in p
@@ -61,7 +61,7 @@ def test_empty_string_segments():
     b = "B"
 
     # First and last can be empty
-    p = structured_prompts.prompt(t"{a:a} {b:b}")
+    p = t_prompts.prompt(t"{a:a} {b:b}")
 
     assert str(p) == "A B"
     # First string segment is empty, second is " ", third is empty
@@ -75,7 +75,7 @@ def test_adjacent_interpolations():
     a = "A"
     b = "B"
 
-    p = structured_prompts.prompt(t"{a:a}{b:b}")
+    p = t_prompts.prompt(t"{a:a}{b:b}")
 
     assert str(p) == "AB"
     # Strings should be: ["", "", ""]
@@ -89,7 +89,7 @@ def test_format_spec_as_key_not_used_for_formatting():
     num = "42"
 
     # Even though "05d" looks like a format spec, it's used as a key label
-    p = structured_prompts.prompt(t"{num:05d}")
+    p = t_prompts.prompt(t"{num:05d}")
 
     # Should render as "42", NOT "00042"
     assert str(p) == "42"
@@ -104,9 +104,9 @@ def test_multiple_whitespace_variations():
     a = "A"
 
     # Python t-strings normalize expression whitespace, so use format specs
-    p1 = structured_prompts.prompt(t"{a:a}")
-    p2 = structured_prompts.prompt(t"{a: a }")
-    p3 = structured_prompts.prompt(t"{a:  a  }")
+    p1 = t_prompts.prompt(t"{a:a}")
+    p2 = t_prompts.prompt(t"{a: a }")
+    p3 = t_prompts.prompt(t"{a:  a  }")
 
     # All render the same
     assert str(p1) == "A"
@@ -123,7 +123,7 @@ def test_single_interpolation_only():
     """Test prompt that is only an interpolation (no surrounding text)."""
     x = "X"
 
-    p = structured_prompts.prompt(t"{x:x}")
+    p = t_prompts.prompt(t"{x:x}")
 
     assert str(p) == "X"
     assert p.strings == ("", "")
@@ -135,7 +135,7 @@ def test_very_long_prompt():
     # For testing purposes, just do a reasonable number manually
     v0, v1, v2, v3, v4 = "A", "B", "C", "D", "E"
 
-    p = structured_prompts.prompt(t"{v0:v0} {v1:v1} {v2:v2} {v3:v3} {v4:v4}")
+    p = t_prompts.prompt(t"{v0:v0} {v1:v1} {v2:v2} {v3:v3} {v4:v4}")
 
     assert str(p) == "A B C D E"
     assert len(p) == 5
@@ -148,9 +148,9 @@ def test_complex_nested_structure():
     inst2 = "Be concise"
     user = "Alice"
 
-    p_inst = structured_prompts.prompt(t"Instructions: {inst1:i1}, {inst2:i2}")
-    p_user = structured_prompts.prompt(t"User: {user}")
-    p_full = structured_prompts.prompt(t"{p_inst:instructions} {p_user:user_info}")
+    p_inst = t_prompts.prompt(t"Instructions: {inst1:i1}, {inst2:i2}")
+    p_user = t_prompts.prompt(t"User: {user}")
+    p_full = t_prompts.prompt(t"{p_inst:instructions} {p_user:user_info}")
 
     expected = "Instructions: Be polite, Be concise User: Alice"
     assert str(p_full) == expected
@@ -165,7 +165,7 @@ def test_conversion_with_format_spec_key():
     """Test that conversion works correctly when format spec is used as key."""
     text = "hello"
 
-    p = structured_prompts.prompt(t"{text!r:greeting}")
+    p = t_prompts.prompt(t"{text!r:greeting}")
 
     # Should apply conversion but not format spec
     assert str(p) == "'hello'"
@@ -177,12 +177,12 @@ def test_conversion_with_format_spec_key():
 
 def test_empty_nested_prompt():
     """Test nesting a prompt that has no interpolations."""
-    p_empty = structured_prompts.prompt(t"just text")
+    p_empty = t_prompts.prompt(t"just text")
     x = "X"
-    p_outer = structured_prompts.prompt(t"{x:x} and {p_empty:empty}")
+    p_outer = t_prompts.prompt(t"{x:x} and {p_empty:empty}")
 
     assert str(p_outer) == "X and just text"
 
     empty_node = p_outer["empty"]
-    assert isinstance(empty_node.value, structured_prompts.StructuredPrompt)
+    assert isinstance(empty_node.value, t_prompts.StructuredPrompt)
     assert len(empty_node.value) == 0

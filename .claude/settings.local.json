@@ -8,7 +8,8 @@
       "Read(//Users/nehal/src/**)",
       "Bash(chmod:*)",
       "Bash(./nb.sh:*)",
-      "Bash(./test_notebooks.sh:*)"
+      "Bash(./test_notebooks.sh:*)",
+      "Bash(git remote set-url:*)"
     ],
     "deny": [],
     "ask": []

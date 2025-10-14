@@ -1,6 +1,6 @@
 [project]
-name = "structured-prompts"
-version = "0.2.0"
+name = "t-prompts"
+version = "0.3.0"
 description = "Structured prompts using template strings"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -23,9 +23,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/habemus-papadum/structured-prompts"
-Repository = "https://github.com/habemus-papadum/structured-prompts"
-Documentation = "https://github.com/habemus-papadum/structured-prompts"
+Homepage = "https://github.com/habemus-papadum/t-prompts"
+Repository = "https://github.com/habemus-papadum/t-prompts"
+Documentation = "https://github.com/habemus-papadum/t-prompts"
 
 
 [build-system]
@@ -62,7 +62,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 [tool.coverage.run]
-source = ["src/structured_prompts"]
+source = ["src/t_prompts"]
 relative_files = true
 omit = [
     "*/tests/*",

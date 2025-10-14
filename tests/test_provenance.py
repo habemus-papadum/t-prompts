@@ -2,7 +2,7 @@
 
 import json
 
-import structured_prompts
+import t_prompts
 
 
 def test_to_values_simple():
@@ -10,7 +10,7 @@ def test_to_values_simple():
     x = "X"
     y = "Y"
 
-    p = structured_prompts.prompt(t"{x:x} {y:y}")
+    p = t_prompts.prompt(t"{x:x} {y:y}")
 
     values = p.to_values()
 
@@ -22,7 +22,7 @@ def test_to_values_with_conversion():
     """Test that to_values() includes conversion results."""
     text = "hello"
 
-    p = structured_prompts.prompt(t"{text!r:t}")
+    p = t_prompts.prompt(t"{text!r:t}")
 
     values = p.to_values()
 
@@ -35,8 +35,8 @@ def test_to_values_nested():
     inner = "inner"
     outer = "outer"
 
-    p_inner = structured_prompts.prompt(t"{inner:i}")
-    p_outer = structured_prompts.prompt(t"{outer:o} {p_inner:nested}")
+    p_inner = t_prompts.prompt(t"{inner:i}")
+    p_outer = t_prompts.prompt(t"{outer:o} {p_inner:nested}")
 
     values = p_outer.to_values()
 
@@ -48,9 +48,9 @@ def test_to_values_nested():
 def test_to_values_deeply_nested():
     """Test to_values() with multiple nesting levels."""
     a = "A"
-    p1 = structured_prompts.prompt(t"{a:a}")
-    p2 = structured_prompts.prompt(t"{p1:p1}")
-    p3 = structured_prompts.prompt(t"{p2:p2}")
+    p1 = t_prompts.prompt(t"{a:a}")
+    p2 = t_prompts.prompt(t"{p1:p1}")
+    p3 = t_prompts.prompt(t"{p2:p2}")
 
     values = p3.to_values()
 
@@ -62,7 +62,7 @@ def test_to_values_json_serializable():
     x = "X"
     y = "Y"
 
-    p = structured_prompts.prompt(t"{x:x} {y:y}")
+    p = t_prompts.prompt(t"{x:x} {y:y}")
 
     values = p.to_values()
 
@@ -77,7 +77,7 @@ def test_to_provenance_structure():
     """Test to_provenance() structure."""
     x = "X"
 
-    p = structured_prompts.prompt(t"before {x:x} after")
+    p = t_prompts.prompt(t"before {x:x} after")
 
     prov = p.to_provenance()
 
@@ -104,7 +104,7 @@ def test_to_provenance_with_conversion():
     """Test that to_provenance() includes conversion metadata."""
     text = "hello"
 
-    p = structured_prompts.prompt(t"{text!r:t}")
+    p = t_prompts.prompt(t"{text!r:t}")
 
     prov = p.to_provenance()
 
@@ -118,8 +118,8 @@ def test_to_provenance_with_nested():
     inner = "inner"
     outer = "outer"
 
-    p_inner = structured_prompts.prompt(t"{inner:i}")
-    p_outer = structured_prompts.prompt(t"{outer:o} {p_inner:nested}")
+    p_inner = t_prompts.prompt(t"{inner:i}")
+    p_outer = t_prompts.prompt(t"{outer:o} {p_inner:nested}")
 
     prov = p_outer.to_provenance()
 
@@ -147,8 +147,8 @@ def test_to_provenance_json_serializable():
     x = "X"
     y = "Y"
 
-    p_inner = structured_prompts.prompt(t"{x:x}")
-    p_outer = structured_prompts.prompt(t"{y:y} {p_inner:nested}")
+    p_inner = t_prompts.prompt(t"{x:x}")
+    p_outer = t_prompts.prompt(t"{y:y} {p_inner:nested}")
 
     prov = p_outer.to_provenance()
 
@@ -164,7 +164,7 @@ def test_provenance_matches_source():
     instructions = "Be polite"
     context = "User is Alice"
 
-    p = structured_prompts.prompt(t"System: {instructions:inst} Context: {context:ctx}")
+    p = t_prompts.prompt(t"System: {instructions:inst} Context: {context:ctx}")
 
     prov = p.to_provenance()
 
@@ -190,8 +190,8 @@ def test_navigation_chain_provenance():
     instructions = "Always answer politely."
     foo = "bar"
 
-    p = structured_prompts.prompt(t"Obey {instructions:inst}")
-    p2 = structured_prompts.prompt(t"bazz {foo} {p}")
+    p = t_prompts.prompt(t"Obey {instructions:inst}")
+    p2 = t_prompts.prompt(t"bazz {foo} {p}")
 
     # Navigate and check provenance
     inst_node = p2["p"]["inst"]
@@ -204,7 +204,7 @@ def test_interpolation_metadata():
     """Test that StructuredInterpolation preserves all metadata."""
     x = "X"
 
-    p = structured_prompts.prompt(t"{x!r:mykey}")
+    p = t_prompts.prompt(t"{x!r:mykey}")
 
     node = p["mykey"]
 
@@ -223,7 +223,7 @@ def test_multiple_interpolation_indices():
     b = "B"
     c = "C"
 
-    p = structured_prompts.prompt(t"{a:a} {b:b} {c:c}")
+    p = t_prompts.prompt(t"{a:a} {b:b} {c:c}")
 
     assert p["a"].index == 0
     assert p["b"].index == 1
@@ -234,7 +234,7 @@ def test_provenance_with_empty_format_spec():
     """Test provenance when format_spec is empty (key comes from expression)."""
     foo = "FOO"
 
-    p = structured_prompts.prompt(t"{foo}")
+    p = t_prompts.prompt(t"{foo}")
 
     prov = p.to_provenance()
 
@@ -249,7 +249,7 @@ def test_provenance_roundtrip():
     text = "hello"
     num = "42"
 
-    p = structured_prompts.prompt(t"Text: {text!r:t}, Num: {num:n}")
+    p = t_prompts.prompt(t"Text: {text!r:t}, Num: {num:n}")
 
     # Export provenance
     prov = p.to_provenance()
@@ -273,7 +273,7 @@ def test_parent_reference():
     """Test that parent references work correctly."""
     x = "X"
 
-    p = structured_prompts.prompt(t"{x:x}")
+    p = t_prompts.prompt(t"{x:x}")
 
     node = p["x"]
     assert node.parent is p
@@ -282,8 +282,8 @@ def test_parent_reference():
 def test_nested_parent_reference():
     """Test parent references in nested prompts."""
     inner = "inner"
-    p_inner = structured_prompts.prompt(t"{inner:i}")
-    p_outer = structured_prompts.prompt(t"{p_inner:nested}")
+    p_inner = t_prompts.prompt(t"{inner:i}")
+    p_outer = t_prompts.prompt(t"{p_inner:nested}")
 
     outer_node = p_outer["nested"]
     assert outer_node.parent is p_outer

@@ -1,11 +1,11 @@
-# structured-prompts — Architecture & Implementation Plan
+# t-prompts — Architecture & Implementation Plan
 
 **Target Python:** 3.14+ (uses new template string literals / t-strings)
 **Status:** Design document (v1)
 
 ## 1) High-level description & motivation
 
-`structured-prompts` is a tiny Python library that turns t-strings (`t"..."`) into a provenance-preserving, navigable tree we call a `StructuredPrompt`. It lets you:
+`t-prompts` is a tiny Python library that turns t-strings (`t"..."`) into a provenance-preserving, navigable tree we call a `StructuredPrompt`. It lets you:
 
 - Render to a plain string (like an f-string), and
 - Retain the full origin of each interpolated value (original expression text, optional conversion flag, and format spec), so you can inspect and address parts of a composed prompt after the fact.
@@ -34,7 +34,7 @@ Unlike f-strings, t-strings return structure rather than a `str`, leaving it to 
 ## 2) User-facing syntax (examples)
 
 ```python
-from structured_prompts import prompt
+from t_prompts import prompt
 
 instructions = "Always answer politely."
 p = prompt(t"Obey {instructions:inst}")
@@ -49,7 +49,7 @@ assert node.value == "Always answer politely."
 **Nesting (compose prompts):**
 
 ```python
-from structured_prompts import prompt
+from t_prompts import prompt
 
 instructions = "Always answer politely."
 foo = "bar"
@@ -59,8 +59,8 @@ p2 = prompt(t"bazz {foo} {p}")
 
 assert str(p2) == "bazz bar Obey Always answer politely."
 # Navigate the tree:
-assert isinstance(p2['p'], structured_prompts.StructuredInterpolation)
-assert isinstance(p2['p'].value, structured_prompts.StructuredPrompt)
+assert isinstance(p2['p'], t_prompts.StructuredInterpolation)
+assert isinstance(p2['p'].value, t_prompts.StructuredPrompt)
 assert p2['p']['inst'].value == "Always answer politely."
 ```
 
@@ -135,14 +135,14 @@ By default, `StructuredPrompt.render()` (and `__str__`) will:
 ## 4) Public API (proposed)
 
 ```python
-# structured_prompts/__init__.py
+# t_prompts/__init__.py
 from .core import StructuredPrompt, StructuredInterpolation, prompt
 
 __all__ = ["StructuredPrompt", "StructuredInterpolation", "prompt"]
 ```
 
 ```python
-# structured_prompts/core.py (high-level sketch)
+# t_prompts/core.py (high-level sketch)
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Optional, Union
 from string.templatelib import Template, Interpolation as TInterpolation, convert  # 3.14+
@@ -310,7 +310,7 @@ p2 = prompt(t"bazz {foo} {p}")
 
 ### Phase 0 — Scaffolding
 
-- Package skeleton: `structured_prompts/` (`core.py`, `exceptions.py`, `utils.py`, `__init__.py`)
+- Package skeleton: `t_prompts/` (`core.py`, `exceptions.py`, `utils.py`, `__init__.py`)
 - `pyproject.toml` with `requires-python = ">=3.14"`
 - Strict tooling: ruff, mypy, pytest, coverage, pre-commit
 - CI: GitHub Actions on 3.14 (and 3.15-dev later)

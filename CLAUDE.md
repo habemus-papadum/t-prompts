@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python library called `structured-prompts` that provides structured prompts using template strings. The project is in early development stage  and uses a modern Python toolchain.
+This is a Python library called `t-prompts` (package name: `t-prompts`, module name: `t_prompts`) that provides structured prompts using template strings. The project is in early development stage and uses a modern Python toolchain.
 
 ## Development Commands
 
@@ -56,7 +56,7 @@ uv run mkdocs build
 ## Architecture
 
 ### Project Structure
-- **src/structured_prompts/**: Main package source code (src-layout)
+- **src/t_prompts/**: Main package source code (src-layout)
   - `core.py`: StructuredPrompt, StructuredInterpolation classes + prompt() factory
   - `exceptions.py`: Custom exception classes
 - **tests/**: Test suite using pytest (no mocks, real t-string Template objects)
@@ -175,4 +175,4 @@ uv run mkdocs build
 - Test classes must start with `Test` prefix
 - Test functions must start with `test_` prefix
 - Tests run with `-s` flag (no capture) by default
-- Coverage reporting: use `--cov=src/structured_prompts --cov-report=xml --cov-report=term`
+- Coverage reporting: use `--cov=src/t_prompts --cov-report=xml --cov-report=term`

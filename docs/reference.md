@@ -1,3 +1,3 @@
 # API Reference
 
-::: structured_prompts
+::: t_prompts

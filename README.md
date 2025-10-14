@@ -1,20 +1,20 @@
-# structured-prompts
+# t-prompts
 
-[![CI](https://github.com/habemus-papadum/structured-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/habemus-papadum/structured-prompts/actions/workflows/ci.yml)
-[![Coverage](https://raw.githubusercontent.com/habemus-papadum/structured-prompts/python-coverage-comment-action-data/badge.svg)](https://htmlpreview.github.io/?https://github.com/habemus-papadum/structured-prompts/blob/python-coverage-comment-action-data/htmlcov/index.html)
-[![Documentation](https://img.shields.io/badge/Documentation-blue.svg)](https://habemus-papadum.github.io/structured-prompts/)
-[![PyPI](https://img.shields.io/pypi/v/structured-prompts.svg)](https://pypi.org/project/structured-prompts/)
+[![CI](https://github.com/habemus-papadum/t-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/habemus-papadum/t-prompts/actions/workflows/ci.yml)
+[![Coverage](https://raw.githubusercontent.com/habemus-papadum/t-prompts/python-coverage-comment-action-data/badge.svg)](https://htmlpreview.github.io/?https://github.com/habemus-papadum/t-prompts/blob/python-coverage-comment-action-data/htmlcov/index.html)
+[![Documentation](https://img.shields.io/badge/Documentation-blue.svg)](https://habemus-papadum.github.io/t-prompts/)
+[![PyPI](https://img.shields.io/pypi/v/t-prompts.svg)](https://pypi.org/project/t-prompts/)
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 **Provenance-preserving prompts for LLMs using Python 3.14's template strings**
 
-`structured-prompts` turns Python 3.14+ t-strings into navigable trees that preserve full provenance (expression text, conversions, format specs) while rendering to plain strings. Perfect for building, composing, and auditing LLM prompts.
+`t-prompts` turns Python 3.14+ t-strings into navigable trees that preserve full provenance (expression text, conversions, format specs) while rendering to plain strings. Perfect for building, composing, and auditing LLM prompts.
 
-## What is structured-prompts?
+## What is t-prompts?
 
-`structured-prompts` is a tiny Python library that leverages Python 3.14's new template string literals (t-strings) to create **structured, inspectable prompts** for LLMs. Unlike f-strings which immediately evaluate to strings, t-strings return a `Template` object that preserves:
+`t-prompts` is a tiny Python library that leverages Python 3.14's new template string literals (t-strings) to create **structured, inspectable prompts** for LLMs. Unlike f-strings which immediately evaluate to strings, t-strings return a `Template` object that preserves:
 
 - The original expression text for each interpolation
 - Conversion flags (`!s`, `!r`, `!a`)
@@ -39,7 +39,7 @@ This library wraps t-strings in a `StructuredPrompt` that acts like both a rende
 ### Basic Usage
 
 ```python
-from structured_prompts import prompt
+from t_prompts import prompt
 
 # Simple prompt with labeled interpolation
 instructions = "Always answer politely."
@@ -128,13 +128,13 @@ assert 'x' in p2
 Install using pip:
 
 ```bash
-pip install structured-prompts
+pip install t-prompts
 ```
 
 Or using uv:
 
 ```bash
-uv pip install structured-prompts
+uv pip install t-prompts
 ```
 
 ## Development

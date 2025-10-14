@@ -1,12 +1,12 @@
 """Happy path tests for core functionality."""
 
-import structured_prompts
+import t_prompts
 
 
 def test_single_interpolation_with_format_spec():
     """Test single interpolation with format spec as key."""
     instructions = "Always answer politely."
-    p = structured_prompts.prompt(t"Obey {instructions:inst}")
+    p = t_prompts.prompt(t"Obey {instructions:inst}")
 
     # Test rendering
     assert str(p) == "Obey Always answer politely."
@@ -24,7 +24,7 @@ def test_single_interpolation_with_format_spec():
 def test_single_interpolation_without_format_spec():
     """Test that expression becomes the key when no format spec is provided."""
     foo = "bar"
-    p = structured_prompts.prompt(t"Value: {foo}")
+    p = t_prompts.prompt(t"Value: {foo}")
 
     assert str(p) == "Value: bar"
 
@@ -40,7 +40,7 @@ def test_conversion_s():
     # Note: t-strings evaluate values first, so we need str values
     # The conversion !s is applied during rendering, not evaluation
     text = "hello"
-    p = structured_prompts.prompt(t"Text: {text!s:data}")
+    p = t_prompts.prompt(t"Text: {text!s:data}")
 
     result = str(p)
     assert result == "Text: hello"
@@ -52,7 +52,7 @@ def test_conversion_s():
 def test_conversion_r():
     """Test !r conversion is applied correctly."""
     text = "hello"
-    p = structured_prompts.prompt(t"Text: {text!r:data}")
+    p = t_prompts.prompt(t"Text: {text!r:data}")
 
     result = str(p)
     assert result == "Text: 'hello'"
@@ -64,7 +64,7 @@ def test_conversion_r():
 def test_conversion_a():
     """Test !a conversion is applied correctly."""
     text = "hello\n"
-    p = structured_prompts.prompt(t"Text: {text!a:data}")
+    p = t_prompts.prompt(t"Text: {text!a:data}")
 
     result = str(p)
     assert result == "Text: 'hello\\n'"
@@ -78,15 +78,15 @@ def test_nested_prompts_depth_2():
     instructions = "Always answer politely."
     foo = "bar"
 
-    p1 = structured_prompts.prompt(t"Obey {instructions:inst}")
-    p2 = structured_prompts.prompt(t"bazz {foo} {p1}")
+    p1 = t_prompts.prompt(t"Obey {instructions:inst}")
+    p2 = t_prompts.prompt(t"bazz {foo} {p1}")
 
     # Test rendering
     assert str(p2) == "bazz bar Obey Always answer politely."
 
     # Test navigation
-    assert isinstance(p2["p1"], structured_prompts.StructuredInterpolation)
-    assert isinstance(p2["p1"].value, structured_prompts.StructuredPrompt)
+    assert isinstance(p2["p1"], t_prompts.StructuredInterpolation)
+    assert isinstance(p2["p1"].value, t_prompts.StructuredPrompt)
 
     # Navigate into nested prompt
     inst_node = p2["p1"]["inst"]
@@ -100,9 +100,9 @@ def test_nested_prompts_depth_3():
     b = "B"
     c = "C"
 
-    p1 = structured_prompts.prompt(t"{a:a}")
-    p2 = structured_prompts.prompt(t"{b:b} {p1:p1}")
-    p3 = structured_prompts.prompt(t"{c:c} {p2:p2}")
+    p1 = t_prompts.prompt(t"{a:a}")
+    p2 = t_prompts.prompt(t"{b:b} {p1:p1}")
+    p3 = t_prompts.prompt(t"{c:c} {p2:p2}")
 
     # Test rendering
     assert str(p3) == "C B A"
@@ -117,7 +117,7 @@ def test_multiple_interpolations():
     y = "Y"
     z = "Z"
 
-    p = structured_prompts.prompt(t"{x:x} and {y:y} and {z:z}")
+    p = t_prompts.prompt(t"{x:x} and {y:y} and {z:z}")
 
     assert str(p) == "X and Y and Z"
     assert p["x"].value == "X"
@@ -131,7 +131,7 @@ def test_iteration_order():
     b = "B"
     c = "C"
 
-    p = structured_prompts.prompt(t"{a:a} {b:b} {c:c}")
+    p = t_prompts.prompt(t"{a:a} {b:b} {c:c}")
 
     keys = list(p)
     assert keys == ["a", "b", "c"]
@@ -142,7 +142,7 @@ def test_len():
     a = "A"
     b = "B"
 
-    p = structured_prompts.prompt(t"{a:a} {b:b}")
+    p = t_prompts.prompt(t"{a:a} {b:b}")
 
     assert len(p) == 2
 
@@ -152,7 +152,7 @@ def test_mapping_protocol():
     x = "X"
     y = "Y"
 
-    p = structured_prompts.prompt(t"{x:x} {y:y}")
+    p = t_prompts.prompt(t"{x:x} {y:y}")
 
     # Test __contains__
     assert "x" in p
@@ -161,8 +161,8 @@ def test_mapping_protocol():
 
     # Test keys(), values(), items()
     assert list(p.keys()) == ["x", "y"]
-    assert all(isinstance(v, structured_prompts.StructuredInterpolation) for v in p.values())
-    assert all(isinstance(k, str) and isinstance(v, structured_prompts.StructuredInterpolation) for k, v in p.items())
+    assert all(isinstance(v, t_prompts.StructuredInterpolation) for v in p.values())
+    assert all(isinstance(k, str) and isinstance(v, t_prompts.StructuredInterpolation) for k, v in p.items())
 
 
 def test_strings_property():
@@ -170,7 +170,7 @@ def test_strings_property():
     x = "X"
     y = "Y"
 
-    p = structured_prompts.prompt(t"before {x:x} middle {y:y} after")
+    p = t_prompts.prompt(t"before {x:x} middle {y:y} after")
 
     assert p.strings == ("before ", " middle ", " after")
 
@@ -180,11 +180,11 @@ def test_interpolations_property():
     x = "X"
     y = "Y"
 
-    p = structured_prompts.prompt(t"{x:x} {y:y}")
+    p = t_prompts.prompt(t"{x:x} {y:y}")
 
     interps = p.interpolations
     assert len(interps) == 2
-    assert all(isinstance(i, structured_prompts.StructuredInterpolation) for i in interps)
+    assert all(isinstance(i, t_prompts.StructuredInterpolation) for i in interps)
     assert interps[0].key == "x"
     assert interps[1].key == "y"
 
@@ -192,7 +192,7 @@ def test_interpolations_property():
 def test_template_property():
     """Test access to original Template object."""
     x = "X"
-    p = structured_prompts.prompt(t"{x:x}")
+    p = t_prompts.prompt(t"{x:x}")
 
     from string.templatelib import Template
 

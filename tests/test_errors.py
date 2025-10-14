@@ -2,8 +2,8 @@
 
 import pytest
 
-import structured_prompts
-from structured_prompts.exceptions import (
+import t_prompts
+from t_prompts.exceptions import (
     MissingKeyError,
     NotANestedPromptError,
     UnsupportedValueTypeError,
@@ -15,7 +15,7 @@ def test_unsupported_value_type_int():
     num = 42
 
     with pytest.raises(UnsupportedValueTypeError) as exc_info:
-        structured_prompts.prompt(t"{num:num}")
+        t_prompts.prompt(t"{num:num}")
 
     err = exc_info.value
     assert err.key == "num"
@@ -30,7 +30,7 @@ def test_unsupported_value_type_list():
     data = [1, 2, 3]
 
     with pytest.raises(UnsupportedValueTypeError) as exc_info:
-        structured_prompts.prompt(t"{data:data}")
+        t_prompts.prompt(t"{data:data}")
 
     err = exc_info.value
     assert err.value_type is list
@@ -42,7 +42,7 @@ def test_unsupported_value_type_dict():
     data = {"key": "value"}
 
     with pytest.raises(UnsupportedValueTypeError) as exc_info:
-        structured_prompts.prompt(t"{data:data}")
+        t_prompts.prompt(t"{data:data}")
 
     err = exc_info.value
     assert err.value_type is dict
@@ -57,7 +57,7 @@ def test_unsupported_value_type_object():
     obj = CustomClass()
 
     with pytest.raises(UnsupportedValueTypeError) as exc_info:
-        structured_prompts.prompt(t"{obj:obj}")
+        t_prompts.prompt(t"{obj:obj}")
 
     err = exc_info.value
     assert err.value_type is CustomClass
@@ -68,7 +68,7 @@ def test_empty_expression_error():
     # Note: Python's t-strings might not allow truly empty expressions
     # This test might need adjustment based on actual Python 3.14 behavior
     # For now, we'll test the exception exists and can be raised
-    from structured_prompts.exceptions import EmptyExpressionError
+    from t_prompts.exceptions import EmptyExpressionError
 
     err = EmptyExpressionError()
     assert "Empty expression" in str(err)
@@ -78,7 +78,7 @@ def test_empty_expression_error():
 def test_missing_key_error():
     """Test that accessing non-existent keys raises MissingKeyError."""
     x = "X"
-    p = structured_prompts.prompt(t"{x:x}")
+    p = t_prompts.prompt(t"{x:x}")
 
     with pytest.raises(MissingKeyError) as exc_info:
         _ = p["nonexistent"]
@@ -93,7 +93,7 @@ def test_missing_key_error():
 def test_missing_key_error_with_get_all():
     """Test that get_all also raises MissingKeyError for non-existent keys."""
     x = "X"
-    p = structured_prompts.prompt(t"{x:x}")
+    p = t_prompts.prompt(t"{x:x}")
 
     with pytest.raises(MissingKeyError) as exc_info:
         _ = p.get_all("nonexistent")
@@ -104,7 +104,7 @@ def test_missing_key_error_with_get_all():
 def test_not_a_nested_prompt_error():
     """Test that indexing into non-nested interpolation raises NotANestedPromptError."""
     x = "X"
-    p = structured_prompts.prompt(t"{x:x}")
+    p = t_prompts.prompt(t"{x:x}")
 
     node = p["x"]
 
@@ -120,8 +120,8 @@ def test_not_a_nested_prompt_error():
 def test_not_a_nested_prompt_error_in_chain():
     """Test NotANestedPromptError in a navigation chain."""
     x = "X"
-    inner = structured_prompts.prompt(t"{x:x}")
-    outer = structured_prompts.prompt(t"{inner:inner}")
+    inner = t_prompts.prompt(t"{x:x}")
+    outer = t_prompts.prompt(t"{inner:inner}")
 
     # outer['inner'] is a StructuredPrompt, so outer['inner']['x'] works
     assert outer["inner"]["x"].value == "X"
@@ -134,7 +134,7 @@ def test_not_a_nested_prompt_error_in_chain():
 def test_prompt_requires_template_type():
     """Test that prompt() raises TypeError if not given a Template."""
     with pytest.raises(TypeError) as exc_info:
-        structured_prompts.prompt("not a template")
+        t_prompts.prompt("not a template")
 
     assert "requires a t-string Template" in str(exc_info.value)
 
@@ -145,7 +145,7 @@ def test_prompt_requires_template_type_with_fstring():
     fstring_result = f"{x}"  # This is just a str
 
     with pytest.raises(TypeError):
-        structured_prompts.prompt(fstring_result)
+        t_prompts.prompt(fstring_result)
 
 
 def test_error_messages_include_context():
@@ -153,7 +153,7 @@ def test_error_messages_include_context():
     num = 42
 
     with pytest.raises(UnsupportedValueTypeError) as exc_info:
-        structured_prompts.prompt(t"{num:my_number}")
+        t_prompts.prompt(t"{num:my_number}")
 
     err_msg = str(exc_info.value)
     assert "my_number" in err_msg  # key
@@ -169,7 +169,7 @@ def test_multiple_errors_stop_at_first():
 
     # The error should be for 'a', not 'b'
     with pytest.raises(UnsupportedValueTypeError) as exc_info:
-        structured_prompts.prompt(t"{a:a} {b:b}")
+        t_prompts.prompt(t"{a:a} {b:b}")
 
     err = exc_info.value
     assert err.key == "a"  # First interpolation
@@ -182,7 +182,7 @@ def test_nested_prompt_with_unsupported_type():
 
     # The prompt with int should fail
     with pytest.raises(UnsupportedValueTypeError):
-        structured_prompts.prompt(t"{num:num}")
+        t_prompts.prompt(t"{num:num}")
 
 
 def test_missing_key_error_lists_available_keys():
@@ -191,7 +191,7 @@ def test_missing_key_error_lists_available_keys():
     b = "B"
     c = "C"
 
-    p = structured_prompts.prompt(t"{a:a} {b:b} {c:c}")
+    p = t_prompts.prompt(t"{a:a} {b:b} {c:c}")
 
     with pytest.raises(MissingKeyError) as exc_info:
         _ = p["d"]

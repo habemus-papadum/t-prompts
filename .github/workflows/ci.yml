@@ -29,7 +29,7 @@ jobs:
         run: uv run ruff check .
 
       - name: Run Unit Tests with Coverage
-        run: uv run pytest --cov=src/structured_prompts --cov-report=xml --cov-report=term
+        run: uv run pytest --cov=src/t_prompts --cov-report=xml --cov-report=term
 
       - name: Coverage Comment
         id: coverage_comment

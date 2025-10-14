@@ -1853,8 +1853,8 @@ wheels = [
 ]
 
 [[package]]
-name = "structured-prompts"
-version = "0.1.0"
+name = "t-prompts"
+version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "pytest-cov" },

@@ -1,8 +1,8 @@
-site_name: structured-prompts
+site_name: t-prompts
 site_description: Structured prompts using template strings
 site_author: Nehal Patel
-repo_url: https://github.com/habemus-papadum/structured-prompts
-repo_name: structured-prompts
+repo_url: https://github.com/habemus-papadum/t-prompts
+repo_name: t-prompts
 
 theme:
   name: "material"
