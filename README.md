@@ -193,18 +193,79 @@ assert rendered.source_prompt is p
 assert str(p) == rendered.text
 ```
 
+### Elements and Static Text
+
+As of version 0.4.0, `t-prompts` provides unified access to **all** parts of your prompt through the `Element` base class:
+
+- **`Static`**: Represents literal text segments between interpolations
+- **`StructuredInterpolation`**: Represents interpolated values (what you're already familiar with)
+
+Both extend the `Element` base class, giving you complete visibility into your prompt's structure:
+
+```python
+from t_prompts import prompt
+
+value = "test"
+p = prompt(t"prefix {value:v} suffix")
+
+# Access all elements (statics and interpolations)
+elements = p.elements
+print(len(elements))  # 3: Static("prefix "), Interpolation(v), Static(" suffix")
+
+# Each element has key, parent, index, and value
+for elem in elements:
+    print(f"{elem.__class__.__name__}: key={elem.key}, index={elem.index}")
+# Static: key=0, index=0
+# StructuredInterpolation: key='v', index=1
+# Static: key=1, index=2
+
+# Static elements use integer keys (position in template strings tuple)
+# Interpolations use string keys (from format spec or expression)
+```
+
+**Source mapping for static text**: The source map now includes spans for static text segments too:
+
+```python
+name = "Alice"
+p = prompt(t"Hello {name:n}!")
+
+rendered = p.render()
+
+# Find static text at position 0
+span = rendered.get_span_at(0)  # Position 0 is in "Hello "
+print(span.element_type)  # "static"
+print(span.key)  # 0 (first static segment)
+print(rendered.text[span.start:span.end])  # "Hello "
+
+# Or use the helper method
+static_span = rendered.get_static_span(0)
+print(rendered.text[static_span.start:static_span.end])  # "Hello "
+
+# Interpolations work the same way
+interp_span = rendered.get_interpolation_span("n")
+print(rendered.text[interp_span.start:interp_span.end])  # "Alice"
+```
+
+**Why this matters**: Complete source mapping enables powerful tooling for:
+
+- Highlighting and navigating entire prompts in UIs
+- Tracking which parts of a prompt came from templates vs. variables
+- Debugging and auditing LLM inputs with full context
+- Building editors that understand prompt structure
+
 ## Features
 
 - **Dict-like access**: `p['key']` returns the interpolation node
 - **Nested composition**: Prompts can contain other prompts
 - **List support**: Interpolate lists of prompts with customizable separators
 - **Format spec mini-language**: `key : render_hints` for extensible metadata
-- **Source mapping**: Bidirectional mapping between rendered text and structure
+- **Complete source mapping**: Bidirectional mapping for ALL text (static and interpolated)
+- **Element hierarchy**: Unified `Element` base class for `Static` and `StructuredInterpolation`
 - **Provenance tracking**: Full metadata (expression, conversion, format spec, render hints)
 - **Conversions**: Supports `!s`, `!r`, `!a` from t-strings
 - **JSON export**: `to_values()` and `to_provenance()` for serialization
 - **Type validation**: Only `str`, `StructuredPrompt`, and `list[StructuredPrompt]` values allowed
-- **Immutable**: `StructuredInterpolation` nodes are frozen dataclasses
+- **Immutable**: All elements are frozen dataclasses
 
 ## Installation
 

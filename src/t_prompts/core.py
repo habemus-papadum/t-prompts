@@ -55,7 +55,7 @@ def _parse_format_spec(format_spec: str, expression: str) -> tuple[str, str]:
 @dataclass(frozen=True, slots=True)
 class SourceSpan:
     """
-    Represents a span in the rendered output that maps back to a source interpolation.
+    Represents a span in the rendered output that maps back to a source element.
 
     Attributes
     ----------
@@ -63,15 +63,18 @@ class SourceSpan:
         Starting position (inclusive) in the rendered string.
     end : int
         Ending position (exclusive) in the rendered string.
-    key : str
-        The key of the interpolation that produced this span.
-    path : tuple[str, ...]
-        Path from root to this interpolation (sequence of keys).
+    key : Union[str, int]
+        The key of the element: string for interpolations, int for static segments.
+    path : tuple[Union[str, int], ...]
+        Path from root to this element (sequence of keys).
+    element_type : Literal["static", "interpolation"]
+        The type of element this span represents.
     """
     start: int
     end: int
-    key: str
-    path: tuple[str, ...]
+    key: Union[str, int]
+    path: tuple[Union[str, int], ...]
+    element_type: Literal["static", "interpolation"]
 
 
 class RenderedPrompt:
@@ -127,16 +130,16 @@ class RenderedPrompt:
                 return span
         return None
 
-    def get_span_for_key(self, key: str, path: tuple[str, ...] = ()) -> Optional[SourceSpan]:
+    def get_span_for_key(self, key: Union[str, int], path: tuple[Union[str, int], ...] = ()) -> Optional[SourceSpan]:
         """
         Get the source span for a specific key and path.
 
         Parameters
         ----------
-        key : str
-            The key to search for.
-        path : tuple[str, ...]
-            The path from root to the interpolation (empty for root level).
+        key : Union[str, int]
+            The key to search for (string for interpolations, int for statics).
+        path : tuple[Union[str, int], ...]
+            The path from root to the element (empty for root level).
 
         Returns
         -------
@@ -145,6 +148,48 @@ class RenderedPrompt:
         """
         for span in self._source_map:
             if span.key == key and span.path == path:
+                return span
+        return None
+
+    def get_static_span(self, static_index: int, path: tuple[Union[str, int], ...] = ()) -> Optional[SourceSpan]:
+        """
+        Get the source span for a static segment by its index.
+
+        Parameters
+        ----------
+        static_index : int
+            The index of the static segment (position in template strings tuple).
+        path : tuple[Union[str, int], ...]
+            The path from root to the static (empty for root level).
+
+        Returns
+        -------
+        SourceSpan | None
+            The span for this static, or None if not found.
+        """
+        for span in self._source_map:
+            if span.element_type == "static" and span.key == static_index and span.path == path:
+                return span
+        return None
+
+    def get_interpolation_span(self, key: str, path: tuple[Union[str, int], ...] = ()) -> Optional[SourceSpan]:
+        """
+        Get the source span for an interpolation by its key.
+
+        Parameters
+        ----------
+        key : str
+            The key of the interpolation.
+        path : tuple[Union[str, int], ...]
+            The path from root to the interpolation (empty for root level).
+
+        Returns
+        -------
+        SourceSpan | None
+            The span for this interpolation, or None if not found.
+        """
+        for span in self._source_map:
+            if span.element_type == "interpolation" and span.key == key and span.path == path:
                 return span
         return None
 
@@ -158,7 +203,55 @@ class RenderedPrompt:
 
 
 @dataclass(frozen=True, slots=True)
-class StructuredInterpolation:
+class Element:
+    """
+    Base class for all elements in a StructuredPrompt.
+
+    An element can be either a Static text segment or a StructuredInterpolation.
+
+    Attributes
+    ----------
+    key : Union[str, int]
+        Identifier for this element. For interpolations: string key from format_spec.
+        For static segments: integer index in the strings tuple.
+    parent : StructuredPrompt | None
+        The parent StructuredPrompt that contains this element.
+    index : int
+        The position of this element in the overall element sequence.
+    """
+
+    key: Union[str, int]
+    parent: Optional["StructuredPrompt"]
+    index: int
+
+
+@dataclass(frozen=True, slots=True)
+class Static(Element):
+    """
+    Represents a static string segment from the t-string.
+
+    Static segments are the literal text between interpolations.
+
+    Attributes
+    ----------
+    key : int
+        The position of this static in the template's strings tuple.
+    value : str
+        The static text content.
+    parent : StructuredPrompt | None
+        The parent StructuredPrompt that contains this static.
+    index : int
+        The position of this element in the overall element sequence.
+    """
+
+    key: int
+    value: str
+    parent: Optional["StructuredPrompt"]
+    index: int
+
+
+@dataclass(frozen=True, slots=True)
+class StructuredInterpolation(Element):
     """
     Immutable record of one interpolation occurrence in a StructuredPrompt.
 
@@ -179,7 +272,7 @@ class StructuredInterpolation:
     parent : StructuredPrompt | None
         The parent StructuredPrompt that contains this interpolation.
     index : int
-        The position of this interpolation among all interpolations in the parent.
+        The position of this element in the overall element sequence.
     """
 
     key: str
@@ -274,61 +367,87 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
     def __init__(self, template: Template, *, allow_duplicate_keys: bool = False):
         self._template = template
-        self._interps: list[StructuredInterpolation] = []
+        self._elements: list[Element] = []  # All elements (Static and StructuredInterpolation)
+        self._interps: list[StructuredInterpolation] = []  # Backward compat: only interpolations
         self._allow_duplicates = allow_duplicate_keys
 
-        # Index maps keys to interpolation indices
+        # Index maps keys to interpolation indices (within _interps list)
         # If allow_duplicates, maps to list of indices; otherwise, maps to single index
         self._index: dict[str, Union[int, list[int]]] = {}
 
         self._build_nodes()
 
     def _build_nodes(self) -> None:
-        """Build StructuredInterpolation nodes from the template's interpolations."""
-        for idx, itp in enumerate(self._template.interpolations):
-            # Parse format spec to extract key and render hints
-            key, render_hints = _parse_format_spec(itp.format_spec, itp.expression)
+        """Build Element nodes (Static and StructuredInterpolation) from the template."""
+        strings = self._template.strings
+        interpolations = self._template.interpolations
 
-            # Guard against empty keys
-            if not key:
-                raise EmptyExpressionError()
+        element_idx = 0  # Overall position in element sequence
+        interp_idx = 0   # Position within interpolations list
 
-            # Validate and extract value
-            val = itp.value
-            if isinstance(val, StructuredPrompt):
-                node_val = val
-            elif isinstance(val, str):
-                node_val = val
-            elif isinstance(val, list):
-                # Check that all items in the list are StructuredPrompts
-                if not all(isinstance(item, StructuredPrompt) for item in val):
-                    raise UnsupportedValueTypeError(key, type(val), itp.expression)
-                node_val = val
-            else:
-                raise UnsupportedValueTypeError(key, type(val), itp.expression)
-
-            # Create the interpolation node
-            node = StructuredInterpolation(
-                key=key,
-                expression=itp.expression,
-                conversion=itp.conversion,
-                format_spec=itp.format_spec,
-                render_hints=render_hints,
-                value=node_val,
+        # Interleave statics and interpolations
+        for static_key, static_text in enumerate(strings):
+            # Add static element
+            static = Static(
+                key=static_key,
+                value=static_text,
                 parent=self,
-                index=idx,
+                index=element_idx,
             )
-            self._interps.append(node)
+            self._elements.append(static)
+            element_idx += 1
 
-            # Update index
-            if self._allow_duplicates:
-                if key not in self._index:
-                    self._index[key] = []
-                self._index[key].append(idx)  # type: ignore
-            else:
-                if key in self._index:
-                    raise DuplicateKeyError(key)
-                self._index[key] = idx
+            # Add interpolation if there's one after this static
+            if static_key < len(interpolations):
+                itp = interpolations[static_key]
+
+                # Parse format spec to extract key and render hints
+                key, render_hints = _parse_format_spec(itp.format_spec, itp.expression)
+
+                # Guard against empty keys
+                if not key:
+                    raise EmptyExpressionError()
+
+                # Validate and extract value
+                val = itp.value
+                if isinstance(val, StructuredPrompt):
+                    node_val = val
+                elif isinstance(val, str):
+                    node_val = val
+                elif isinstance(val, list):
+                    # Check that all items in the list are StructuredPrompts
+                    if not all(isinstance(item, StructuredPrompt) for item in val):
+                        raise UnsupportedValueTypeError(key, type(val), itp.expression)
+                    node_val = val
+                else:
+                    raise UnsupportedValueTypeError(key, type(val), itp.expression)
+
+                # Create the interpolation node
+                node = StructuredInterpolation(
+                    key=key,
+                    expression=itp.expression,
+                    conversion=itp.conversion,
+                    format_spec=itp.format_spec,
+                    render_hints=render_hints,
+                    value=node_val,
+                    parent=self,
+                    index=element_idx,
+                )
+                self._interps.append(node)
+                self._elements.append(node)
+                element_idx += 1
+
+                # Update index (maps string keys to positions in _interps list)
+                if self._allow_duplicates:
+                    if key not in self._index:
+                        self._index[key] = []
+                    self._index[key].append(interp_idx)  # type: ignore
+                else:
+                    if key in self._index:
+                        raise DuplicateKeyError(key)
+                    self._index[key] = interp_idx
+
+                interp_idx += 1
 
     # Mapping protocol implementation
 
@@ -421,18 +540,24 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
         """Return all interpolation nodes in order."""
         return tuple(self._interps)
 
+    @property
+    def elements(self) -> tuple[Element, ...]:
+        """Return all elements (Static and StructuredInterpolation) in order."""
+        return tuple(self._elements)
+
     # Rendering
 
-    def render(self, _path: tuple[str, ...] = ()) -> RenderedPrompt:
+    def render(self, _path: tuple[Union[str, int], ...] = ()) -> RenderedPrompt:
         """
         Render this StructuredPrompt to a RenderedPrompt with source mapping.
 
+        Creates source spans for both static text segments and interpolations.
         Conversions (!s, !r, !a) are always applied.
         Format specs are parsed as "key : render_hints".
 
         Parameters
         ----------
-        _path : tuple[str, ...]
+        _path : tuple[Union[str, int], ...]
             Internal parameter for tracking path during recursive rendering.
 
         Returns
@@ -442,82 +567,94 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
         """
         out_parts: list[str] = []
         source_map: list[SourceSpan] = []
-        strings = list(self._template.strings)
-        itps = iter(self._interps)
+        current_pos = 0
 
-        # Add first string segment
-        out_parts.append(strings[0])
-        current_pos = len(strings[0])
-
-        # Interleave interpolations and remaining string segments
-        for s in strings[1:]:
-            node = next(itps)
-
-            # Track start position for this interpolation
+        # Iterate through all elements (Static and StructuredInterpolation)
+        for element in self._elements:
             span_start = current_pos
 
-            # Get value (render recursively if nested or list)
-            if isinstance(node.value, list):
-                # Handle list of StructuredPrompts
-                # Parse separator from render_hints (default: newline)
-                separator = "\n"
-                if node.render_hints:
-                    # Look for "sep:<value>" in render hints
-                    for hint in node.render_hints.split(":"):
-                        if hint.startswith("sep="):
-                            separator = hint[4:]  # Extract everything after "sep="
-                            break
+            if isinstance(element, Static):
+                # Render static element
+                rendered_text = element.value
+                out_parts.append(rendered_text)
+                current_pos += len(rendered_text)
 
-                # Render each item and join with separator
-                rendered_parts = []
-                for item in node.value:
-                    item_rendered = item.render(_path=_path + (node.key,))
-                    rendered_parts.append(item_rendered.text)
-                    # Add nested source spans with offset
-                    current_offset = span_start + sum(len(p) + len(separator) for p in rendered_parts[:-1])
-                    for nested_span in item_rendered.source_map:
-                        source_map.append(SourceSpan(
-                            start=current_offset + nested_span.start,
-                            end=current_offset + nested_span.end,
-                            key=nested_span.key,
-                            path=nested_span.path
-                        ))
-                rendered_text = separator.join(rendered_parts)
-            elif isinstance(node.value, StructuredPrompt):
-                nested_rendered = node.value.render(_path=_path + (node.key,))
-                rendered_text = nested_rendered.text
-                # Add nested source spans with updated paths
-                for nested_span in nested_rendered.source_map:
+                # Create span for static (only if non-empty)
+                if rendered_text:
                     source_map.append(SourceSpan(
-                        start=span_start + nested_span.start,
-                        end=span_start + nested_span.end,
-                        key=nested_span.key,
-                        path=nested_span.path
+                        start=span_start,
+                        end=current_pos,
+                        key=element.key,
+                        path=_path,
+                        element_type="static"
                     ))
-            else:
-                rendered_text = node.value
-                # Apply conversion if present
-                if node.conversion:
-                    conv: Literal["r", "s", "a"] = node.conversion  # type: ignore
-                    rendered_text = convert(rendered_text, conv)
 
-            # Add span for this interpolation
-            span_end = span_start + len(rendered_text)
-            if not isinstance(node.value, (StructuredPrompt, list)):
-                # Only add direct span if not nested or list (nested spans are already added above)
-                source_map.append(SourceSpan(
-                    start=span_start,
-                    end=span_end,
-                    key=node.key,
-                    path=_path
-                ))
+            elif isinstance(element, StructuredInterpolation):
+                # Render interpolation element
+                node = element
 
-            out_parts.append(rendered_text)
-            current_pos = span_end
+                # Get value (render recursively if nested or list)
+                if isinstance(node.value, list):
+                    # Handle list of StructuredPrompts
+                    # Parse separator from render_hints (default: newline)
+                    separator = "\n"
+                    if node.render_hints:
+                        # Look for "sep=<value>" in render hints
+                        for hint in node.render_hints.split(":"):
+                            if hint.startswith("sep="):
+                                separator = hint[4:]  # Extract everything after "sep="
+                                break
 
-            # Add the next string segment
-            out_parts.append(s)
-            current_pos += len(s)
+                    # Render each item and join with separator
+                    rendered_parts = []
+                    for item in node.value:
+                        item_rendered = item.render(_path=_path + (node.key,))
+                        rendered_parts.append(item_rendered.text)
+                        # Add nested source spans with offset
+                        current_offset = span_start + sum(len(p) + len(separator) for p in rendered_parts[:-1])
+                        for nested_span in item_rendered.source_map:
+                            source_map.append(SourceSpan(
+                                start=current_offset + nested_span.start,
+                                end=current_offset + nested_span.end,
+                                key=nested_span.key,
+                                path=nested_span.path,
+                                element_type=nested_span.element_type
+                            ))
+                    rendered_text = separator.join(rendered_parts)
+
+                elif isinstance(node.value, StructuredPrompt):
+                    nested_rendered = node.value.render(_path=_path + (node.key,))
+                    rendered_text = nested_rendered.text
+                    # Add nested source spans with updated paths
+                    for nested_span in nested_rendered.source_map:
+                        source_map.append(SourceSpan(
+                            start=span_start + nested_span.start,
+                            end=span_start + nested_span.end,
+                            key=nested_span.key,
+                            path=nested_span.path,
+                            element_type=nested_span.element_type
+                        ))
+
+                else:
+                    rendered_text = node.value
+                    # Apply conversion if present
+                    if node.conversion:
+                        conv: Literal["r", "s", "a"] = node.conversion  # type: ignore
+                        rendered_text = convert(rendered_text, conv)
+
+                # Add span for this interpolation
+                current_pos += len(rendered_text)
+                if not isinstance(node.value, (StructuredPrompt, list)):
+                    # Only add direct span if not nested or list (nested spans are already added above)
+                    source_map.append(SourceSpan(
+                        start=span_start,
+                        end=current_pos,
+                        key=node.key,
+                        path=_path,
+                        element_type="interpolation"
+                    ))
+
+                out_parts.append(rendered_text)
 
         text = "".join(out_parts)
         return RenderedPrompt(text, source_map, self)

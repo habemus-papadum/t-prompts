@@ -19,7 +19,7 @@ nav:
     - Advanced Composition: demos/topics/advanced-composition.ipynb
   - Architecture: architecture.md
   - API: reference.md
-  - Legacy Demo: demos/demo.ipynb
+
 
 # If you'd like to specify a separate docs directory, you can do so here
 docs_dir: docs

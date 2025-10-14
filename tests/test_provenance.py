@@ -97,7 +97,8 @@ def test_to_provenance_structure():
     assert node_data["conversion"] is None
     assert node_data["format_spec"] == "x"
     assert node_data["value"] == "X"
-    assert node_data["index"] == 0
+    # Index is now 1 because element 0 is the static "before "
+    assert node_data["index"] == 1
 
 
 def test_to_provenance_with_conversion():
@@ -213,7 +214,8 @@ def test_interpolation_metadata():
     assert node.conversion == "r"
     assert node.format_spec == "mykey"
     assert node.value == "X"
-    assert node.index == 0
+    # Index is now 1 (element 0 is empty static "", element 1 is interpolation)
+    assert node.index == 1
     assert node.parent is p
 
 
@@ -225,9 +227,11 @@ def test_multiple_interpolation_indices():
 
     p = t_prompts.prompt(t"{a:a} {b:b} {c:c}")
 
-    assert p["a"].index == 0
-    assert p["b"].index == 1
-    assert p["c"].index == 2
+    # Indices now track element positions (including statics)
+    # Element sequence: "" (0), a (1), " " (2), b (3), " " (4), c (5), "" (6)
+    assert p["a"].index == 1
+    assert p["b"].index == 3
+    assert p["c"].index == 5
 
 
 def test_provenance_with_empty_format_spec():

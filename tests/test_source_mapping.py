@@ -22,13 +22,19 @@ def test_source_map_single_interpolation():
 
     rendered = p.render()
 
-    assert len(rendered.source_map) == 1
-    span = rendered.source_map[0]
+    # Now includes both static and interpolation spans
+    assert len(rendered.source_map) == 2
 
+    # Filter for interpolation spans only
+    interp_spans = [s for s in rendered.source_map if s.element_type == "interpolation"]
+    assert len(interp_spans) == 1
+
+    span = interp_spans[0]
     assert span.start == 7  # After "Value: "
     assert span.end == 11  # After "test"
     assert span.key == "v"
     assert span.path == ()
+    assert span.element_type == "interpolation"
 
 
 def test_source_map_multiple_interpolations():
@@ -39,22 +45,30 @@ def test_source_map_multiple_interpolations():
 
     rendered = p.render()
 
-    assert len(rendered.source_map) == 2
+    # Now includes static spans as well
+    # "Name: " (static), "Alice" (interp), ", Age: " (static), "30" (interp), "" (empty, filtered out)
+    assert len(rendered.source_map) == 4  # 2 statics + 2 interpolations
+
+    # Filter for interpolation spans only
+    interp_spans = [s for s in rendered.source_map if s.element_type == "interpolation"]
+    assert len(interp_spans) == 2
 
     # First span for name
-    span1 = rendered.source_map[0]
+    span1 = interp_spans[0]
     assert span1.start == 6  # After "Name: "
     assert span1.end == 11  # After "Alice"
     assert span1.key == "n"
+    assert span1.element_type == "interpolation"
 
     # Second span for age
-    span2 = rendered.source_map[1]
+    span2 = interp_spans[1]
     # Text is: "Name: Alice, Age: 30"
     # Position: 0123456789012345678901
     # Alice ends at 11, ", Age: " is 7 chars, so 30 starts at 18
     assert span2.start == 18  # After ", Age: "
     assert span2.end == 20  # After "30"
     assert span2.key == "a"
+    assert span2.element_type == "interpolation"
 
 
 def test_get_span_at_position():
@@ -65,19 +79,23 @@ def test_get_span_at_position():
 
     rendered = p.render()
 
-    # Position 8 should be in the "name" span
+    # Position 8 should be in the "name" interpolation span
     span = rendered.get_span_at(8)
     assert span is not None
     assert span.key == "n"
+    assert span.element_type == "interpolation"
 
-    # Position 18 should be in the "age" span
+    # Position 18 should be in the "age" interpolation span
     span = rendered.get_span_at(18)
     assert span is not None
     assert span.key == "a"
+    assert span.element_type == "interpolation"
 
-    # Position 0 should not be in any span (static text)
+    # Position 0 should now be in a static span (not None anymore!)
     span = rendered.get_span_at(0)
-    assert span is None
+    assert span is not None
+    assert span.element_type == "static"
+    assert span.key == 0  # First static segment
 
 
 def test_get_span_for_key():
@@ -115,14 +133,22 @@ def test_source_map_with_nested_prompts():
 
     rendered = p_outer.render()
 
-    # Should have one span for the inner interpolation
-    assert len(rendered.source_map) == 1
+    # Now includes spans from nested prompt's static elements too
+    # Outer: "Hello " (static0), p_inner (nested), "!" (static1)
+    # Inner p_inner: "" (empty, filtered), "world" (interp i), "" (empty, filtered)
+    # Total: 2 static spans + 1 interpolation span = 3
+    assert len(rendered.source_map) == 3
 
-    span = rendered.source_map[0]
+    # Filter for interpolation spans
+    interp_spans = [s for s in rendered.source_map if s.element_type == "interpolation"]
+    assert len(interp_spans) == 1
+
+    span = interp_spans[0]
     assert span.start == 6  # After "Hello "
     assert span.end == 11  # After "world"
     assert span.key == "i"
     assert span.path == ("p",)  # Path through outer key
+    assert span.element_type == "interpolation"
 
 
 def test_source_map_deeply_nested():
@@ -134,14 +160,20 @@ def test_source_map_deeply_nested():
 
     rendered = p3.render()
 
-    # Should have one span for the innermost value
-    assert len(rendered.source_map) == 1
+    # Now includes all static spans from all levels
+    # Multiple static spans + 1 interpolation span
+    assert len(rendered.source_map) > 1
 
-    span = rendered.source_map[0]
+    # Filter for interpolation spans
+    interp_spans = [s for s in rendered.source_map if s.element_type == "interpolation"]
+    assert len(interp_spans) == 1
+
+    span = interp_spans[0]
     assert span.start == 2  # After "<["
     assert span.end == 3  # After "A"
     assert span.key == "a"
     assert span.path == ("p2", "p1")  # Path through nested keys
+    assert span.element_type == "interpolation"
 
 
 def test_source_map_with_conversions():
@@ -179,6 +211,7 @@ def test_rendered_prompt_repr():
     repr_str = repr(rendered)
 
     assert "RenderedPrompt" in repr_str
+    # Only has 1 span because both static strings are empty and filtered out
     assert "spans=1" in repr_str
 
 
@@ -191,20 +224,26 @@ def test_source_map_with_multiple_nested_interpolations():
 
     rendered = p_outer.render()
 
-    # Should have two spans, one for each inner interpolation
-    assert len(rendered.source_map) == 2
+    # Now includes static spans
+    assert len(rendered.source_map) == 5  # static "[", interp "A", static "-", interp "B", static "]"
+
+    # Filter for interpolation spans only
+    interp_spans = [s for s in rendered.source_map if s.element_type == "interpolation"]
+    assert len(interp_spans) == 2
 
     # First span for "a"
-    span1 = rendered.source_map[0]
+    span1 = interp_spans[0]
     assert span1.key == "a"
     assert span1.path == ("p",)
     assert rendered.text[span1.start:span1.end] == "A"
+    assert span1.element_type == "interpolation"
 
     # Second span for "b"
-    span2 = rendered.source_map[1]
+    span2 = interp_spans[1]
     assert span2.key == "b"
     assert span2.path == ("p",)
     assert rendered.text[span2.start:span2.end] == "B"
+    assert span2.element_type == "interpolation"
 
 
 def test_get_span_for_key_with_path():
@@ -231,9 +270,10 @@ def test_get_span_for_key_with_path():
 
 def test_source_span_dataclass():
     """Test SourceSpan dataclass properties."""
-    span = t_prompts.SourceSpan(start=0, end=5, key="test", path=("a", "b"))
+    span = t_prompts.SourceSpan(start=0, end=5, key="test", path=("a", "b"), element_type="interpolation")
 
     assert span.start == 0
     assert span.end == 5
     assert span.key == "test"
     assert span.path == ("a", "b")
+    assert span.element_type == "interpolation"

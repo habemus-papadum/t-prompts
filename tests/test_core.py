@@ -18,7 +18,8 @@ def test_single_interpolation_with_format_spec():
     assert node.value == "Always answer politely."
     assert node.format_spec == "inst"
     assert node.conversion is None
-    assert node.index == 0
+    # Index is now 1 (element 0 is static "Obey ", element 1 is interpolation)
+    assert node.index == 1
 
 
 def test_single_interpolation_without_format_spec():
