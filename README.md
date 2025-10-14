@@ -10,7 +10,8 @@
 | src/t\_prompts/parsing.py      |       33 |        0 |    100% |           |
 | src/t\_prompts/text.py         |       68 |        5 |     93% |48, 66, 110, 136, 145 |
 | src/t\_prompts/ui.py           |        0 |        0 |    100% |           |
-|                      **TOTAL** |  **631** |   **40** | **94%** |           |
+| src/t\_prompts/widgets.py      |        9 |        9 |      0% |      3-54 |
+|                      **TOTAL** |  **640** |   **49** | **92%** |           |
 
 
 ## Setup coverage badge
