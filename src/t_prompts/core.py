@@ -106,14 +106,14 @@ def _process_dedent(
 
     # Step 4: Dedent
     if dedent:
-        # Find the first non-empty line to determine indent level
+        # Find the first non-empty line or whitespace-only line to determine indent level
         indent_level = None
         for s in result:
             if not s:
                 continue
             lines = s.split("\n")
             for line in lines:
-                if line.strip():  # Non-empty line
+                if line.strip():  # Non-empty line with content
                     # Count leading spaces
                     leading = line[:len(line) - len(line.lstrip())]
                     # Check for tabs
@@ -121,6 +121,14 @@ def _process_dedent(
                         raise DedentError("Mixed tabs and spaces in indentation are not allowed")
                     indent_level = len(leading)
                     break
+                elif line:  # Whitespace-only line (but not empty string)
+                    # Also consider whitespace-only lines for indent level
+                    # Check for tabs
+                    if "\t" in line:
+                        raise DedentError("Mixed tabs and spaces in indentation are not allowed")
+                    # Use this as indent level if we haven't found one yet
+                    if indent_level is None:
+                        indent_level = len(line)
             if indent_level is not None:
                 break
 
@@ -145,8 +153,16 @@ def _process_dedent(
                             else:
                                 dedented_lines.append(line)
                     else:
-                        # Empty line (just whitespace) - keep it
-                        dedented_lines.append(line)
+                        # Empty line (just whitespace) - dedent it too
+                        if line.startswith(" " * indent_level):
+                            dedented_lines.append(line[indent_level:])
+                        else:
+                            # Line has less indentation than expected, remove what we can
+                            leading = line[:len(line) - len(line.lstrip())]
+                            if len(leading) > 0:
+                                dedented_lines.append(line[len(leading):])
+                            else:
+                                dedented_lines.append(line)
                 result[i] = "\n".join(dedented_lines)
 
     return tuple(result)
@@ -215,6 +231,57 @@ def _parse_separator(render_hints: str) -> str:
             return hint[4:]  # Extract everything after "sep="
 
     return "\n"
+
+
+def _parse_render_hints(render_hints: str, key: str) -> dict[str, str]:
+    """
+    Parse render hints into a structured format.
+
+    Extracts special hints like xml=<value> and header=<heading> (or just header).
+    Leading and trailing whitespace is trimmed from hint specifications.
+
+    Parameters
+    ----------
+    render_hints : str
+        The render hints string (everything after first colon in format spec).
+    key : str
+        The interpolation key (used as default for header if no value specified).
+
+    Returns
+    -------
+    dict[str, str]
+        Dictionary with parsed hints. Possible keys: 'xml', 'header', 'sep'.
+    """
+    if not render_hints:
+        return {}
+
+    result = {}
+
+    # Split on colon and process each hint
+    for hint in render_hints.split(":"):
+        hint = hint.strip()  # Trim leading/trailing whitespace
+
+        if hint.startswith("xml="):
+            # Extract XML tag name (no whitespace allowed in value)
+            xml_value = hint[4:].strip()
+            if " " in xml_value or "\t" in xml_value or "\n" in xml_value:
+                raise ValueError(f"XML tag name cannot contain whitespace: {xml_value!r}")
+            result["xml"] = xml_value
+
+        elif hint.startswith("header="):
+            # Extract header text (whitespace allowed in heading)
+            header_value = hint[7:].strip()
+            result["header"] = header_value
+
+        elif hint == "header":
+            # No value specified, use the key as heading
+            result["header"] = key
+
+        elif hint.startswith("sep="):
+            # Extract separator value
+            result["sep"] = hint[4:]
+
+    return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -813,7 +880,12 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
 
     # Rendering
 
-    def render(self, _path: tuple[Union[str, int], ...] = ()) -> IntermediateRepresentation:
+    def render(
+        self,
+        _path: tuple[Union[str, int], ...] = (),
+        max_header_level: int = 4,
+        _header_level: int = 1
+    ) -> IntermediateRepresentation:
         """
         Render this StructuredPrompt to an IntermediateRepresentation with source mapping.
 
@@ -830,6 +902,10 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         ----------
         _path : tuple[Union[str, int], ...]
             Internal parameter for tracking path during recursive rendering.
+        max_header_level : int, optional
+            Maximum header level for markdown headers (default: 4).
+        _header_level : int
+            Internal parameter for tracking current header nesting level.
 
         Returns
         -------
@@ -864,6 +940,14 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                 # Render list interpolation element
                 node = element
 
+                # Parse render hints
+                hints = _parse_render_hints(node.render_hints, node.key)
+
+                # Determine next header level if header hint is present
+                next_header_level = _header_level
+                if "header" in hints:
+                    next_header_level = _header_level + 1
+
                 # Check if the preceding static has trailing whitespace on the same line
                 # This will be used as base indentation for all list items after the first
                 base_indent = ""
@@ -880,7 +964,11 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                 # Render each item and join with separator + base indent
                 rendered_parts = []
                 for item in node.items:
-                    item_rendered = item.render(_path=_path + (node.key,))
+                    item_rendered = item.render(
+                        _path=_path + (node.key,),
+                        max_header_level=max_header_level,
+                        _header_level=next_header_level
+                    )
                     rendered_parts.append(item_rendered.text)
                     # Add nested source spans with offset
                     # Account for separator and base_indent between items
@@ -910,6 +998,27 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                 else:
                     rendered_text = node.separator.join(rendered_parts)
 
+                # Apply render hints (header first, then xml wrapper) to the entire list
+                prefix_len = 0  # Track total prefix length for span adjustment
+
+                if "xml" in hints:
+                    # Wrap with XML tags (inner wrapper)
+                    xml_tag = hints["xml"]
+                    xml_wrapper_start = f"<{xml_tag}>\n"
+                    xml_wrapper_end = f"\n</{xml_tag}>"
+                    rendered_text = xml_wrapper_start + rendered_text + xml_wrapper_end
+                    prefix_len += len(xml_wrapper_start)
+
+                if "header" in hints:
+                    # Prepend markdown header (outer wrapper)
+                    level = min(_header_level, max_header_level)
+                    header_prefix = "#" * level + " " + hints["header"] + "\n"
+                    rendered_text = header_prefix + rendered_text
+                    prefix_len += len(header_prefix)
+
+                # Adjust span start for all added content
+                span_start += prefix_len
+
                 # Update position
                 current_pos += len(rendered_text)
                 out_parts.append(rendered_text)
@@ -918,9 +1027,21 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                 # Render interpolation element
                 node = element
 
+                # Parse render hints
+                hints = _parse_render_hints(node.render_hints, node.key)
+
+                # Determine if we need to increment header level for nested rendering
+                next_header_level = _header_level
+                if "header" in hints:
+                    next_header_level = _header_level + 1
+
                 # Get value (render recursively if nested)
                 if isinstance(node.value, StructuredPrompt):
-                    nested_rendered = node.value.render(_path=_path + (node.key,))
+                    nested_rendered = node.value.render(
+                        _path=_path + (node.key,),
+                        max_header_level=max_header_level,
+                        _header_level=next_header_level
+                    )
                     rendered_text = nested_rendered.text
                     # Add nested source spans with updated paths
                     for nested_span in nested_rendered.source_map:
@@ -937,6 +1058,27 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                     if node.conversion:
                         conv: Literal["r", "s", "a"] = node.conversion  # type: ignore
                         rendered_text = convert(rendered_text, conv)
+
+                # Apply render hints (header first, then xml wrapper)
+                prefix_len = 0  # Track total prefix length for span adjustment
+
+                if "xml" in hints:
+                    # Wrap with XML tags (inner wrapper)
+                    xml_tag = hints["xml"]
+                    xml_wrapper_start = f"<{xml_tag}>\n"
+                    xml_wrapper_end = f"\n</{xml_tag}>"
+                    rendered_text = xml_wrapper_start + rendered_text + xml_wrapper_end
+                    prefix_len += len(xml_wrapper_start)
+
+                if "header" in hints:
+                    # Prepend markdown header (outer wrapper)
+                    level = min(_header_level, max_header_level)
+                    header_prefix = "#" * level + " " + hints["header"] + "\n"
+                    rendered_text = header_prefix + rendered_text
+                    prefix_len += len(header_prefix)
+
+                # Adjust span start for all added content
+                span_start += prefix_len
 
                 # Add span for this interpolation
                 current_pos += len(rendered_text)
