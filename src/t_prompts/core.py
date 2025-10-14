@@ -731,6 +731,8 @@ class Element:
         Source code location information for this element (if available).
     id : str
         Unique identifier for this element (UUID4 string).
+    metadata : dict[str, Any]
+        Metadata dictionary for storing analysis results and other information.
     """
 
     key: Union[str, int]
@@ -738,6 +740,7 @@ class Element:
     index: int
     source_location: Optional[SourceLocation] = None
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -976,6 +979,11 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
     and provides dict-like access to its interpolations, preserving full
     provenance information (expression, conversion, format_spec, value).
 
+    Attributes
+    ----------
+    metadata : dict[str, Any]
+        Metadata dictionary for storing analysis results and other information.
+
     Parameters
     ----------
     template : Template
@@ -1006,6 +1014,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         self._processed_strings = _processed_strings  # Dedented/trimmed strings if provided
         self._source_location = _source_location  # Source location for all elements in this prompt
         self._id = str(uuid.uuid4())  # Unique identifier for this StructuredPrompt
+        self.metadata: dict[str, Any] = {}  # Metadata dictionary for storing analysis results
         # All elements (Static, StructuredInterpolation, ListInterpolation, ImageInterpolation)
         self._elements: list[Element] = []
         # Only interpolations

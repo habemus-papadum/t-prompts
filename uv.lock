@@ -16,20 +16,6 @@ wheels = [
 ]
 
 [[package]]
-name = "anywidget"
-version = "0.9.18"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "ipywidgets" },
-    { name = "psygnal" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ed/69/20423d6abd2a57d767d20a9dcf3f816bd4cbbe4813ac7c7158ba16e44c3f/anywidget-0.9.18.tar.gz", hash = "sha256:262cf459b517a7d044d6fbc84b953e9c83f026790b2dd3ce90f21a7f8eded00f", size = 9808509, upload-time = "2025-03-23T20:01:22.358Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/f0/09a30ca0551af20c7cefa7464b7ccb6f5407a550b83c4dcb15c410814849/anywidget-0.9.18-py3-none-any.whl", hash = "sha256:944b82ef1dd17b8ff0fb6d1f199f613caf9111338e6e2857da478f6e73770cb8", size = 220671, upload-time = "2025-03-23T20:01:21.057Z" },
-]
-
-[[package]]
 name = "appnope"
 version = "0.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1481,15 +1467,6 @@ wheels = [
 ]
 
 [[package]]
-name = "psygnal"
-version = "0.14.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/99/59/d30828eb2ef130c1c9d1e0d4b5fa5d2e895fdca8964ed2f783a31ff5136c/psygnal-0.14.2.tar.gz", hash = "sha256:588d1a7a0212db8ffc720ef2fb03e849e0280f4f156e5f5922e6b99b13c69689", size = 124428, upload-time = "2025-09-24T15:46:47.915Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/14/13d3413fa9695be14b7ab1eed1bd71619d68841a96e19bbdde92585eecae/psygnal-0.14.2-py3-none-any.whl", hash = "sha256:6caa7b1ebab0fcfd9e196cf5269b3be2bb4ee7776a11d60fb6fdf7263143e327", size = 91086, upload-time = "2025-09-24T15:46:46.652Z" },
-]
-
-[[package]]
 name = "ptyprocess"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1917,9 +1894,6 @@ dependencies = [
 image = [
     { name = "pillow" },
 ]
-ui = [
-    { name = "anywidget" },
-]
 
 [package.dev-dependencies]
 dev = [
@@ -1936,11 +1910,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anywidget", marker = "extra == 'ui'", specifier = ">=0.9.0" },
     { name = "pillow", marker = "extra == 'image'", specifier = ">=10.0.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
 ]
-provides-extras = ["ui", "image"]
+provides-extras = ["image"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -13,7 +13,9 @@
       "Bash(git pull:*)",
       "Bash(git stash:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(./test_notebooks.sh:*)"
+      "Bash(./test_notebooks.sh:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff:*)"
     ],
     "deny": [],
     "ask": []
