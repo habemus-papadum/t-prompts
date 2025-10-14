@@ -5,7 +5,7 @@ import uuid
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from string.templatelib import Template, convert
+from string.templatelib import Template
 from typing import Any, Literal, Optional, Union
 
 from .exceptions import (
@@ -17,6 +17,18 @@ from .exceptions import (
     NotANestedPromptError,
     UnsupportedValueTypeError,
 )
+
+
+# Workaround for Python 3.14.0b3 missing convert function
+def convert(value: str, conversion: Literal["r", "s", "a"]) -> str:
+    """Apply string conversion (!r, !s, !a) to a value."""
+    if conversion == "s":
+        return str(value)
+    elif conversion == "r":
+        return repr(value)
+    elif conversion == "a":
+        return ascii(value)
+    return value
 
 # Try to import PIL for image support (optional dependency)
 try:
@@ -399,6 +411,38 @@ def _parse_render_hints(render_hints: str, key: str) -> dict[str, str]:
 
 
 @dataclass(frozen=True, slots=True)
+class TextChunk:
+    """
+    A chunk of text in the rendered output.
+
+    Attributes
+    ----------
+    text : str
+        The text content of this chunk.
+    chunk_index : int
+        Position of this chunk in the output sequence.
+    """
+    text: str
+    chunk_index: int
+
+
+@dataclass(frozen=True, slots=True)
+class ImageChunk:
+    """
+    An image chunk in the rendered output.
+
+    Attributes
+    ----------
+    image : Any
+        The PIL Image object (typed as Any to avoid hard dependency on PIL).
+    chunk_index : int
+        Position of this chunk in the output sequence.
+    """
+    image: Any
+    chunk_index: int
+
+
+@dataclass(frozen=True, slots=True)
 class SourceSpan:
     """
     Represents a span in the rendered output that maps back to a source element.
@@ -406,32 +450,41 @@ class SourceSpan:
     Attributes
     ----------
     start : int
-        Starting position (inclusive) in the rendered string.
+        Starting position (inclusive) in the rendered chunk.
+        For text chunks: character offset. For image chunks: 0.
     end : int
-        Ending position (exclusive) in the rendered string.
+        Ending position (exclusive) in the rendered chunk.
+        For text chunks: character offset. For image chunks: 1 (whole image).
     key : Union[str, int]
         The key of the element: string for interpolations, int for static segments.
     path : tuple[Union[str, int], ...]
         Path from root to this element (sequence of keys).
-    element_type : Literal["static", "interpolation"]
+    element_type : Literal["static", "interpolation", "image"]
         The type of element this span represents.
+    chunk_index : int
+        Index of the chunk this span refers to in the chunks list.
+    element_id : str
+        UUID of the source element (from Element.id or StructuredPrompt.id).
     """
     start: int
     end: int
     key: Union[str, int]
     path: tuple[Union[str, int], ...]
-    element_type: Literal["static", "interpolation"]
+    element_type: Literal["static", "interpolation", "image"]
+    chunk_index: int
+    element_id: str
 
 
 class IntermediateRepresentation:
     """
-    Intermediate representation of a StructuredPrompt with text and source mapping.
+    Intermediate representation of a StructuredPrompt with multi-modal chunks and source mapping.
 
     This class serves as the bridge between structured prompts and their final output.
     It's ideal for:
     - Structured prompt optimization (removing parts when approaching context limits)
     - Debugging optimization strategies with full provenance
-    - Future multi-modal support (multiple chunks for images, etc.)
+    - Multi-modal support (text and image chunks)
+    - Token counting for specific portions of the prompt
 
     The name "IntermediateRepresentation" reflects that this is not necessarily the
     final output sent to an LLM, but rather a structured intermediate form that can
@@ -439,23 +492,55 @@ class IntermediateRepresentation:
 
     Attributes
     ----------
-    text : str
-        The rendered string output.
+    chunks : list[TextChunk | ImageChunk]
+        Ordered list of output chunks (text or image).
     source_map : list[SourceSpan]
-        List of source spans mapping rendered text back to all elements (static and interpolations).
+        List of source spans mapping chunks and positions back to source elements.
+    element_spans : dict[str, list[SourceSpan]]
+        Reverse index: element_id → spans for bidirectional lookup.
     source_prompt : StructuredPrompt
         The StructuredPrompt that was rendered to produce this result.
     """
 
-    def __init__(self, text: str, source_map: list[SourceSpan], source_prompt: "StructuredPrompt"):
-        self._text = text
+    def __init__(
+        self,
+        chunks: list[Union[TextChunk, ImageChunk]],
+        source_map: list[SourceSpan],
+        source_prompt: "StructuredPrompt"
+    ):
+        self._chunks = chunks
         self._source_map = source_map
         self._source_prompt = source_prompt
 
+        # Build reverse index: element_id -> list of spans
+        self._element_spans: dict[str, list[SourceSpan]] = {}
+        for span in source_map:
+            if span.element_id not in self._element_spans:
+                self._element_spans[span.element_id] = []
+            self._element_spans[span.element_id].append(span)
+
+    @property
+    def chunks(self) -> list[Union[TextChunk, ImageChunk]]:
+        """Return the list of output chunks."""
+        return self._chunks
+
     @property
     def text(self) -> str:
-        """Return the rendered text."""
-        return self._text
+        """
+        Return the rendered text (concatenates all text chunks).
+
+        Raises
+        ------
+        ImageRenderError
+            If any image chunks are present.
+        """
+        # Check for image chunks
+        for chunk in self._chunks:
+            if isinstance(chunk, ImageChunk):
+                raise ImageRenderError()
+
+        # Concatenate all text chunks
+        return "".join(chunk.text for chunk in self._chunks if isinstance(chunk, TextChunk))
 
     @property
     def source_map(self) -> list[SourceSpan]:
@@ -463,26 +548,46 @@ class IntermediateRepresentation:
         return self._source_map
 
     @property
+    def element_spans(self) -> dict[str, list[SourceSpan]]:
+        """Return the element ID to spans mapping (for source→output lookups)."""
+        return self._element_spans
+
+    @property
     def source_prompt(self) -> "StructuredPrompt":
         """Return the source StructuredPrompt that was rendered."""
         return self._source_prompt
 
-    def get_span_at(self, position: int) -> Optional[SourceSpan]:
+    def get_span_at(self, position_or_chunk: int, position: Optional[int] = None) -> Optional[SourceSpan]:
         """
-        Get the source span at a given position in the rendered text.
+        Get the source span at a given position.
+
+        This method supports two calling conventions:
+        1. get_span_at(position) - searches in chunk 0 (backward compatible)
+        2. get_span_at(chunk_index, position) - searches in specific chunk
 
         Parameters
         ----------
-        position : int
-            Position in the rendered text.
+        position_or_chunk : int
+            Either the position (if position is None) or chunk_index (if position is provided).
+        position : int, optional
+            Position within the chunk (for text chunks: character offset, for image chunks: should be 0).
+            If None, position_or_chunk is treated as the position in chunk 0.
 
         Returns
         -------
         SourceSpan | None
             The span containing this position, or None if not in any span.
         """
+        if position is None:
+            # Backward compatible: get_span_at(position) searches chunk 0
+            chunk_index = 0
+            position = position_or_chunk
+        else:
+            # New API: get_span_at(chunk_index, position)
+            chunk_index = position_or_chunk
+
         for span in self._source_map:
-            if span.start <= position < span.end:
+            if span.chunk_index == chunk_index and span.start <= position < span.end:
                 return span
         return None
 
@@ -549,13 +654,61 @@ class IntermediateRepresentation:
                 return span
         return None
 
+    def get_spans_for_element(self, element_id: str) -> list[SourceSpan]:
+        """
+        Get all source spans for a specific element by its ID.
+
+        This enables source→output lookups: given an element, find all spans
+        in the output that came from it.
+
+        Parameters
+        ----------
+        element_id : str
+            The UUID of the element (from Element.id or StructuredPrompt.id).
+
+        Returns
+        -------
+        list[SourceSpan]
+            List of all spans for this element (may be empty if not found).
+        """
+        return self._element_spans.get(element_id, [])
+
+    def get_spans_for_prompt(self, prompt: "StructuredPrompt") -> list[SourceSpan]:
+        """
+        Get all source spans for a specific StructuredPrompt (aggregate query).
+
+        This returns spans from all elements within the prompt, including
+        nested prompts. Useful for token counting and optimization.
+
+        Parameters
+        ----------
+        prompt : StructuredPrompt
+            The StructuredPrompt to get spans for.
+
+        Returns
+        -------
+        list[SourceSpan]
+            List of all spans from this prompt and its nested prompts.
+        """
+        result = []
+        # Get spans for all elements in this prompt
+        for element in prompt.elements:
+            result.extend(self.get_spans_for_element(element.id))
+            # If this is a nested prompt, recursively get its spans
+            if isinstance(element, StructuredInterpolation) and isinstance(element.value, StructuredPrompt):
+                result.extend(self.get_spans_for_prompt(element.value))
+            elif isinstance(element, ListInterpolation):
+                for item in element.items:
+                    result.extend(self.get_spans_for_prompt(item))
+        return result
+
     def __str__(self) -> str:
         """Return the rendered text."""
-        return self._text
+        return self.text
 
     def __repr__(self) -> str:
         """Return a helpful debug representation."""
-        return f"IntermediateRepresentation(text={self._text!r}, spans={len(self._source_map)})"
+        return f"IntermediateRepresentation(chunks={len(self._chunks)}, spans={len(self._source_map)})"
 
 
 @dataclass(frozen=True, slots=True)
@@ -1104,14 +1257,17 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         ImageRenderError
             If the prompt contains any image interpolations.
         """
-        # Check for images in interpolations (cannot render to text)
-        for interp in self._interps:
-            if isinstance(interp, ImageInterpolation):
-                raise ImageRenderError()
+        # Check for images in interpolations (cannot render to text-only)
+        has_images = any(isinstance(interp, ImageInterpolation) for interp in self._interps)
+        if has_images:
+            raise ImageRenderError()
 
+        # For now, render everything to a single text chunk
+        # TODO: Support multiple chunks for multi-modal output
         out_parts: list[str] = []
         source_map: list[SourceSpan] = []
         current_pos = 0
+        chunk_index = 0  # All spans go in chunk 0 for text-only rendering
 
         # Iterate through all elements (Static and StructuredInterpolation)
         for element in self._elements:
@@ -1130,7 +1286,9 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                         end=current_pos,
                         key=element.key,
                         path=_path,
-                        element_type="static"
+                        element_type="static",
+                        chunk_index=chunk_index,
+                        element_id=element.id
                     ))
 
             elif isinstance(element, ListInterpolation):
@@ -1184,7 +1342,9 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                             end=current_offset + nested_span.end,
                             key=nested_span.key,
                             path=nested_span.path,
-                            element_type=nested_span.element_type
+                            element_type=nested_span.element_type,
+                            chunk_index=chunk_index,
+                            element_id=nested_span.element_id
                         ))
 
                 # Join with separator, adding base indent after each separator (except before first item)
@@ -1248,7 +1408,9 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                             end=span_start + nested_span.end,
                             key=nested_span.key,
                             path=nested_span.path,
-                            element_type=nested_span.element_type
+                            element_type=nested_span.element_type,
+                            chunk_index=chunk_index,
+                            element_id=nested_span.element_id
                         ))
                 else:
                     rendered_text = node.value
@@ -1287,13 +1449,18 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                         end=current_pos,
                         key=node.key,
                         path=_path,
-                        element_type="interpolation"
+                        element_type="interpolation",
+                        chunk_index=chunk_index,
+                        element_id=element.id
                     ))
 
                 out_parts.append(rendered_text)
 
+        # Create a single text chunk with all the rendered text
         text = "".join(out_parts)
-        return IntermediateRepresentation(text, source_map, self)
+        chunks: list[Union[TextChunk, ImageChunk]] = [TextChunk(text=text, chunk_index=chunk_index)]
+
+        return IntermediateRepresentation(chunks, source_map, self)
 
     def __str__(self) -> str:
         """Render to string (convenience for render().text)."""
