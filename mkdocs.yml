@@ -9,9 +9,17 @@ theme:
 
 nav:
   - Home: index.md
-  - Demo: demos/demo.ipynb
+  - Tutorials:
+    - Basic: demos/01-basic.ipynb
+    - Intermediate: demos/02-intermediate.ipynb
+  - Topics:
+    - Few-Shot Prompts: demos/topics/few-shot-prompts.ipynb
+    - Source Mapping: demos/topics/source-mapping.ipynb
+    - Format Spec Mini-Language: demos/topics/format-spec-mini-language.ipynb
+    - Advanced Composition: demos/topics/advanced-composition.ipynb
   - Architecture: architecture.md
   - API: reference.md
+  - Legacy Demo: demos/demo.ipynb
 
 # If you'd like to specify a separate docs directory, you can do so here
 docs_dir: docs

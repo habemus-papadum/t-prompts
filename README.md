@@ -26,6 +26,7 @@ This library wraps t-strings in a `StructuredPrompt` that acts like both a rende
 ## Why use it?
 
 **For LLM applications:**
+
 - **Traceability**: Know exactly which variable produced which part of your prompt
 - **Structured Access**: Navigate and inspect nested prompt components by key
 - **Composability**: Build complex prompts from smaller, reusable pieces
@@ -75,6 +76,36 @@ print(str(p_full))
 assert p_full['sys']['system'].value == "You are a helpful assistant."
 assert p_full['usr']['query'].value == "What is Python?"
 ```
+
+### Lists of Prompts
+
+**New feature**: Interpolate lists of `StructuredPrompt` objects with customizable separators!
+
+```python
+# Create a list of example prompts
+examples = [
+    prompt(t"{ex:example}") for ex in [
+        "The cat sat on the mat.",
+        "Python is great.",
+        "AI is fascinating."
+    ]
+]
+
+# Interpolate the list with default separator (newline)
+p = prompt(t"Examples:\n{examples:examples}")
+print(str(p))
+# Examples:
+# The cat sat on the mat.
+# Python is great.
+# AI is fascinating.
+
+# Use custom separator with render hints
+p2 = prompt(t"Examples: {examples:examples:sep= | }")
+print(str(p2))
+# Examples: The cat sat on the mat. | Python is great. | AI is fascinating.
+```
+
+**Separator syntax**: Use `sep=<value>` in render hints to specify a custom separator. The default is a newline (`\n`).
 
 ### Provenance Access
 
@@ -166,12 +197,13 @@ assert str(p) == rendered.text
 
 - **Dict-like access**: `p['key']` returns the interpolation node
 - **Nested composition**: Prompts can contain other prompts
+- **List support**: Interpolate lists of prompts with customizable separators
 - **Format spec mini-language**: `key : render_hints` for extensible metadata
 - **Source mapping**: Bidirectional mapping between rendered text and structure
 - **Provenance tracking**: Full metadata (expression, conversion, format spec, render hints)
 - **Conversions**: Supports `!s`, `!r`, `!a` from t-strings
 - **JSON export**: `to_values()` and `to_provenance()` for serialization
-- **Type validation**: Only `str` and `StructuredPrompt` values allowed
+- **Type validation**: Only `str`, `StructuredPrompt`, and `list[StructuredPrompt]` values allowed
 - **Immutable**: `StructuredInterpolation` nodes are frozen dataclasses
 
 ## Installation

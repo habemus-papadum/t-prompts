@@ -174,8 +174,8 @@ class StructuredInterpolation:
         The format specification string (everything after :), or empty string.
     render_hints : str
         Rendering hints parsed from format_spec (everything after first colon in format spec).
-    value : str | StructuredPrompt
-        The evaluated value (either a string or nested StructuredPrompt).
+    value : str | StructuredPrompt | list[StructuredPrompt]
+        The evaluated value (string, nested StructuredPrompt, or list of StructuredPrompts).
     parent : StructuredPrompt | None
         The parent StructuredPrompt that contains this interpolation.
     index : int
@@ -187,7 +187,7 @@ class StructuredInterpolation:
     conversion: Optional[str]
     format_spec: str
     render_hints: str
-    value: Union[str, "StructuredPrompt"]
+    value: Union[str, "StructuredPrompt", list["StructuredPrompt"]]
     parent: Optional["StructuredPrompt"]
     index: int
 
@@ -265,7 +265,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
     Raises
     ------
     UnsupportedValueTypeError
-        If any interpolation value is neither str nor StructuredPrompt.
+        If any interpolation value is not str, StructuredPrompt, or list[StructuredPrompt].
     DuplicateKeyError
         If duplicate keys are found and allow_duplicate_keys=False.
     EmptyExpressionError
@@ -298,6 +298,11 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
             if isinstance(val, StructuredPrompt):
                 node_val = val
             elif isinstance(val, str):
+                node_val = val
+            elif isinstance(val, list):
+                # Check that all items in the list are StructuredPrompts
+                if not all(isinstance(item, StructuredPrompt) for item in val):
+                    raise UnsupportedValueTypeError(key, type(val), itp.expression)
                 node_val = val
             else:
                 raise UnsupportedValueTypeError(key, type(val), itp.expression)
@@ -451,8 +456,34 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
             # Track start position for this interpolation
             span_start = current_pos
 
-            # Get value (render recursively if nested)
-            if isinstance(node.value, StructuredPrompt):
+            # Get value (render recursively if nested or list)
+            if isinstance(node.value, list):
+                # Handle list of StructuredPrompts
+                # Parse separator from render_hints (default: newline)
+                separator = "\n"
+                if node.render_hints:
+                    # Look for "sep:<value>" in render hints
+                    for hint in node.render_hints.split(":"):
+                        if hint.startswith("sep="):
+                            separator = hint[4:]  # Extract everything after "sep="
+                            break
+
+                # Render each item and join with separator
+                rendered_parts = []
+                for item in node.value:
+                    item_rendered = item.render(_path=_path + (node.key,))
+                    rendered_parts.append(item_rendered.text)
+                    # Add nested source spans with offset
+                    current_offset = span_start + sum(len(p) + len(separator) for p in rendered_parts[:-1])
+                    for nested_span in item_rendered.source_map:
+                        source_map.append(SourceSpan(
+                            start=current_offset + nested_span.start,
+                            end=current_offset + nested_span.end,
+                            key=nested_span.key,
+                            path=nested_span.path
+                        ))
+                rendered_text = separator.join(rendered_parts)
+            elif isinstance(node.value, StructuredPrompt):
                 nested_rendered = node.value.render(_path=_path + (node.key,))
                 rendered_text = nested_rendered.text
                 # Add nested source spans with updated paths
@@ -472,8 +503,8 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
             # Add span for this interpolation
             span_end = span_start + len(rendered_text)
-            if not isinstance(node.value, StructuredPrompt):
-                # Only add direct span if not nested (nested spans are already added above)
+            if not isinstance(node.value, (StructuredPrompt, list)):
+                # Only add direct span if not nested or list (nested spans are already added above)
                 source_map.append(SourceSpan(
                     start=span_start,
                     end=span_end,
@@ -510,7 +541,9 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
         """
         result = {}
         for node in self._interps:
-            if isinstance(node.value, StructuredPrompt):
+            if isinstance(node.value, list):
+                result[node.key] = [item.to_values() for item in node.value]
+            elif isinstance(node.value, StructuredPrompt):
                 result[node.key] = node.value.to_values()
             else:
                 # Get rendered value for this node
@@ -538,7 +571,9 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
                 "render_hints": node.render_hints,
                 "index": node.index,
             }
-            if isinstance(node.value, StructuredPrompt):
+            if isinstance(node.value, list):
+                node_dict["value"] = [item.to_provenance() for item in node.value]
+            elif isinstance(node.value, StructuredPrompt):
                 node_dict["value"] = node.value.to_provenance()
             else:
                 node_dict["value"] = node.value
