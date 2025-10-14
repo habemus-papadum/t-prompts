@@ -1454,7 +1454,12 @@ def prompt(
         )
         # Create a new Template with processed strings
         # We need to pass the processed strings to StructuredPrompt
-        return StructuredPrompt(template, _processed_strings=processed_strings, _source_location=source_location, **opts)
+        return StructuredPrompt(
+            template,
+            _processed_strings=processed_strings,
+            _source_location=source_location,
+            **opts
+        )
 
     return StructuredPrompt(template, _source_location=source_location, **opts)
 
