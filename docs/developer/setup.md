@@ -31,6 +31,22 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 For more installation options, see the [UV documentation](https://docs.astral.sh/uv/).
 
+## Install pnpm
+
+The project uses pnpm for JavaScript/TypeScript widget development. Install pnpm:
+
+```bash
+npm install -g pnpm@9
+```
+
+Or using Homebrew on macOS:
+
+```bash
+brew install pnpm
+```
+
+For other installation methods, see the [pnpm documentation](https://pnpm.io/installation).
+
 ## Set Up the Development Environment
 
 Install all dependencies including optional extras:
@@ -42,6 +58,24 @@ uv sync --frozen --all-extras
 This command:
 - Uses `--frozen` to install exact versions from the lockfile
 - Uses `--all-extras` to install all optional dependencies (image support, UI, etc.)
+
+## Install JavaScript Dependencies
+
+From the repository root, install JavaScript dependencies:
+
+```bash
+pnpm install
+```
+
+## Build Widgets
+
+Build the JavaScript widgets (required before running tests):
+
+```bash
+pnpm build
+```
+
+This will compile TypeScript sources in `widgets/src/` to `widgets/dist/`, which gets bundled with the Python package.
 
 ## Verify Installation
 
@@ -95,6 +129,24 @@ uv run mkdocs build
 ```
 
 The documentation will be available at `http://127.0.0.1:8000/`.
+
+### Building Widgets
+
+```bash
+# Build all widgets
+pnpm build
+
+# Run widget tests
+pnpm test
+
+# Run widget linting
+pnpm lint
+
+# Type check widgets
+cd widgets && pnpm run typecheck
+```
+
+**Important**: After modifying widget source code, you must run `pnpm build` before testing the Python package, as the compiled JavaScript is bundled with the package.
 
 ### Running Jupyter Notebooks
 

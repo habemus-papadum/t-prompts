@@ -303,6 +303,33 @@ def build_docs() -> None:
     )
 
 
+def build_widgets() -> None:
+    """Build JavaScript widgets and verify no uncommitted changes."""
+    print_step("Building JavaScript Widgets")
+
+    # Build widgets
+    run_command(
+        ["pnpm", "build"],
+        "Building widgets with pnpm"
+    )
+
+    # Check for uncommitted changes in widgets/dist
+    result = run_command(
+        ["git", "status", "--porcelain", "widgets/dist"],
+        "Checking for widget build changes",
+        capture_output=True
+    )
+
+    if result.stdout.strip():
+        print("✗ ERROR: Widget build produced uncommitted changes!")
+        print("\nChanges in widgets/dist:")
+        print(result.stdout)
+        print("\nPlease run 'pnpm build' and commit the changes before releasing.")
+        sys.exit(1)
+
+    print("✓ Widget build is up-to-date")
+
+
 def create_release_commit(version: str) -> None:
     """Create a git commit for the release.
 
@@ -466,50 +493,51 @@ def main() -> None:
     print_step(f"Preparing Release: {release_version}")
     print(f"  Release version: {release_version}")
 
-    # Step 5-8: Run all validation checks BEFORE modifying version
+    # Step 5-9: Run all validation checks BEFORE modifying version
     run_tests()
     run_notebook_tests(no_inplace=True)
     run_linting()
     build_docs()
+    build_widgets()
 
-    # Step 9: Update version files for release
+    # Step 10: Update version files for release
     update_version_files(release_version)
 
-    # Step 10: Update lockfile with new version
+    # Step 11: Update lockfile with new version
     update_lockfile()
 
-    # Step 11: Create release commit
+    # Step 12: Create release commit
     create_release_commit(release_version)
 
-    # Step 12: Create release tag
+    # Step 13: Create release tag
     create_release_tag(release_version)
 
-    # Step 13: Push tag to origin
+    # Step 14: Push tag to origin
     push_tag(release_version)
 
-    # Step 14: Publish to PyPI
+    # Step 15: Publish to PyPI
     publish_to_pypi()
 
-    # Step 15: Create GitHub release
+    # Step 16: Create GitHub release
     create_github_release(release_version)
 
-    # Step 16: Calculate next development version
+    # Step 17: Calculate next development version
     next_version = bump_version(release_version, args.bump_level)
     next_dev_version = f"{next_version}-alpha"
 
     print_step(f"Preparing Next Development Version: {next_dev_version}")
     print(f"  Next development version: {next_dev_version}")
 
-    # Step 17: Update to next development version
+    # Step 18: Update to next development version
     update_version_files(next_dev_version)
 
-    # Step 18: Update lockfile with new dev version
+    # Step 19: Update lockfile with new dev version
     update_lockfile()
 
-    # Step 19: Create development commit
+    # Step 20: Create development commit
     create_dev_commit(next_dev_version)
 
-    # Step 20: Push development commit
+    # Step 21: Push development commit
     push_dev_commit()
 
     # Success!

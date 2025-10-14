@@ -88,6 +88,29 @@ uv run mkdocs build
 
 **Important**: After making any changes to demo notebooks (files in `docs/demos/*.ipynb`), you MUST run `./test_notebooks.sh` to verify the notebook executes without errors. Do not consider notebook changes complete until this test passes.
 
+### JavaScript Widgets
+```bash
+# Install JavaScript dependencies (from root)
+pnpm install
+
+# Build widgets (compiles TypeScript to JavaScript)
+pnpm build
+
+# Run widget tests
+pnpm test
+
+# Run widget linting
+pnpm lint
+
+# Type check widgets
+cd widgets && pnpm run typecheck
+```
+
+**Important**: The JavaScript build output (`widgets/dist/`) is committed to version control and bundled with the Python package. After modifying widget sources, you MUST:
+1. Run `pnpm build` to compile
+2. Commit both source and compiled output
+3. CI will fail if compiled output is out of sync with sources
+
 ### Publishing
 ```bash
 # Build and publish to PyPI (requires credentials)

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/index.ts"],
+  "sourcesContent": ["/**\n * Jupyter notebook widgets for visualizing t-prompts structures.\n */\n\nexport interface PromptVisualizerOptions {\n  showSourceMap?: boolean;\n  showMetadata?: boolean;\n}\n\n/**\n * Render a structured prompt visualization in the DOM.\n */\nexport function renderPrompt(\n  container: HTMLElement,\n  promptData: unknown,\n  options: PromptVisualizerOptions = {}\n): void {\n  // Dummy implementation - will be replaced with actual visualization\n  const div = document.createElement('div');\n  div.className = 't-prompts-widget';\n  div.innerHTML = `\n    <div style=\"border: 1px solid #ccc; padding: 10px; border-radius: 4px;\">\n      <h4>t-prompts Visualization (placeholder)</h4>\n      <pre>${JSON.stringify(promptData, null, 2)}</pre>\n      <p>Options: ${JSON.stringify(options)}</p>\n    </div>\n  `;\n  container.appendChild(div);\n}\n\n// Export version matching Python package\nexport const VERSION = '0.9.0-alpha';\n"],
+  "mappings": "mcAAA,IAAAA,EAAA,GAAAC,EAAAD,EAAA,aAAAE,EAAA,iBAAAC,IAYO,SAASA,EACdC,EACAC,EACAC,EAAmC,CAAC,EAC9B,CAEN,IAAMC,EAAM,SAAS,cAAc,KAAK,EACxCA,EAAI,UAAY,mBAChBA,EAAI,UAAY;AAAA;AAAA;AAAA,aAGL,KAAK,UAAUF,EAAY,KAAM,CAAC,CAAC;AAAA,oBAC5B,KAAK,UAAUC,CAAO,CAAC;AAAA;AAAA,IAGzCF,EAAU,YAAYG,CAAG,CAC3B,CAGO,IAAML,EAAU",
+  "names": ["src_exports", "__export", "VERSION", "renderPrompt", "container", "promptData", "options", "div"]
+}

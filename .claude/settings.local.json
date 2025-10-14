@@ -17,7 +17,11 @@
       "Bash(uv run ruff:*)",
       "Bash(uv run:*)",
       "Bash(python3.14:*)",
-      "Bash(gh pr create:*)"
+      "Bash(gh pr create:*)",
+      "Bash(pnpm install)",
+      "Bash(pnpm build)",
+      "Bash(pnpm test)",
+      "Bash(pnpm lint)"
     ],
     "deny": [],
     "ask": []
