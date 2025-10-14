@@ -64,12 +64,18 @@ assert isinstance(p2['p'].value, t_prompts.StructuredPrompt)
 assert p2['p']['inst'].value == "Always answer politely."
 ```
 
-**Keying rule:**
+**Keying rule (Format Spec Mini-Language):**
 
-- If the interpolation has a format spec (`:{key}`), that key is used in the structured mapping (e.g., `{instructions:inst}` → key `"inst"`).
-- If there is no format spec, the expression text becomes the key (e.g., `{foo}` → key `"foo"`).
+Format specs follow the pattern `key : render_hints`:
 
-(We intentionally repurpose the format spec as a label; t-strings do not apply format specs automatically, leaving interpretation to the consumer.)
+- **No format spec**: `{var}` → key = `"var"` (uses expression)
+- **Underscore**: `{var:_}` → key = `"var"` (explicitly uses expression)
+- **Simple key**: `{var:custom_key}` → key = `"custom_key"` (trimmed), no hints
+- **With hints**: `{var:key:hint1:hint2}` → key = `"key"` (trimmed), hints = `"hint1:hint2"`
+
+The first colon separates the key from optional render hints. Keys are trimmed of leading/trailing whitespace while preserving internal spaces. Multiple colons split only on the first, with everything after becoming render hints.
+
+Render hints are stored but not currently applied during rendering—they're available for custom renderers or tooling.
 
 *Python documentation*
 
@@ -82,16 +88,17 @@ assert p2['p']['inst'].value == "Always answer politely."
 - Wraps a `string.templatelib.Template` (the original t-string structure). *Python documentation*
 - Dict-like access to `StructuredInterpolation` nodes.
 - Preserves ordering of interpolations.
-- Can render to `str` (f-string-like), optionally applying conversion semantics.
+- Renders to `RenderedPrompt` with source mapping, applying conversion semantics.
 
 **StructuredInterpolation**
 
 Immutable record of one interpolation occurrence:
 
-- `key: str` — chosen by rule above
+- `key: str` — derived from format spec mini-language
 - `expression: str` — original expression text (from t-string)
 - `conversion: Literal['a','r','s'] | None`
-- `format_spec: str` — preserved verbatim (used as key if non-empty)
+- `format_spec: str` — preserved verbatim from t-string
+- `render_hints: str` — extracted hints from format spec (e.g., `"hint1:hint2"`)
 - `value: str | StructuredPrompt`
 - `parent: StructuredPrompt | None`
 - `index: int` — position among interpolations
@@ -99,6 +106,27 @@ Immutable record of one interpolation occurrence:
 Dict-like delegation when value is a `StructuredPrompt`:
 
 - `node['inst']` → look into child prompt and return its interpolation node.
+
+**RenderedPrompt**
+
+Result of rendering a `StructuredPrompt`, providing both text and source mapping:
+
+- `text: str` — the rendered output
+- `source_map: list[SourceSpan]` — bidirectional mapping between text positions and source structure
+- `source_prompt: StructuredPrompt` — reference to the original structured prompt
+
+Methods:
+- `get_span_at(position: int)` — find which interpolation produced the character at this position
+- `get_span_for_key(key: str, path: tuple[str, ...])` — find the text span for a specific interpolation
+
+**SourceSpan**
+
+Immutable record of one interpolation's position in rendered text:
+
+- `start: int` — starting position in rendered text
+- `end: int` — ending position (exclusive) in rendered text
+- `key: str` — the interpolation key
+- `path: tuple[str, ...]` — path through nested prompts (e.g., `("outer", "inner")`)
 
 **KeyPolicy (internal)**
 
@@ -113,16 +141,21 @@ Encodes rules for deriving keys from `Interpolation`s (default: use `format_spec
 
 ### 3.2 Rendering semantics
 
-By default, `StructuredPrompt.render()` (and `__str__`) will:
+`StructuredPrompt.render()` returns a `RenderedPrompt` object containing the rendered text and a source map:
 
 1. Walk the original `Template.strings` & `Template.interpolations`.
 2. For each interpolation:
    - If `value` is `StructuredPrompt`, render that child recursively.
    - Else treat `value` as `str`.
    - If a `conversion` exists, apply it via `string.templatelib.convert(value, conversion)` to emulate f-string `!s`/`!r`/`!a`. *Python documentation*
-   - Do **not** apply `format_spec` (we use it exclusively as a key label).
+   - Do **not** apply `format_spec` for formatting (used exclusively for key/hints).
+   - Track the position and span of this interpolation in the output for source mapping.
+3. Build a `SourceSpan` for each interpolation with its position in the rendered text and its path through nested prompts.
+4. Return a `RenderedPrompt` with the text, source map, and reference to the original prompt.
 
-**Rationale:** t-strings explicitly defer how conversions & format specs are applied; we prioritize key labeling and predictable rendering for prompts. Format specs are never interpreted as formatting directives.
+`__str__()` delegates to `render().text` for backward compatibility.
+
+**Rationale:** t-strings explicitly defer how conversions & format specs are applied. We use format specs for the key:hints mini-language, not for formatting. The source map enables bidirectional tracing between rendered text and source structure, crucial for debugging and tooling.
 
 *Python documentation*
 
@@ -135,9 +168,35 @@ By default, `StructuredPrompt.render()` (and `__str__`) will:
 
 ```python
 # t_prompts/__init__.py
-from .core import StructuredPrompt, StructuredInterpolation, prompt
+from .core import (
+    RenderedPrompt,
+    SourceSpan,
+    StructuredInterpolation,
+    StructuredPrompt,
+    prompt,
+)
+from .exceptions import (
+    DuplicateKeyError,
+    EmptyExpressionError,
+    MissingKeyError,
+    NotANestedPromptError,
+    StructuredPromptsError,
+    UnsupportedValueTypeError,
+)
 
-__all__ = ["StructuredPrompt", "StructuredInterpolation", "prompt"]
+__all__ = [
+    "RenderedPrompt",
+    "SourceSpan",
+    "StructuredInterpolation",
+    "StructuredPrompt",
+    "prompt",
+    "DuplicateKeyError",
+    "EmptyExpressionError",
+    "MissingKeyError",
+    "NotANestedPromptError",
+    "StructuredPromptsError",
+    "UnsupportedValueTypeError",
+]
 ```
 
 ```python
@@ -147,11 +206,54 @@ from typing import Iterable, Mapping, Optional, Union
 from string.templatelib import Template, Interpolation as TInterpolation, convert  # 3.14+
 
 @dataclass(frozen=True, slots=True)
+class SourceSpan:
+    start: int
+    end: int
+    key: str
+    path: tuple[str, ...]
+
+
+class RenderedPrompt:
+    def __init__(
+        self,
+        text: str,
+        source_map: list[SourceSpan],
+        source_prompt: "StructuredPrompt",
+    ):
+        self._text = text
+        self._source_map = source_map
+        self._source_prompt = source_prompt
+
+    @property
+    def text(self) -> str:
+        return self._text
+
+    @property
+    def source_map(self) -> list[SourceSpan]:
+        return self._source_map
+
+    @property
+    def source_prompt(self) -> "StructuredPrompt":
+        return self._source_prompt
+
+    def get_span_at(self, position: int) -> SourceSpan:
+        # Find the span containing this position
+        ...
+
+    def get_span_for_key(
+        self, key: str, path: tuple[str, ...] = ()
+    ) -> SourceSpan:
+        # Find the span for a specific key/path
+        ...
+
+
+@dataclass(frozen=True, slots=True)
 class StructuredInterpolation:
     key: str
     expression: str
     conversion: Optional[str]
     format_spec: str
+    render_hints: str  # Extracted from format spec
     value: Union[str, "StructuredPrompt"]
     parent: Optional["StructuredPrompt"]
     index: int
@@ -163,10 +265,11 @@ class StructuredInterpolation:
             return vp[key]
         raise NotANestedPromptError(self.key)
 
-    def render(self) -> str:
+    def render(self, _path: tuple[str, ...] = ()) -> Union[str, RenderedPrompt]:
         # Render this node only
-        out = self.value.render() if isinstance(self.value, StructuredPrompt) else self.value
-        return convert(out, self.conversion) if self.conversion else out
+        # If value is StructuredPrompt, returns RenderedPrompt
+        # Otherwise returns str
+        ...
 
 
 class StructuredPrompt(Mapping[str, StructuredInterpolation]):
@@ -193,12 +296,13 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
     def interpolations(self) -> tuple[StructuredInterpolation, ...]: return tuple(self._interps)
 
     # Rendering
-    def render(self) -> str:
+    def render(self, _path: tuple[str, ...] = ()) -> RenderedPrompt:
         # Walk template.strings & our nodes in order
-        # Format specs are used only as keys, never for formatting
+        # Build source map tracking positions and paths
+        # Format specs are parsed for keys/hints, never for formatting
         ...
     def __str__(self) -> str:
-        return self.render()
+        return self.render().text
 
     # Convenience
     def to_values(self) -> dict[str, Union[str, dict]]:
@@ -232,10 +336,14 @@ These are precisely the hooks we rely on to build provenance and handle renderin
 - `str` or `StructuredPrompt`.
 - Anything else → `UnsupportedValueTypeError` with a clear message showing the offending `expression` and actual `type(value)`.
 
-**Key derivation**
+**Key derivation (Format Spec Mini-Language)**
 
-- If `format_spec` is non-empty, `key = format_spec`.
-- Else, `key = expression` (preserved verbatim, including whitespace).
+The format spec is parsed as `"key : render_hints"`:
+
+- If `format_spec` is empty or `"_"`, `key = expression`.
+- If `format_spec` contains no colon, `key = format_spec.strip()`.
+- If `format_spec` contains a colon, split on first colon: `key = part_before.strip()`, `render_hints = part_after`.
+- Keys are trimmed of leading/trailing whitespace but preserve internal spaces.
 - Empty expression (`{}`) is not allowed; guard with a clear error.
 
 **Duplicate keys**
@@ -246,7 +354,8 @@ These are precisely the hooks we rely on to build provenance and handle renderin
 **Rendering**
 
 - Conversions are always applied.
-- Format specs are never applied - they are used exclusively as key labels.
+- Format specs are parsed for key/hints but never applied as formatting directives.
+- Returns a `RenderedPrompt` with text and source mapping.
 
 **Nesting**
 
@@ -392,8 +501,9 @@ We rely on real `Template`/`Interpolation` structures produced by t-strings. The
 - **Source locations:** Augment `StructuredInterpolation` with `code_location` (filename, line/col, function) when 3.14+ APIs expose this (or via inspect/tracebacks during construction).
 - **Key policy plug-in:** alternative key extraction strategies (e.g., use `=name` debugging syntax if/when surfaced by t-strings).
 - **Validation modes:** strict identifier keys vs free-form.
-- **Render hooks:** allow user-supplied renderer (`Callable[[StructuredInterpolation], str]`) to support domain-specific formatting.
+- **Render hooks:** Interpret render hints to apply custom formatting (e.g., `{data:key:format=json,indent=2}` could trigger JSON formatting).
 - **Stable JSON schema:** define a versioned schema for provenance exchange across services.
+- **Enhanced source mapping:** Add support for querying all spans matching a pattern, or finding overlapping spans.
 
 ## 9) Risks & mitigations
 
@@ -415,12 +525,32 @@ We rely on real `Template`/`Interpolation` structures produced by t-strings. The
 
 ## 11) Appendix — Minimal internal algorithms
 
+### Format Spec Parser
+
+```python
+def _parse_format_spec(format_spec: str, expression: str) -> tuple[str, str]:
+    """Parse format spec mini-language: 'key : render_hints'.
+
+    Returns: (key, render_hints)
+    """
+    if not format_spec or format_spec == "_":
+        return expression, ""
+
+    if ":" in format_spec:
+        key_part, hints_part = format_spec.split(":", 1)
+        return key_part.strip(), hints_part
+    else:
+        return format_spec.strip(), ""
+```
+
 ### Building the tree
 
 ```python
 def _build_nodes(self, template: Template, allow_dupes: bool) -> None:
     for idx, itp in enumerate(template.interpolations):
-        key = itp.format_spec if itp.format_spec else itp.expression
+        # Parse format spec for key and render hints
+        key, render_hints = _parse_format_spec(itp.format_spec, itp.expression)
+
         val = itp.value
         if isinstance(val, StructuredPrompt):
             node_val = val
@@ -430,8 +560,14 @@ def _build_nodes(self, template: Template, allow_dupes: bool) -> None:
             raise UnsupportedValueTypeError(key, type(val), itp.expression)
 
         node = StructuredInterpolation(
-            key=key, expression=itp.expression, conversion=itp.conversion,
-            format_spec=itp.format_spec, value=node_val, parent=self, index=idx
+            key=key,
+            expression=itp.expression,
+            conversion=itp.conversion,
+            format_spec=itp.format_spec,
+            render_hints=render_hints,
+            value=node_val,
+            parent=self,
+            index=idx,
         )
         self._interps.append(node)
 
@@ -446,19 +582,58 @@ def _build_nodes(self, template: Template, allow_dupes: bool) -> None:
 ### Rendering
 
 ```python
-def render(self) -> str:
-    out = []
+def render(self, _path: tuple[str, ...] = ()) -> RenderedPrompt:
+    """Render to text with source mapping."""
+    out_parts: list[str] = []
+    source_map: list[SourceSpan] = []
+    current_pos = 0
+
     strings = list(self._template.strings)
-    itps = iter(self._interps)
-    out.append(strings[0])
-    for i, s in enumerate(strings[1:], start=1):
-        node = next(itps)
-        v = node.value.render() if isinstance(node.value, StructuredPrompt) else node.value
-        v = convert(v, node.conversion) if node.conversion else v
-        # Format spec is never applied - used only as key
-        out.append(v)
-        out.append(s)
-    return "".join(out)
+    out_parts.append(strings[0])
+    current_pos += len(strings[0])
+
+    for idx, node in enumerate(self._interps):
+        start_pos = current_pos
+        current_path = _path + (node.key,)
+
+        # Render the interpolation value
+        if isinstance(node.value, StructuredPrompt):
+            rendered = node.value.render(_path=current_path)
+            out = rendered.text
+            # Add nested spans with offset
+            for span in rendered.source_map:
+                source_map.append(
+                    SourceSpan(
+                        start=span.start + start_pos,
+                        end=span.end + start_pos,
+                        key=span.key,
+                        path=span.path,
+                    )
+                )
+        else:
+            out = node.value
+
+        # Apply conversion if present
+        if node.conversion:
+            conv: Literal["r", "s", "a"] = node.conversion  # type: ignore
+            out = convert(out, conv)
+
+        # Add span for this interpolation
+        end_pos = start_pos + len(out)
+        source_map.append(
+            SourceSpan(start=start_pos, end=end_pos, key=node.key, path=current_path)
+        )
+
+        out_parts.append(out)
+        current_pos = end_pos
+
+        # Add the next string segment
+        next_str = strings[idx + 1]
+        out_parts.append(next_str)
+        current_pos += len(next_str)
+
+    text = "".join(out_parts)
+    return RenderedPrompt(text, source_map, self)
 ```
 
 ## Summary

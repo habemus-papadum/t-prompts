@@ -13,7 +13,7 @@ def test_render_matches_fstring_behavior():
     # Should match f-string behavior
     expected = f"Name: {name}, Age: {age}"
     assert str(p) == expected
-    assert p.render() == expected
+    assert p.render().text == expected
 
 
 def test_render_format_spec_as_key():
@@ -25,7 +25,7 @@ def test_render_format_spec_as_key():
 
     # Should NOT format as "00042" - format spec is only used as key
     assert str(p) == "42"
-    assert p.render() == "42"
+    assert p.render().text == "42"
     assert "05d" in p  # Key is the format spec
 
 
@@ -65,12 +65,12 @@ def test_render_conversion_with_nested():
 
 
 def test_str_dunder_method():
-    """Test that __str__() is equivalent to render()."""
+    """Test that __str__() is equivalent to render().text."""
     x = "X"
     p = t_prompts.prompt(t"{x:x}")
 
-    assert str(p) == p.render()
-    assert p.__str__() == p.render()
+    assert str(p) == p.render().text
+    assert p.__str__() == p.render().text
 
 
 def test_interpolation_render_method():
@@ -98,7 +98,9 @@ def test_interpolation_render_nested():
     p_outer = t_prompts.prompt(t"{p_inner:p}")
 
     node = p_outer["p"]
-    assert node.render() == "inner"
+    rendered = node.render()
+    # node.render() returns RenderedPrompt for nested prompts
+    assert rendered.text == "inner"
 
 
 def test_render_preserves_string_segments():
@@ -145,8 +147,8 @@ def test_render_consistency():
     x = "X"
     p = t_prompts.prompt(t"{x:x}")
 
-    result1 = p.render()
-    result2 = p.render()
+    result1 = p.render().text
+    result2 = p.render().text
     result3 = str(p)
 
     assert result1 == result2 == result3

@@ -1,10 +1,20 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI agents when working with code in this repository.
 
 ## Project Overview
 
 This is a Python library called `t-prompts` (package name: `t-prompts`, module name: `t_prompts`) that provides structured prompts using template strings. The project is in early development stage and uses a modern Python toolchain.
+
+## Important Rules
+
+### Version Management
+**NEVER modify the version number in any file.** Version numbers are managed exclusively by humans. Do not change:
+- `pyproject.toml` version field
+- `src/t_prompts/__init__.py` `__version__` variable
+- Any version references in documentation
+
+If you think a version change is needed, inform the user but do not make the change yourself.
 
 ## Development Commands
 
@@ -45,7 +55,12 @@ uv run mkdocs serve
 
 # Build documentation
 uv run mkdocs build
+
+# Test demo notebooks (REQUIRED after any notebook changes)
+./test_notebooks.sh
 ```
+
+**Important**: After making any changes to demo notebooks (files in `docs/demos/*.ipynb`), you MUST run `./test_notebooks.sh` to verify the notebook executes without errors. Do not consider notebook changes complete until this test passes.
 
 ### Publishing
 ```bash

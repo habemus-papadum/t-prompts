@@ -3,7 +3,7 @@
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from string.templatelib import Template, convert
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from .exceptions import (
     DuplicateKeyError,
@@ -14,6 +14,149 @@ from .exceptions import (
 )
 
 
+def _parse_format_spec(format_spec: str, expression: str) -> tuple[str, str]:
+    """
+    Parse format spec mini-language: "key : render_hints".
+
+    Rules:
+    - If format_spec is empty, key = expression
+    - If format_spec is "_", key = expression
+    - If format_spec contains ":", split on first colon:
+      - First part is key (trimmed if there's a colon, preserving whitespace in key name)
+      - Second part (if present) is render_hints
+    - Otherwise, format_spec is the key as-is (preserving any whitespace)
+
+    Parameters
+    ----------
+    format_spec : str
+        The format specification from the t-string
+    expression : str
+        The expression text (fallback for key derivation)
+
+    Returns
+    -------
+    tuple[str, str]
+        (key, render_hints) where render_hints may be empty string
+    """
+    if not format_spec or format_spec == "_":
+        # Use expression as key, no render hints
+        return expression, ""
+
+    # Split on first colon to separate key from render hints
+    if ":" in format_spec:
+        key_part, hints_part = format_spec.split(":", 1)
+        # Trim key when there's a colon delimiter
+        return key_part.strip(), hints_part
+    else:
+        # No colon, entire format_spec is the key (trim leading/trailing, preserve internal whitespace)
+        return format_spec.strip(), ""
+
+
+@dataclass(frozen=True, slots=True)
+class SourceSpan:
+    """
+    Represents a span in the rendered output that maps back to a source interpolation.
+
+    Attributes
+    ----------
+    start : int
+        Starting position (inclusive) in the rendered string.
+    end : int
+        Ending position (exclusive) in the rendered string.
+    key : str
+        The key of the interpolation that produced this span.
+    path : tuple[str, ...]
+        Path from root to this interpolation (sequence of keys).
+    """
+    start: int
+    end: int
+    key: str
+    path: tuple[str, ...]
+
+
+class RenderedPrompt:
+    """
+    Result of rendering a StructuredPrompt, including the text and source map.
+
+    Attributes
+    ----------
+    text : str
+        The rendered string output.
+    source_map : list[SourceSpan]
+        List of source spans mapping rendered text back to interpolations.
+    source_prompt : StructuredPrompt
+        The StructuredPrompt that was rendered to produce this result.
+    """
+
+    def __init__(self, text: str, source_map: list[SourceSpan], source_prompt: "StructuredPrompt"):
+        self._text = text
+        self._source_map = source_map
+        self._source_prompt = source_prompt
+
+    @property
+    def text(self) -> str:
+        """Return the rendered text."""
+        return self._text
+
+    @property
+    def source_map(self) -> list[SourceSpan]:
+        """Return the source map."""
+        return self._source_map
+
+    @property
+    def source_prompt(self) -> "StructuredPrompt":
+        """Return the source StructuredPrompt that was rendered."""
+        return self._source_prompt
+
+    def get_span_at(self, position: int) -> Optional[SourceSpan]:
+        """
+        Get the source span at a given position in the rendered text.
+
+        Parameters
+        ----------
+        position : int
+            Position in the rendered text.
+
+        Returns
+        -------
+        SourceSpan | None
+            The span containing this position, or None if not in any span.
+        """
+        for span in self._source_map:
+            if span.start <= position < span.end:
+                return span
+        return None
+
+    def get_span_for_key(self, key: str, path: tuple[str, ...] = ()) -> Optional[SourceSpan]:
+        """
+        Get the source span for a specific key and path.
+
+        Parameters
+        ----------
+        key : str
+            The key to search for.
+        path : tuple[str, ...]
+            The path from root to the interpolation (empty for root level).
+
+        Returns
+        -------
+        SourceSpan | None
+            The span for this key/path, or None if not found.
+        """
+        for span in self._source_map:
+            if span.key == key and span.path == path:
+                return span
+        return None
+
+    def __str__(self) -> str:
+        """Return the rendered text."""
+        return self._text
+
+    def __repr__(self) -> str:
+        """Return a helpful debug representation."""
+        return f"RenderedPrompt(text={self._text!r}, spans={len(self._source_map)})"
+
+
 @dataclass(frozen=True, slots=True)
 class StructuredInterpolation:
     """
@@ -22,13 +165,15 @@ class StructuredInterpolation:
     Attributes
     ----------
     key : str
-        The key used for dict-like access (from format_spec if provided, else expression).
+        The key used for dict-like access (parsed from format_spec or expression).
     expression : str
         The original expression text from the t-string (what was inside {}).
     conversion : str | None
         The conversion flag if present (!s, !r, !a), or None.
     format_spec : str
         The format specification string (everything after :), or empty string.
+    render_hints : str
+        Rendering hints parsed from format_spec (everything after first colon in format spec).
     value : str | StructuredPrompt
         The evaluated value (either a string or nested StructuredPrompt).
     parent : StructuredPrompt | None
@@ -41,6 +186,7 @@ class StructuredInterpolation:
     expression: str
     conversion: Optional[str]
     format_spec: str
+    render_hints: str
     value: Union[str, "StructuredPrompt"]
     parent: Optional["StructuredPrompt"]
     index: int
@@ -68,23 +214,27 @@ class StructuredInterpolation:
             return self.value[key]
         raise NotANestedPromptError(self.key)
 
-    def render(self) -> str:
+    def render(self) -> Union[str, "RenderedPrompt"]:
         """
-        Render this interpolation node to a string.
+        Render this interpolation node.
 
-        If the value is a StructuredPrompt, renders it recursively.
-        If a conversion is present, applies it using string.templatelib.convert.
+        If the value is a StructuredPrompt, returns a RenderedPrompt.
+        If the value is a string, returns a string with conversions applied.
 
         Returns
         -------
-        str
-            The rendered string value of this interpolation.
+        str | RenderedPrompt
+            The rendered value of this interpolation.
         """
         if isinstance(self.value, StructuredPrompt):
-            out = self.value.render()
+            return self.value.render()
         else:
             out = self.value
-        return convert(out, self.conversion) if self.conversion else out
+            if self.conversion:
+                # Type narrowing for convert - only valid conversion types
+                conv: Literal["r", "s", "a"] = self.conversion  # type: ignore
+                return convert(out, conv)
+            return out
 
     def __repr__(self) -> str:
         """Return a helpful debug representation."""
@@ -92,7 +242,7 @@ class StructuredInterpolation:
         return (
             f"StructuredInterpolation(key={self.key!r}, expression={self.expression!r}, "
             f"conversion={self.conversion!r}, format_spec={self.format_spec!r}, "
-            f"value={value_repr}, index={self.index})"
+            f"render_hints={self.render_hints!r}, value={value_repr}, index={self.index})"
         )
 
 
@@ -136,10 +286,10 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
     def _build_nodes(self) -> None:
         """Build StructuredInterpolation nodes from the template's interpolations."""
         for idx, itp in enumerate(self._template.interpolations):
-            # Derive key: format_spec if non-empty, else expression
-            key = itp.format_spec if itp.format_spec else itp.expression
+            # Parse format spec to extract key and render hints
+            key, render_hints = _parse_format_spec(itp.format_spec, itp.expression)
 
-            # Guard against empty expressions
+            # Guard against empty keys
             if not key:
                 raise EmptyExpressionError()
 
@@ -158,6 +308,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
                 expression=itp.expression,
                 conversion=itp.conversion,
                 format_spec=itp.format_spec,
+                render_hints=render_hints,
                 value=node_val,
                 parent=self,
                 index=idx,
@@ -267,46 +418,82 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
     # Rendering
 
-    def render(self) -> str:
+    def render(self, _path: tuple[str, ...] = ()) -> RenderedPrompt:
         """
-        Render this StructuredPrompt to a string.
+        Render this StructuredPrompt to a RenderedPrompt with source mapping.
 
-        Format specs are NOT applied during rendering - they are used only as key labels.
         Conversions (!s, !r, !a) are always applied.
+        Format specs are parsed as "key : render_hints".
+
+        Parameters
+        ----------
+        _path : tuple[str, ...]
+            Internal parameter for tracking path during recursive rendering.
 
         Returns
         -------
-        str
-            The rendered string.
+        RenderedPrompt
+            Object containing the rendered text and source map.
         """
-        out = []
+        out_parts: list[str] = []
+        source_map: list[SourceSpan] = []
         strings = list(self._template.strings)
         itps = iter(self._interps)
 
         # Add first string segment
-        out.append(strings[0])
+        out_parts.append(strings[0])
+        current_pos = len(strings[0])
 
         # Interleave interpolations and remaining string segments
         for s in strings[1:]:
             node = next(itps)
 
+            # Track start position for this interpolation
+            span_start = current_pos
+
             # Get value (render recursively if nested)
             if isinstance(node.value, StructuredPrompt):
-                v = node.value.render()
+                nested_rendered = node.value.render(_path=_path + (node.key,))
+                rendered_text = nested_rendered.text
+                # Add nested source spans with updated paths
+                for nested_span in nested_rendered.source_map:
+                    source_map.append(SourceSpan(
+                        start=span_start + nested_span.start,
+                        end=span_start + nested_span.end,
+                        key=nested_span.key,
+                        path=nested_span.path
+                    ))
             else:
-                v = node.value
+                rendered_text = node.value
+                # Apply conversion if present
+                if node.conversion:
+                    conv: Literal["r", "s", "a"] = node.conversion  # type: ignore
+                    rendered_text = convert(rendered_text, conv)
 
-            # Apply conversion if present
-            v = convert(v, node.conversion) if node.conversion else v
+            # Add span for this interpolation
+            span_end = span_start + len(rendered_text)
+            if not isinstance(node.value, StructuredPrompt):
+                # Only add direct span if not nested (nested spans are already added above)
+                source_map.append(SourceSpan(
+                    start=span_start,
+                    end=span_end,
+                    key=node.key,
+                    path=_path
+                ))
 
-            out.append(v)
-            out.append(s)
+            out_parts.append(rendered_text)
+            current_pos = span_end
 
-        return "".join(out)
+            # Add the next string segment
+            out_parts.append(s)
+            current_pos += len(s)
+
+        text = "".join(out_parts)
+        return RenderedPrompt(text, source_map, self)
 
     def __str__(self) -> str:
-        """Render to string (convenience for render())."""
-        return self.render()
+        """Render to string (convenience for render().text)."""
+        return self.render().text
 
     # Convenience methods for JSON export
 
@@ -326,7 +513,9 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
             if isinstance(node.value, StructuredPrompt):
                 result[node.key] = node.value.to_values()
             else:
-                result[node.key] = node.render()
+                # Get rendered value for this node
+                rendered = node.render()
+                result[node.key] = rendered if isinstance(rendered, str) else rendered.text
         return result
 
     def to_provenance(self) -> dict[str, Any]:
@@ -337,7 +526,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
         -------
         dict[str, Any]
             A dictionary with 'strings' (the static segments) and 'nodes'
-            (list of dicts with key, expression, conversion, format_spec, and value info).
+            (list of dicts with key, expression, conversion, format_spec, render_hints, and value info).
         """
         nodes_data = []
         for node in self._interps:
@@ -346,6 +535,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
                 "expression": node.expression,
                 "conversion": node.conversion,
                 "format_spec": node.format_spec,
+                "render_hints": node.render_hints,
                 "index": node.index,
             }
             if isinstance(node.value, StructuredPrompt):

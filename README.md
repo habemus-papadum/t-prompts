@@ -99,25 +99,76 @@ values = p.to_values()
 # {"ctx": "User is Alice", "inst": "Be concise"}
 ```
 
-### Keying Rules
+### Format Spec Mini-Language
 
-- **With format spec**: `{var:key}` → use `"key"`
-- **Without format spec**: `{var}` → use `"var"` (the expression text)
+Format specs follow the pattern `key : render_hints`:
+
+- **No format spec**: `{var}` → key = `"var"`
+- **Underscore**: `{var:_}` → key = `"var"` (explicitly use expression)
+- **Simple key**: `{var:custom_key}` → key = `"custom_key"`, no hints
+- **With hints**: `{var:key:hint1:hint2}` → key = `"key"`, hints = `"hint1:hint2"`
 
 ```python
+from t_prompts import prompt
+
+# Simple keying
 x = "X"
 p1 = prompt(t"{x:custom_key}")
 assert 'custom_key' in p1
 
-p2 = prompt(t"{x}")
-assert 'x' in p2
+# With render hints (for future use)
+data = '{"name": "Alice"}'
+p2 = prompt(t"{data:user_data:format=json,indent=2}")
+assert 'user_data' in p2
+assert p2['user_data'].render_hints == "format=json,indent=2"
+
+# Use expression as key
+value = "test"
+p3 = prompt(t"{value:_}")
+assert 'value' in p3
+```
+
+**Note**: Render hints are stored but not currently applied during rendering. They're available for custom renderers or tooling.
+
+### Source Mapping
+
+`render()` returns a `RenderedPrompt` with bidirectional text ↔ structure mapping:
+
+```python
+from t_prompts import prompt
+
+name = "Alice"
+age = "30"
+p = prompt(t"Name: {name:n}, Age: {age:a}")
+
+rendered = p.render()
+
+# Access the text
+print(rendered.text)  # "Name: Alice, Age: 30"
+
+# Find what produced a position in the text
+span = rendered.get_span_at(8)  # Position 8 is in "Alice"
+print(span.key)  # "n"
+print(rendered.text[span.start:span.end])  # "Alice"
+
+# Find where a key was rendered
+span = rendered.get_span_for_key("a")
+print(rendered.text[span.start:span.end])  # "30"
+
+# Access the original prompt
+assert rendered.source_prompt is p
+
+# str() for convenience
+assert str(p) == rendered.text
 ```
 
 ## Features
 
 - **Dict-like access**: `p['key']` returns the interpolation node
 - **Nested composition**: Prompts can contain other prompts
-- **Provenance tracking**: Full metadata (expression, conversion, format spec)
+- **Format spec mini-language**: `key : render_hints` for extensible metadata
+- **Source mapping**: Bidirectional mapping between rendered text and structure
+- **Provenance tracking**: Full metadata (expression, conversion, format spec, render hints)
 - **Conversions**: Supports `!s`, `!r`, `!a` from t-strings
 - **JSON export**: `to_values()` and `to_provenance()` for serialization
 - **Type validation**: Only `str` and `StructuredPrompt` values allowed

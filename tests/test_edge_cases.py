@@ -45,12 +45,12 @@ def test_expression_with_whitespace():
     """Test that expressions with whitespace in keys via format spec."""
     value = "test"
     # Note: Python t-strings normalize expression whitespace
-    # To preserve whitespace in keys, use format spec
+    # To preserve internal whitespace in keys, use format spec
     p = t_prompts.prompt(t"{value: value }")
 
-    # Key comes from format spec which preserves whitespace
-    assert " value " in p
-    node = p[" value "]
+    # Key comes from format spec - leading/trailing trimmed, internal preserved
+    assert "value" in p
+    node = p["value"]
     assert node.value == "test"
     assert node.format_spec == " value "
 
@@ -113,10 +113,10 @@ def test_multiple_whitespace_variations():
     assert str(p2) == "A"
     assert str(p3) == "A"
 
-    # Keys from format specs preserve whitespace
+    # Keys from format specs are trimmed (leading/trailing removed)
     assert "a" in p1
-    assert " a " in p2
-    assert "  a  " in p3
+    assert "a" in p2
+    assert "a" in p3
 
 
 def test_single_interpolation_only():
