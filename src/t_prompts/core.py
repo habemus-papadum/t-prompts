@@ -455,6 +455,85 @@ class IntermediateRepresentation:
         """Return the rendered text."""
         return self.text
 
+    def toJSON(self) -> dict[str, Any]:
+        """
+        Export IntermediateRepresentation as JSON with bidirectional source mapping.
+
+        This method provides a comprehensive JSON representation optimized for analysis,
+        debugging, and provenance tracking. The structure includes:
+
+        1. **ir_id**: UUID of this IntermediateRepresentation
+        2. **source_prompt**: Complete hierarchical JSON of the StructuredPrompt (from toJSON())
+        3. **chunks**: Array of text/image chunks with metadata
+        4. **chunk_id_to_index**: Lookup table mapping chunk UUIDs to their indices
+        5. **source_map**: Bidirectional mapping using element_id and chunk_id
+
+        The source map enables efficient queries in both directions:
+        - Source → Output: Given element_id, find all chunks/positions where it appears
+        - Output → Source: Given chunk_id and position, find which element produced it
+
+        Returns
+        -------
+        dict[str, Any]
+            JSON-serializable dictionary with complete IR structure and mappings.
+
+        Examples
+        --------
+        >>> x = "value"
+        >>> p = prompt(t"{x:x}")
+        >>> ir = p.render()
+        >>> data = ir.toJSON()
+        >>> data.keys()
+        dict_keys(['ir_id', 'source_prompt', 'chunks', 'chunk_id_to_index', 'source_map'])
+        """
+        # 1. Serialize source prompt using hierarchical toJSON()
+        source_prompt_json = self._source_prompt.toJSON()
+
+        # 2. Serialize chunks array
+        chunks_json = []
+        for chunk in self._chunks:
+            if isinstance(chunk, TextChunk):
+                chunks_json.append({
+                    "type": "text",
+                    "id": chunk.id,
+                    "chunk_index": chunk.chunk_index,
+                    "text": chunk.text,
+                })
+            elif isinstance(chunk, ImageChunk):
+                chunks_json.append({
+                    "type": "image",
+                    "id": chunk.id,
+                    "chunk_index": chunk.chunk_index,
+                    "image_data": _serialize_image(chunk.image),
+                })
+
+        # 3. Build chunk_id_to_index lookup
+        chunk_id_to_index = {chunk.id: chunk.chunk_index for chunk in self._chunks}
+
+        # 4. Serialize source_map with chunk_id for bidirectional lookup
+        source_map_json = []
+        for span in self._source_map:
+            # Look up the chunk at this span's chunk_index to get its ID
+            chunk = self._chunks[span.chunk_index]
+            source_map_json.append({
+                "start": span.start,
+                "end": span.end,
+                "key": span.key,
+                "path": list(span.path),  # Convert tuple to list for JSON
+                "element_type": span.element_type,
+                "chunk_index": span.chunk_index,
+                "chunk_id": chunk.id,
+                "element_id": span.element_id,
+            })
+
+        return {
+            "ir_id": self._id,
+            "source_prompt": source_prompt_json,
+            "chunks": chunks_json,
+            "chunk_id_to_index": chunk_id_to_index,
+            "source_map": source_map_json,
+        }
+
     def __repr__(self) -> str:
         """Return a helpful debug representation."""
         return f"IntermediateRepresentation(chunks={len(self._chunks)}, spans={len(self._source_map)})"
