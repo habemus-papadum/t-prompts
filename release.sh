@@ -94,10 +94,10 @@ def read_version_from_file(file_path: Path, pattern: str) -> str:
 
     Args:
         file_path: Path to file
-        pattern: Regex pattern with one capture group for version
+        pattern: Regex pattern with three groups (prefix, version, suffix)
 
     Returns:
-        Version string
+        Version string (group 2)
 
     Raises:
         SystemExit: If version not found
@@ -109,7 +109,7 @@ def read_version_from_file(file_path: Path, pattern: str) -> str:
         print(f"✗ ERROR: Could not find version in {file_path}")
         sys.exit(1)
 
-    return match.group(1)
+    return match.group(2)  # Return the second capture group (the version)
 
 
 def write_version_to_file(file_path: Path, pattern: str, new_version: str) -> None:
@@ -117,11 +117,11 @@ def write_version_to_file(file_path: Path, pattern: str, new_version: str) -> No
 
     Args:
         file_path: Path to file
-        pattern: Regex pattern with one capture group for version
-        new_version: New version string to write
+        pattern: Regex pattern with three groups (prefix, version, suffix)
+        new_version: New version string to write (replaces group 2)
     """
     content = file_path.read_text()
-    new_content = re.sub(pattern, rf'\g<1>{new_version}\g<2>', content)
+    new_content = re.sub(pattern, rf'\g<1>{new_version}\g<3>', content)
     file_path.write_text(new_content)
 
 
