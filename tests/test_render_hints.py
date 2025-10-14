@@ -1,8 +1,8 @@
 """Tests for render hints (xml= and header=)."""
 
 import pytest
-import t_prompts
 
+import t_prompts
 
 # XML hint tests
 

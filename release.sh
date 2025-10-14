@@ -1,0 +1,434 @@
+#!/usr/bin/env python3
+"""Release automation script for t-prompts.
+
+This script automates the release process:
+1. Verifies git repo is clean
+2. Validates version has -alpha suffix
+3. Strips -alpha to create release version
+4. Runs tests, notebooks, and linting
+5. Creates release commit and tag
+6. Pushes tag to origin
+7. Bumps to next development version with -alpha
+8. Commits and pushes development version
+"""
+
+import argparse
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+
+# File paths
+REPO_ROOT = Path(__file__).parent
+PYPROJECT_TOML = REPO_ROOT / "pyproject.toml"
+INIT_PY = REPO_ROOT / "src" / "t_prompts" / "__init__.py"
+
+
+def print_step(message: str) -> None:
+    """Print a step message with formatting."""
+    print(f"\n{'='*70}")
+    print(f"  {message}")
+    print(f"{'='*70}\n")
+
+
+def run_command(cmd: list[str], description: str, capture_output: bool = False) -> subprocess.CompletedProcess:
+    """Run a command and check for errors.
+
+    Args:
+        cmd: Command and arguments as list
+        description: Human-readable description of what the command does
+        capture_output: Whether to capture stdout/stderr
+
+    Returns:
+        CompletedProcess instance
+
+    Raises:
+        SystemExit: If command fails
+    """
+    print(f"→ {description}")
+    print(f"  Command: {' '.join(cmd)}")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=REPO_ROOT,
+            capture_output=capture_output,
+            text=True,
+            check=True
+        )
+        if not capture_output:
+            print(f"✓ {description} completed successfully")
+        return result
+    except subprocess.CalledProcessError as e:
+        print(f"\n✗ ERROR: {description} failed!")
+        if capture_output:
+            if e.stdout:
+                print(f"stdout: {e.stdout}")
+            if e.stderr:
+                print(f"stderr: {e.stderr}")
+        sys.exit(1)
+
+
+def check_git_clean() -> None:
+    """Verify that the git repository has no uncommitted changes."""
+    print_step("Checking Git Repository Status")
+
+    result = run_command(
+        ["git", "status", "--porcelain"],
+        "Checking for uncommitted changes",
+        capture_output=True
+    )
+
+    if result.stdout.strip():
+        print("✗ ERROR: Git repository is not clean!")
+        print("\nUncommitted changes:")
+        print(result.stdout)
+        sys.exit(1)
+
+    print("✓ Git repository is clean")
+
+
+def read_version_from_file(file_path: Path, pattern: str) -> str:
+    """Read version from a file using a regex pattern.
+
+    Args:
+        file_path: Path to file
+        pattern: Regex pattern with one capture group for version
+
+    Returns:
+        Version string
+
+    Raises:
+        SystemExit: If version not found
+    """
+    content = file_path.read_text()
+    match = re.search(pattern, content)
+
+    if not match:
+        print(f"✗ ERROR: Could not find version in {file_path}")
+        sys.exit(1)
+
+    return match.group(1)
+
+
+def write_version_to_file(file_path: Path, pattern: str, new_version: str) -> None:
+    """Write new version to a file using a regex pattern.
+
+    Args:
+        file_path: Path to file
+        pattern: Regex pattern with one capture group for version
+        new_version: New version string to write
+    """
+    content = file_path.read_text()
+    new_content = re.sub(pattern, rf'\g<1>{new_version}\g<2>', content)
+    file_path.write_text(new_content)
+
+
+def read_current_version() -> tuple[str, str]:
+    """Read current version from pyproject.toml and __init__.py.
+
+    Returns:
+        Tuple of (pyproject_version, init_version)
+
+    Raises:
+        SystemExit: If versions don't match
+    """
+    print_step("Reading Current Version")
+
+    # Read from pyproject.toml
+    pyproject_version = read_version_from_file(
+        PYPROJECT_TOML,
+        r'(version = ")([^"]+)(")'
+    )
+    print(f"  pyproject.toml: {pyproject_version}")
+
+    # Read from __init__.py
+    init_version = read_version_from_file(
+        INIT_PY,
+        r'(__version__ = ")([^"]+)(")'
+    )
+    print(f"  __init__.py: {init_version}")
+
+    # Verify they match
+    if pyproject_version != init_version:
+        print(f"\n✗ ERROR: Version mismatch!")
+        print(f"  pyproject.toml: {pyproject_version}")
+        print(f"  __init__.py: {init_version}")
+        sys.exit(1)
+
+    print(f"\n✓ Current version: {pyproject_version}")
+    return pyproject_version, init_version
+
+
+def validate_alpha_version(version: str) -> None:
+    """Validate that version ends with -alpha.
+
+    Args:
+        version: Version string to validate
+
+    Raises:
+        SystemExit: If version doesn't end with -alpha
+    """
+    if not version.endswith("-alpha"):
+        print(f"✗ ERROR: Version must end with -alpha to release")
+        print(f"  Current version: {version}")
+        print(f"  Expected format: X.Y.Z-alpha")
+        sys.exit(1)
+
+    print(f"✓ Version has -alpha suffix")
+
+
+def strip_alpha(version: str) -> str:
+    """Remove -alpha suffix from version.
+
+    Args:
+        version: Version string with -alpha suffix
+
+    Returns:
+        Version without -alpha
+    """
+    return version.replace("-alpha", "")
+
+
+def bump_version(version: str, level: str) -> str:
+    """Bump version according to level.
+
+    Args:
+        version: Current version (without -alpha)
+        level: One of 'patch', 'minor', 'major'
+
+    Returns:
+        Next version string
+
+    Raises:
+        SystemExit: If version format is invalid
+    """
+    match = re.match(r'^(\d+)\.(\d+)\.(\d+)$', version)
+    if not match:
+        print(f"✗ ERROR: Invalid version format: {version}")
+        sys.exit(1)
+
+    major, minor, patch = map(int, match.groups())
+
+    if level == "patch":
+        patch += 1
+    elif level == "minor":
+        minor += 1
+        patch = 0
+    elif level == "major":
+        major += 1
+        minor = 0
+        patch = 0
+    else:
+        print(f"✗ ERROR: Invalid bump level: {level}")
+        sys.exit(1)
+
+    return f"{major}.{minor}.{patch}"
+
+
+def update_version_files(version: str) -> None:
+    """Update version in both pyproject.toml and __init__.py.
+
+    Args:
+        version: New version string
+    """
+    write_version_to_file(
+        PYPROJECT_TOML,
+        r'(version = ")([^"]+)(")',
+        version
+    )
+    write_version_to_file(
+        INIT_PY,
+        r'(__version__ = ")([^"]+)(")',
+        version
+    )
+    print(f"✓ Updated version to {version} in both files")
+
+
+def run_tests() -> None:
+    """Run unit tests."""
+    print_step("Running Unit Tests")
+    run_command(
+        ["uv", "run", "pytest"],
+        "Running pytest"
+    )
+
+
+def run_notebook_tests() -> None:
+    """Run notebook tests."""
+    print_step("Running Notebook Tests")
+    run_command(
+        ["./test_notebooks.sh"],
+        "Running notebook tests"
+    )
+
+
+def run_linting() -> None:
+    """Run linting checks."""
+    print_step("Running Linting Checks")
+    run_command(
+        ["uv", "run", "ruff", "check", "."],
+        "Running ruff linting"
+    )
+
+
+def create_release_commit(version: str) -> None:
+    """Create a git commit for the release.
+
+    Args:
+        version: Release version string
+    """
+    print_step(f"Creating Release Commit: {version}")
+
+    run_command(
+        ["git", "add", str(PYPROJECT_TOML), str(INIT_PY)],
+        "Staging version files"
+    )
+
+    run_command(
+        ["git", "commit", "-m", version],
+        f"Committing release {version}"
+    )
+
+
+def create_release_tag(version: str) -> None:
+    """Create an annotated git tag for the release.
+
+    Args:
+        version: Release version string
+    """
+    print_step(f"Creating Release Tag: {version}")
+
+    run_command(
+        ["git", "tag", "-a", version, "-m", version],
+        f"Creating tag {version}"
+    )
+
+
+def push_tag(version: str) -> None:
+    """Push the release tag to origin.
+
+    Args:
+        version: Release version string
+    """
+    print_step(f"Pushing Tag to Origin: {version}")
+
+    run_command(
+        ["git", "push", "origin", version],
+        f"Pushing tag {version}"
+    )
+
+
+def create_dev_commit(version: str) -> None:
+    """Create a git commit for the development version.
+
+    Args:
+        version: Development version string
+    """
+    print_step(f"Creating Development Version Commit: {version}")
+
+    run_command(
+        ["git", "add", str(PYPROJECT_TOML), str(INIT_PY)],
+        "Staging version files"
+    )
+
+    run_command(
+        ["git", "commit", "-m", f"Bump to {version}"],
+        f"Committing development version {version}"
+    )
+
+
+def push_dev_commit() -> None:
+    """Push the development version commit to origin."""
+    print_step("Pushing Development Commit to Origin")
+
+    # Get current branch name
+    result = run_command(
+        ["git", "branch", "--show-current"],
+        "Getting current branch name",
+        capture_output=True
+    )
+    branch = result.stdout.strip()
+
+    run_command(
+        ["git", "push", "origin", branch],
+        f"Pushing to origin/{branch}"
+    )
+
+
+def main() -> None:
+    """Main release workflow."""
+    # Parse arguments
+    parser = argparse.ArgumentParser(
+        description="Automate the release process for t-prompts"
+    )
+    parser.add_argument(
+        "bump_level",
+        choices=["patch", "minor", "major"],
+        help="Version bump level for next development version"
+    )
+    args = parser.parse_args()
+
+    print("\n" + "="*70)
+    print("  t-prompts Release Script")
+    print("="*70)
+    print(f"\nBump level: {args.bump_level}")
+
+    # Step 1: Check git status
+    check_git_clean()
+
+    # Step 2: Read current version
+    current_version, _ = read_current_version()
+
+    # Step 3: Validate has -alpha
+    validate_alpha_version(current_version)
+
+    # Step 4: Strip -alpha to get release version
+    release_version = strip_alpha(current_version)
+    print_step(f"Preparing Release: {release_version}")
+    print(f"  Release version: {release_version}")
+
+    # Step 5: Update version files for release
+    update_version_files(release_version)
+
+    # Step 6-8: Run all validation checks
+    run_tests()
+    run_notebook_tests()
+    run_linting()
+
+    # Step 9: Create release commit
+    create_release_commit(release_version)
+
+    # Step 10: Create release tag
+    create_release_tag(release_version)
+
+    # Step 11: Push tag to origin
+    push_tag(release_version)
+
+    # Step 12: Calculate next development version
+    next_version = bump_version(release_version, args.bump_level)
+    next_dev_version = f"{next_version}-alpha"
+
+    print_step(f"Preparing Next Development Version: {next_dev_version}")
+    print(f"  Next development version: {next_dev_version}")
+
+    # Step 13: Update to next development version
+    update_version_files(next_dev_version)
+
+    # Step 14: Create development commit
+    create_dev_commit(next_dev_version)
+
+    # Step 15: Push development commit
+    push_dev_commit()
+
+    # Success!
+    print_step("Release Complete!")
+    print(f"✓ Released: {release_version}")
+    print(f"✓ Tagged and pushed: {release_version}")
+    print(f"✓ Next development version: {next_dev_version}")
+    print("\nYou can now publish to PyPI using ./publish.sh")
+
+
+if __name__ == "__main__":
+    main()

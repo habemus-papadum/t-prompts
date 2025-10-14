@@ -114,7 +114,7 @@ def test_empty_key_with_colon_delimiter():
     value = "test"
     try:
         # This should fail because trimming the empty key results in empty string
-        p = t_prompts.prompt(t"{value::hints}")
+        t_prompts.prompt(t"{value::hints}")
         assert False, "Should have raised EmptyExpressionError"
     except t_prompts.EmptyExpressionError:
         pass

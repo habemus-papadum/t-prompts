@@ -1,8 +1,8 @@
 """Tests for dedenting and trimming functionality."""
 
 import pytest
-import t_prompts
 
+import t_prompts
 
 # =============================================================================
 # Basic Dedenting Tests

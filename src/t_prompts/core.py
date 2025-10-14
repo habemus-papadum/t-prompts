@@ -743,8 +743,10 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
     ):
         self._template = template
         self._processed_strings = _processed_strings  # Dedented/trimmed strings if provided
-        self._elements: list[Element] = []  # All elements (Static, StructuredInterpolation, ListInterpolation, ImageInterpolation)
-        self._interps: list[Union[StructuredInterpolation, ListInterpolation, ImageInterpolation]] = []  # Only interpolations
+        # All elements (Static, StructuredInterpolation, ListInterpolation, ImageInterpolation)
+        self._elements: list[Element] = []
+        # Only interpolations
+        self._interps: list[Union[StructuredInterpolation, ListInterpolation, ImageInterpolation]] = []
         self._allow_duplicates = allow_duplicate_keys
 
         # Index maps keys to interpolation indices (within _interps list)
@@ -1054,7 +1056,8 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                         # Previous items + their separators and indents
                         prev_content_len = sum(len(p) for p in rendered_parts[:-1])
                         prev_seps_len = (len(rendered_parts) - 2) * (len(node.separator) + len(base_indent))
-                        current_offset = span_start + prev_content_len + prev_seps_len + len(node.separator) + len(base_indent)
+                        sep_and_indent_len = len(node.separator) + len(base_indent)
+                        current_offset = span_start + prev_content_len + prev_seps_len + sep_and_indent_len
 
                     for nested_span in item_rendered.source_map:
                         source_map.append(SourceSpan(
