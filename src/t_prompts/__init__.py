@@ -31,7 +31,6 @@ from .parsing import (
     parse_separator,
 )
 from .text import process_dedent
-from .ui import render_ir_to_html
 
 __version__ = "0.8.0-alpha"
 __all__ = [
@@ -48,7 +47,6 @@ __all__ = [
     "ImageChunk",
     "prompt",
     "dedent",
-    "render_ir_to_html",
     "parse_format_spec",
     "parse_render_hints",
     "parse_separator",
