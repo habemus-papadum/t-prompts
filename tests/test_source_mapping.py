@@ -4,13 +4,13 @@ import t_prompts
 
 
 def test_rendered_prompt_basic():
-    """Test that render returns RenderedPrompt."""
+    """Test that render returns IntermediateRepresentation."""
     value = "test"
     p = t_prompts.prompt(t"Value: {value:v}")
 
     rendered = p.render()
 
-    assert isinstance(rendered, t_prompts.RenderedPrompt)
+    assert isinstance(rendered, t_prompts.IntermediateRepresentation)
     assert rendered.text == "Value: test"
     assert rendered.source_prompt is p
 
@@ -203,14 +203,14 @@ def test_rendered_prompt_str():
 
 
 def test_rendered_prompt_repr():
-    """Test RenderedPrompt repr."""
+    """Test IntermediateRepresentation repr."""
     value = "test"
     p = t_prompts.prompt(t"{value:v}")
 
     rendered = p.render()
     repr_str = repr(rendered)
 
-    assert "RenderedPrompt" in repr_str
+    assert "IntermediateRepresentation" in repr_str
     # Only has 1 span because both static strings are empty and filtered out
     assert "spans=1" in repr_str
 

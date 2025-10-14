@@ -77,16 +77,26 @@ class SourceSpan:
     element_type: Literal["static", "interpolation"]
 
 
-class RenderedPrompt:
+class IntermediateRepresentation:
     """
-    Result of rendering a StructuredPrompt, including the text and source map.
+    Intermediate representation of a StructuredPrompt with text and source mapping.
+
+    This class serves as the bridge between structured prompts and their final output.
+    It's ideal for:
+    - Structured prompt optimization (removing parts when approaching context limits)
+    - Debugging optimization strategies with full provenance
+    - Future multi-modal support (multiple chunks for images, etc.)
+
+    The name "IntermediateRepresentation" reflects that this is not necessarily the
+    final output sent to an LLM, but rather a structured intermediate form that can
+    be further processed, optimized, or transformed before final rendering.
 
     Attributes
     ----------
     text : str
         The rendered string output.
     source_map : list[SourceSpan]
-        List of source spans mapping rendered text back to interpolations.
+        List of source spans mapping rendered text back to all elements (static and interpolations).
     source_prompt : StructuredPrompt
         The StructuredPrompt that was rendered to produce this result.
     """
@@ -199,7 +209,7 @@ class RenderedPrompt:
 
     def __repr__(self) -> str:
         """Return a helpful debug representation."""
-        return f"RenderedPrompt(text={self._text!r}, spans={len(self._source_map)})"
+        return f"IntermediateRepresentation(text={self._text!r}, spans={len(self._source_map)})"
 
 
 @dataclass(frozen=True, slots=True)
@@ -307,16 +317,16 @@ class StructuredInterpolation(Element):
             return self.value[key]
         raise NotANestedPromptError(self.key)
 
-    def render(self) -> Union[str, "RenderedPrompt"]:
+    def render(self) -> Union[str, "IntermediateRepresentation"]:
         """
         Render this interpolation node.
 
-        If the value is a StructuredPrompt, returns a RenderedPrompt.
+        If the value is a StructuredPrompt, returns an IntermediateRepresentation.
         If the value is a string, returns a string with conversions applied.
 
         Returns
         -------
-        str | RenderedPrompt
+        str | IntermediateRepresentation
             The rendered value of this interpolation.
         """
         if isinstance(self.value, StructuredPrompt):
@@ -547,13 +557,18 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
     # Rendering
 
-    def render(self, _path: tuple[Union[str, int], ...] = ()) -> RenderedPrompt:
+    def render(self, _path: tuple[Union[str, int], ...] = ()) -> IntermediateRepresentation:
         """
-        Render this StructuredPrompt to a RenderedPrompt with source mapping.
+        Render this StructuredPrompt to an IntermediateRepresentation with source mapping.
 
         Creates source spans for both static text segments and interpolations.
         Conversions (!s, !r, !a) are always applied.
         Format specs are parsed as "key : render_hints".
+
+        The IntermediateRepresentation is ideal for:
+        - Structured optimization when approaching context limits
+        - Debugging and auditing with full provenance
+        - Future multi-modal transformations
 
         Parameters
         ----------
@@ -562,7 +577,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
         Returns
         -------
-        RenderedPrompt
+        IntermediateRepresentation
             Object containing the rendered text and source map.
         """
         out_parts: list[str] = []
@@ -657,7 +672,7 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
                 out_parts.append(rendered_text)
 
         text = "".join(out_parts)
-        return RenderedPrompt(text, source_map, self)
+        return IntermediateRepresentation(text, source_map, self)
 
     def __str__(self) -> str:
         """Render to string (convenience for render().text)."""

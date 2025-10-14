@@ -88,7 +88,7 @@ Render hints are stored but not currently applied during rendering—they're ava
 - Wraps a `string.templatelib.Template` (the original t-string structure). *Python documentation*
 - Dict-like access to `StructuredInterpolation` nodes.
 - Preserves ordering of interpolations.
-- Renders to `RenderedPrompt` with source mapping, applying conversion semantics.
+- Renders to `IntermediateRepresentation` with source mapping, applying conversion semantics.
 
 **StructuredInterpolation**
 
@@ -107,17 +107,24 @@ Dict-like delegation when value is a `StructuredPrompt`:
 
 - `node['inst']` → look into child prompt and return its interpolation node.
 
-**RenderedPrompt**
+**IntermediateRepresentation**
 
-Result of rendering a `StructuredPrompt`, providing both text and source mapping:
+Intermediate representation of a `StructuredPrompt`, providing text and source mapping. The name reflects that this is not necessarily the final output sent to an LLM, but rather a structured intermediate form that can be further processed, optimized, or transformed.
 
+**Rationale for naming**: This object serves as the ideal representation for structured prompt optimization. When approaching context limits, you want to reduce prompts in a structured way—potentially deleting specific parts. The `IntermediateRepresentation` helps debug and implement these optimization strategies with full provenance tracking.
+
+Additionally, for future multi-modal support (e.g., interpolating images), the mapping from a "rendered prompt" to a single user message will no longer be accurate. Instead, we'll need to handle multiple chunks of output. `IntermediateRepresentation` better captures this intermediate, transformable nature.
+
+Fields:
 - `text: str` — the rendered output
-- `source_map: list[SourceSpan]` — bidirectional mapping between text positions and source structure
+- `source_map: list[SourceSpan]` — bidirectional mapping between text positions and source structure (includes both static and interpolated elements)
 - `source_prompt: StructuredPrompt` — reference to the original structured prompt
 
 Methods:
-- `get_span_at(position: int)` — find which interpolation produced the character at this position
-- `get_span_for_key(key: str, path: tuple[str, ...])` — find the text span for a specific interpolation
+- `get_span_at(position: int)` — find which element produced the character at this position
+- `get_span_for_key(key: Union[str, int], path: tuple[Union[str, int], ...])` — find the text span for a specific element
+- `get_static_span(static_index: int, path: ...)` — find the span for a static text segment
+- `get_interpolation_span(key: str, path: ...)` — find the span for an interpolation
 
 **SourceSpan**
 
@@ -141,7 +148,7 @@ Encodes rules for deriving keys from `Interpolation`s (default: use `format_spec
 
 ### 3.2 Rendering semantics
 
-`StructuredPrompt.render()` returns a `RenderedPrompt` object containing the rendered text and a source map:
+`StructuredPrompt.render()` returns an `IntermediateRepresentation` object containing the rendered text and a source map:
 
 1. Walk the original `Template.strings` & `Template.interpolations`.
 2. For each interpolation:
@@ -150,8 +157,8 @@ Encodes rules for deriving keys from `Interpolation`s (default: use `format_spec
    - If a `conversion` exists, apply it via `string.templatelib.convert(value, conversion)` to emulate f-string `!s`/`!r`/`!a`. *Python documentation*
    - Do **not** apply `format_spec` for formatting (used exclusively for key/hints).
    - Track the position and span of this interpolation in the output for source mapping.
-3. Build a `SourceSpan` for each interpolation with its position in the rendered text and its path through nested prompts.
-4. Return a `RenderedPrompt` with the text, source map, and reference to the original prompt.
+3. Build a `SourceSpan` for each element (static and interpolation) with its position in the rendered text and its path through nested prompts.
+4. Return an `IntermediateRepresentation` with the text, source map, and reference to the original prompt.
 
 `__str__()` delegates to `render().text` for backward compatibility.
 
@@ -169,7 +176,7 @@ Encodes rules for deriving keys from `Interpolation`s (default: use `format_spec
 ```python
 # t_prompts/__init__.py
 from .core import (
-    RenderedPrompt,
+    IntermediateRepresentation,
     SourceSpan,
     StructuredInterpolation,
     StructuredPrompt,
@@ -185,7 +192,7 @@ from .exceptions import (
 )
 
 __all__ = [
-    "RenderedPrompt",
+    "IntermediateRepresentation",
     "SourceSpan",
     "StructuredInterpolation",
     "StructuredPrompt",
@@ -213,7 +220,11 @@ class SourceSpan:
     path: tuple[str, ...]
 
 
-class RenderedPrompt:
+class IntermediateRepresentation:
+    """Intermediate representation with text and source mapping.
+
+    Ideal for structured prompt optimization and multi-modal transformations.
+    """
     def __init__(
         self,
         text: str,
@@ -236,14 +247,26 @@ class RenderedPrompt:
     def source_prompt(self) -> "StructuredPrompt":
         return self._source_prompt
 
-    def get_span_at(self, position: int) -> SourceSpan:
+    def get_span_at(self, position: int) -> Optional[SourceSpan]:
         # Find the span containing this position
         ...
 
     def get_span_for_key(
-        self, key: str, path: tuple[str, ...] = ()
-    ) -> SourceSpan:
+        self, key: Union[str, int], path: tuple[Union[str, int], ...] = ()
+    ) -> Optional[SourceSpan]:
         # Find the span for a specific key/path
+        ...
+
+    def get_static_span(
+        self, static_index: int, path: tuple[Union[str, int], ...] = ()
+    ) -> Optional[SourceSpan]:
+        # Find the span for a static text segment
+        ...
+
+    def get_interpolation_span(
+        self, key: str, path: tuple[Union[str, int], ...] = ()
+    ) -> Optional[SourceSpan]:
+        # Find the span for an interpolation
         ...
 
 
@@ -265,9 +288,9 @@ class StructuredInterpolation:
             return vp[key]
         raise NotANestedPromptError(self.key)
 
-    def render(self, _path: tuple[str, ...] = ()) -> Union[str, RenderedPrompt]:
+    def render(self, _path: tuple[str, ...] = ()) -> Union[str, IntermediateRepresentation]:
         # Render this node only
-        # If value is StructuredPrompt, returns RenderedPrompt
+        # If value is StructuredPrompt, returns IntermediateRepresentation
         # Otherwise returns str
         ...
 
@@ -296,9 +319,9 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
     def interpolations(self) -> tuple[StructuredInterpolation, ...]: return tuple(self._interps)
 
     # Rendering
-    def render(self, _path: tuple[str, ...] = ()) -> RenderedPrompt:
+    def render(self, _path: tuple[str, ...] = ()) -> IntermediateRepresentation:
         # Walk template.strings & our nodes in order
-        # Build source map tracking positions and paths
+        # Build source map tracking positions and paths for all elements
         # Format specs are parsed for keys/hints, never for formatting
         ...
     def __str__(self) -> str:
@@ -355,7 +378,7 @@ The format spec is parsed as `"key : render_hints"`:
 
 - Conversions are always applied.
 - Format specs are parsed for key/hints but never applied as formatting directives.
-- Returns a `RenderedPrompt` with text and source mapping.
+- Returns an `IntermediateRepresentation` with text and source mapping.
 
 **Nesting**
 
@@ -582,58 +605,76 @@ def _build_nodes(self, template: Template, allow_dupes: bool) -> None:
 ### Rendering
 
 ```python
-def render(self, _path: tuple[str, ...] = ()) -> RenderedPrompt:
-    """Render to text with source mapping."""
+def render(self, _path: tuple[str, ...] = ()) -> IntermediateRepresentation:
+    """Render to text with source mapping for all elements (static and interpolations)."""
     out_parts: list[str] = []
     source_map: list[SourceSpan] = []
     current_pos = 0
 
-    strings = list(self._template.strings)
-    out_parts.append(strings[0])
-    current_pos += len(strings[0])
+    # Iterate through all elements (Static and StructuredInterpolation)
+    for element in self._elements:
+        span_start = current_pos
 
-    for idx, node in enumerate(self._interps):
-        start_pos = current_pos
-        current_path = _path + (node.key,)
+        if isinstance(element, Static):
+            # Render static element
+            rendered_text = element.value
+            out_parts.append(rendered_text)
+            current_pos += len(rendered_text)
 
-        # Render the interpolation value
-        if isinstance(node.value, StructuredPrompt):
-            rendered = node.value.render(_path=current_path)
-            out = rendered.text
-            # Add nested spans with offset
-            for span in rendered.source_map:
+            # Create span for static (only if non-empty)
+            if rendered_text:
+                source_map.append(SourceSpan(
+                    start=span_start,
+                    end=current_pos,
+                    key=element.key,
+                    path=_path,
+                    element_type="static"
+                ))
+
+        elif isinstance(element, StructuredInterpolation):
+            node = element
+            current_path = _path + (node.key,)
+
+            # Render the interpolation value
+            if isinstance(node.value, StructuredPrompt):
+                rendered = node.value.render(_path=current_path)
+                out = rendered.text
+                # Add nested spans with offset
+                for span in rendered.source_map:
+                    source_map.append(
+                        SourceSpan(
+                            start=span.start + span_start,
+                            end=span.end + span_start,
+                            key=span.key,
+                            path=span.path,
+                            element_type=span.element_type
+                        )
+                    )
+            else:
+                out = node.value
+
+            # Apply conversion if present
+            if node.conversion:
+                conv: Literal["r", "s", "a"] = node.conversion  # type: ignore
+                out = convert(out, conv)
+
+            # Add span for this interpolation
+            current_pos += len(out)
+            if not isinstance(node.value, StructuredPrompt):
                 source_map.append(
                     SourceSpan(
-                        start=span.start + start_pos,
-                        end=span.end + start_pos,
-                        key=span.key,
-                        path=span.path,
+                        start=span_start,
+                        end=current_pos,
+                        key=node.key,
+                        path=current_path,
+                        element_type="interpolation"
                     )
                 )
-        else:
-            out = node.value
 
-        # Apply conversion if present
-        if node.conversion:
-            conv: Literal["r", "s", "a"] = node.conversion  # type: ignore
-            out = convert(out, conv)
-
-        # Add span for this interpolation
-        end_pos = start_pos + len(out)
-        source_map.append(
-            SourceSpan(start=start_pos, end=end_pos, key=node.key, path=current_path)
-        )
-
-        out_parts.append(out)
-        current_pos = end_pos
-
-        # Add the next string segment
-        next_str = strings[idx + 1]
-        out_parts.append(next_str)
-        current_pos += len(next_str)
+            out_parts.append(out)
 
     text = "".join(out_parts)
-    return RenderedPrompt(text, source_map, self)
+    return IntermediateRepresentation(text, source_map, self)
 ```
 
 ## Summary

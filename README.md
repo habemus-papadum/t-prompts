@@ -163,7 +163,7 @@ assert 'value' in p3
 
 ### Source Mapping
 
-`render()` returns a `RenderedPrompt` with bidirectional text ↔ structure mapping:
+`render()` returns an `IntermediateRepresentation` with bidirectional text ↔ structure mapping:
 
 ```python
 from t_prompts import prompt

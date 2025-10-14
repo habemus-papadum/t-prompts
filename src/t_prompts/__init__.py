@@ -1,6 +1,14 @@
 """Structured prompts using template strings"""
 
-from .core import Element, RenderedPrompt, SourceSpan, Static, StructuredInterpolation, StructuredPrompt, prompt
+from .core import (
+    Element,
+    IntermediateRepresentation,
+    SourceSpan,
+    Static,
+    StructuredInterpolation,
+    StructuredPrompt,
+    prompt,
+)
 from .exceptions import (
     DuplicateKeyError,
     EmptyExpressionError,
@@ -16,7 +24,7 @@ __all__ = [
     "StructuredInterpolation",
     "Element",
     "Static",
-    "RenderedPrompt",
+    "IntermediateRepresentation",
     "SourceSpan",
     "prompt",
     "EmptyExpressionError",

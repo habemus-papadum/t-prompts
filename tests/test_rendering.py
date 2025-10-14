@@ -99,7 +99,7 @@ def test_interpolation_render_nested():
 
     node = p_outer["p"]
     rendered = node.render()
-    # node.render() returns RenderedPrompt for nested prompts
+    # node.render() returns IntermediateRepresentation for nested prompts
     assert rendered.text == "inner"
 
 
