@@ -1,6 +1,6 @@
 [project]
 name = "structured-prompts"
-version = "0.1.0"
+version = "0.2.0"
 description = "Structured prompts using template strings"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -60,3 +60,11 @@ addopts = "-s"
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["src/structured_prompts"]
+relative_files = true
+omit = [
+    "*/tests/*",
+    "*/testing.py",
+]

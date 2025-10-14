@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python library called `structured-prompts` that provides structured prompts using template strings. The project is in early development stage (v0.1.0) and uses a modern Python toolchain.
+This is a Python library called `structured-prompts` that provides structured prompts using template strings. The project is in early development stage  and uses a modern Python toolchain.
 
 ## Development Commands
 
