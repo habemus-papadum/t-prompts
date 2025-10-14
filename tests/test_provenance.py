@@ -295,3 +295,89 @@ def test_nested_parent_reference():
     # The inner node's parent should be p_inner, not p_outer
     inner_node = outer_node["i"]
     assert inner_node.parent is p_inner
+
+
+def test_to_values_with_list_interpolation():
+    """Test to_values() with ListInterpolation."""
+    item1 = t_prompts.prompt(t"Item 1")
+    item2 = t_prompts.prompt(t"Item 2")
+    items = [item1, item2]
+    p = t_prompts.prompt(t"List: {items:items}")
+
+    values = p.to_values()
+
+    assert "items" in values
+    assert isinstance(values["items"], list)
+    assert len(values["items"]) == 2
+    # Each item should be a dict (since they're prompts)
+    assert isinstance(values["items"][0], dict)
+    assert isinstance(values["items"][1], dict)
+
+
+def test_to_values_with_nested_prompts_in_list():
+    """Test to_values() with nested prompts inside a list."""
+    val1 = "first"
+    val2 = "second"
+    inner1 = t_prompts.prompt(t"Value: {val1:v}")
+    inner2 = t_prompts.prompt(t"Value: {val2:v}")
+    items = [inner1, inner2]
+    p = t_prompts.prompt(t"{items:list}")
+
+    values = p.to_values()
+
+    # to_values() returns interpolation values, not full rendered text
+    assert values == {
+        "list": [
+            {"v": "first"},
+            {"v": "second"}
+        ]
+    }
+
+
+def test_to_provenance_with_list_interpolation():
+    """Test to_provenance() with ListInterpolation."""
+    item1 = t_prompts.prompt(t"First")
+    item2 = t_prompts.prompt(t"Second")
+    items = [item1, item2]
+    p = t_prompts.prompt(t"{items:items:header=My List}")
+
+    prov = p.to_provenance()
+
+    # Should have one node for the list
+    assert len(prov["nodes"]) == 1
+    node_data = prov["nodes"][0]
+
+    assert node_data["key"] == "items"
+    assert node_data["expression"] == "items"
+    assert node_data["render_hints"] == "header=My List"
+    assert isinstance(node_data["value"], list)
+    assert len(node_data["value"]) == 2
+
+    # Each item should have its own provenance
+    assert "strings" in node_data["value"][0]
+    assert "nodes" in node_data["value"][0]
+    assert "strings" in node_data["value"][1]
+    assert "nodes" in node_data["value"][1]
+
+
+def test_to_provenance_with_image_interpolation():
+    """Test to_provenance() with ImageInterpolation (if PIL available)."""
+    try:
+        from PIL import Image
+    except ImportError:
+        # Skip test if PIL not available
+        return
+
+    # Create a minimal image
+    img = Image.new("RGB", (10, 10), color="red")
+    p = t_prompts.prompt(t"Image: {img:img}")
+
+    prov = p.to_provenance()
+
+    # Should have one node for the image
+    assert len(prov["nodes"]) == 1
+    node_data = prov["nodes"][0]
+
+    assert node_data["key"] == "img"
+    assert node_data["expression"] == "img"
+    # Image itself shouldn't be in provenance (not JSON serializable)

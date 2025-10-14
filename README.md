@@ -251,7 +251,22 @@ p3 = prompt(t"{value:_}")
 assert 'value' in p3
 ```
 
-**Note**: Render hints are stored but not currently applied during rendering. They're available for custom renderers or tooling.
+**Supported render hints**:
+- `xml=<tag>`: Wraps the interpolation in XML tags: `<tag>content</tag>`
+- `header` or `header=<text>`: Prepends a markdown header (e.g., `# Header`)
+- `sep=<separator>`: Custom separator for list interpolations (default: `\n`)
+
+Example with render hints:
+
+```python
+instructions = prompt(t"Be helpful")
+p = prompt(t"{instructions:inst:xml=instructions:header=System}")
+print(str(p))
+# # System
+# <instructions>
+# Be helpful
+# </instructions>
+```
 
 ### Source Mapping
 
@@ -350,6 +365,7 @@ print(rendered.text[interp_span.start:interp_span.end])  # "Alice"
 - **Dict-like access**: `p['key']` returns the interpolation node
 - **Nested composition**: Prompts can contain other prompts
 - **List support**: Interpolate lists of prompts with customizable separators
+- **Render hints**: Support for `xml=`, `header`, and `sep=` to transform output
 - **Dedenting support**: Automatic indentation removal for readable source code
 - **Format spec mini-language**: `key : render_hints` for extensible metadata
 - **Complete source mapping**: Bidirectional mapping for ALL text (static and interpolated)

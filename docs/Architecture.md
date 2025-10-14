@@ -75,7 +75,10 @@ Format specs follow the pattern `key : render_hints`:
 
 The first colon separates the key from optional render hints. Keys are trimmed of leading/trailing whitespace while preserving internal spaces. Multiple colons split only on the first, with everything after becoming render hints.
 
-Render hints are stored but not currently applied during rendering—they're available for custom renderers or tooling.
+**Supported render hints** (actively applied during rendering):
+- `xml=<tag>`: Wraps content in XML tags: `<tag>content</tag>`
+- `header` or `header=<text>`: Prepends markdown header (e.g., `# Header`)
+- `sep=<separator>`: Custom separator for list interpolations (default: `\n`)
 
 *Python documentation*
 
@@ -441,7 +444,7 @@ p2 = prompt(t"bazz {foo} {p}")
 
 ### Phase 0 — Scaffolding
 
-- Package skeleton: `t_prompts/` (`core.py`, `exceptions.py`, `utils.py`, `__init__.py`)
+- Package skeleton: `t_prompts/` (`core.py`, `exceptions.py`, `ui.py`, `__init__.py`)
 - `pyproject.toml` with `requires-python = ">=3.14"`
 - Strict tooling: ruff, mypy, pytest, coverage, pre-commit
 - CI: GitHub Actions on 3.14 (and 3.15-dev later)
