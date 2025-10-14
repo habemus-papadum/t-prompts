@@ -120,10 +120,9 @@ By default, `StructuredPrompt.render()` (and `__str__`) will:
    - If `value` is `StructuredPrompt`, render that child recursively.
    - Else treat `value` as `str`.
    - If a `conversion` exists, apply it via `string.templatelib.convert(value, conversion)` to emulate f-string `!s`/`!r`/`!a`. *Python documentation*
-   - Do **not** apply `format_spec` by default (we use it as a key label).
-   - Optional: `render(apply_format_spec=True)` attempts `format(value, format_spec)` only if the spec looks like a valid Format Specification Mini-Language; otherwise spec is ignored to avoid breaking key semantics.
+   - Do **not** apply `format_spec` (we use it exclusively as a key label).
 
-**Rationale:** t-strings explicitly defer how conversions & format specs are applied; we prioritize key labeling and predictable rendering for prompts.
+**Rationale:** t-strings explicitly defer how conversions & format specs are applied; we prioritize key labeling and predictable rendering for prompts. Format specs are never interpreted as formatting directives.
 
 *Python documentation*
 
@@ -194,9 +193,9 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
     def interpolations(self) -> tuple[StructuredInterpolation, ...]: return tuple(self._interps)
 
     # Rendering
-    def render(self, *, apply_format_spec: bool = False) -> str:
+    def render(self) -> str:
         # Walk template.strings & our nodes in order
-        # Optionally apply format_spec if valid
+        # Format specs are used only as keys, never for formatting
         ...
     def __str__(self) -> str:
         return self.render()
@@ -246,8 +245,8 @@ These are precisely the hooks we rely on to build provenance and handle renderin
 
 **Rendering**
 
-- Conversions are applied; format spec is ignored by default.
-- `apply_format_spec=True`: apply `format(value, format_spec)` iff value is not a `StructuredPrompt` and the spec looks reasonably valid (heuristic: starts with characters from the Format Spec mini-language; otherwise warn/ignore).
+- Conversions are always applied.
+- Format specs are never applied - they are used exclusively as key labels.
 
 **Nesting**
 
@@ -331,7 +330,7 @@ p2 = prompt(t"bazz {foo} {p}")
 
 - Implement `render()` and `__str__`
 - Apply conversions using `string.templatelib.convert` (doc-backed) *Python documentation*
-- Optional format-spec application flag & heuristic validator
+- Format specs are never applied for formatting (used only as keys)
 
 ### Phase 4 — Navigation & utilities
 
@@ -373,11 +372,7 @@ p2 = prompt(t"bazz {foo} {p}")
 
 #### Round-trips
 
-`str(prompt(t"..."))` equals expected f-string rendering when:
-
-- no format spec is provided, and/or
-- provided spec is ignored by default
-- With `apply_format_spec=True`, specs that are valid are applied
+`str(prompt(t"..."))` equals expected f-string rendering when no format spec is provided (format specs are used only as keys, never for formatting).
 
 #### Provenance
 
@@ -408,9 +403,9 @@ We rely on real `Template`/`Interpolation` structures produced by t-strings. The
 
 *Python documentation*
 
-**Format spec ambiguity:** We intentionally appropriate `format_spec` as a key label.
+**Format spec ambiguity:** We intentionally repurpose `format_spec` as a key label only.
 
-**Mitigation:** default rendering ignores it; opt-in formatting is guarded and best-effort.
+**Mitigation:** rendering always ignores format specs for formatting purposes.
 
 ## 10) References
 
@@ -451,7 +446,7 @@ def _build_nodes(self, template: Template, allow_dupes: bool) -> None:
 ### Rendering
 
 ```python
-def render(self, *, apply_format_spec: bool = False) -> str:
+def render(self) -> str:
     out = []
     strings = list(self._template.strings)
     itps = iter(self._interps)
@@ -460,12 +455,7 @@ def render(self, *, apply_format_spec: bool = False) -> str:
         node = next(itps)
         v = node.value.render() if isinstance(node.value, StructuredPrompt) else node.value
         v = convert(v, node.conversion) if node.conversion else v
-        if apply_format_spec and _looks_like_format_spec(node.format_spec):
-            try:
-                v = format(v, node.format_spec)
-            except Exception:
-                # Keep key semantics stable; ignore invalid
-                pass
+        # Format spec is never applied - used only as key
         out.append(v)
         out.append(s)
     return "".join(out)

@@ -16,57 +16,17 @@ def test_render_matches_fstring_behavior():
     assert p.render() == expected
 
 
-def test_render_without_apply_format_spec():
-    """Test that format specs are ignored by default (used as keys)."""
+def test_render_format_spec_as_key():
+    """Test that format specs are used as keys, not for formatting."""
     num = "42"
 
     # "05d" is used as a key, not as a format spec
     p = t_prompts.prompt(t"{num:05d}")
 
-    # Should NOT format as "00042"
+    # Should NOT format as "00042" - format spec is only used as key
     assert str(p) == "42"
     assert p.render() == "42"
-
-
-def test_render_with_apply_format_spec_true():
-    """Test that apply_format_spec=True applies valid format specs."""
-    num = "42"
-
-    # This time we use a format spec that looks like formatting
-    # Since we're using a string value, format(str, spec) should work
-    p = t_prompts.prompt(t"{num:>5}")
-
-    # Without apply_format_spec, format spec is ignored
-    assert p.render() == "42"
-
-    # With apply_format_spec=True, should right-align
-    assert p.render(apply_format_spec=True) == "   42"
-
-
-def test_render_apply_format_spec_with_invalid_spec():
-    """Test that invalid format specs are gracefully ignored."""
-    text = "hello"
-
-    # "key" looks like a key label, not a format spec
-    p = t_prompts.prompt(t"{text:key}")
-
-    # Even with apply_format_spec=True, this shouldn't try to format
-    assert p.render(apply_format_spec=True) == "hello"
-
-
-def test_render_apply_format_spec_with_error():
-    """Test that format errors are caught and ignored."""
-    text = "hello"
-
-    # Use a format spec that would cause an error for strings
-    # For example, "d" (decimal) doesn't work with strings
-    p = t_prompts.prompt(t"{text:.2f}")
-
-    # Without apply_format_spec, renders normally
-    assert p.render() == "hello"
-
-    # With apply_format_spec, the error should be caught and ignored
-    assert p.render(apply_format_spec=True) == "hello"
+    assert "05d" in p  # Key is the format spec
 
 
 def test_nested_prompt_rendering():
@@ -79,20 +39,6 @@ def test_nested_prompt_rendering():
 
     assert str(p_inner) == "[inner]"
     assert str(p_outer) == "outer [inner]"
-
-
-def test_nested_prompt_rendering_with_apply_format_spec():
-    """Test that apply_format_spec propagates to nested prompts."""
-    num = "42"
-
-    p_inner = t_prompts.prompt(t"{num:>5}")
-    p_outer = t_prompts.prompt(t"Value: {p_inner:inner}")
-
-    # Without apply_format_spec
-    assert p_outer.render() == "Value: 42"
-
-    # With apply_format_spec (should propagate to nested)
-    assert p_outer.render(apply_format_spec=True) == "Value:    42"
 
 
 def test_render_with_conversions():

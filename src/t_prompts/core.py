@@ -14,22 +14,6 @@ from .exceptions import (
 )
 
 
-def _looks_like_format_spec(spec: str) -> bool:
-    """
-    Heuristic to determine if a format spec looks like it's intended for formatting.
-
-    Returns False if the spec is likely being used as a key label.
-    This is a simple heuristic: if the spec contains only alphanumeric characters,
-    underscores, or hyphens, we assume it's a key label rather than a format spec.
-    """
-    if not spec:
-        return False
-    # Common format spec characters include: <>=^+- followed by width/precision/.type
-    # If it contains format-specific chars like <>=^.#, it's likely a format spec
-    format_chars = set("<>=^.#+0123456789")
-    return any(c in format_chars for c in spec)
-
-
 @dataclass(frozen=True, slots=True)
 class StructuredInterpolation:
     """
@@ -283,15 +267,12 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
     # Rendering
 
-    def render(self, *, apply_format_spec: bool = False) -> str:
+    def render(self) -> str:
         """
         Render this StructuredPrompt to a string.
 
-        Parameters
-        ----------
-        apply_format_spec : bool, optional
-            If True, attempts to apply format specs that look like formatting
-            (as opposed to key labels). Default is False.
+        Format specs are NOT applied during rendering - they are used only as key labels.
+        Conversions (!s, !r, !a) are always applied.
 
         Returns
         -------
@@ -311,20 +292,12 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
 
             # Get value (render recursively if nested)
             if isinstance(node.value, StructuredPrompt):
-                v = node.value.render(apply_format_spec=apply_format_spec)
+                v = node.value.render()
             else:
                 v = node.value
 
             # Apply conversion if present
             v = convert(v, node.conversion) if node.conversion else v
-
-            # Optionally apply format spec
-            if apply_format_spec and node.format_spec and _looks_like_format_spec(node.format_spec):
-                try:
-                    v = format(v, node.format_spec)
-                except (ValueError, TypeError):
-                    # Keep key semantics stable; ignore invalid format specs
-                    pass
 
             out.append(v)
             out.append(s)
