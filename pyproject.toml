@@ -47,6 +47,8 @@ packages = ["src/t_prompts"]
 dev = [
     "hatch>=1.14.2",
     "pytest>=8.0.0",
+    "pytest-playwright>=0.5.0",
+    "playwright>=1.45.0",
     "ruff>=0.13.3",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.5.0",
@@ -71,6 +73,9 @@ addopts = "-s"
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "visual: marks tests as visual tests that use Playwright (deselect with '-m \"not visual\"')",
+]
 
 [tool.coverage.run]
 source = ["src/t_prompts"]

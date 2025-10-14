@@ -31,7 +31,9 @@ nav:
   - Architecture: Architecture.md
   - Developer:
     - Setup: developer/setup.md
+    - Testing: developer/testing.md
     - toJSON Format: developer/to-json-format.md
+    - IR toJSON Format: developer/ir-to-json-format.md
   - API Reference: reference.md
 
 
