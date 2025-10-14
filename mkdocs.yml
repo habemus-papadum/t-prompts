@@ -6,6 +6,9 @@ repo_name: t-prompts
 
 theme:
   name: "material"
+  palette:
+    primary: blue grey
+
 
 nav:
   - Home: index.md
