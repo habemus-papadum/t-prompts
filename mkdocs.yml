@@ -17,6 +17,8 @@ nav:
     - Source Mapping: demos/topics/source-mapping.ipynb
     - Source Location: demos/topics/source-location.ipynb
     - Format Spec Mini-Language: demos/topics/format-spec-mini-language.ipynb
+    - Render Hints: demos/topics/render-hints.ipynb
+    - Image Interpolation: demos/topics/image-interpolation.ipynb
     - Dedenting: demos/topics/dedenting.ipynb
     - Advanced Composition: demos/topics/advanced-composition.ipynb
   - Architecture: architecture.md
