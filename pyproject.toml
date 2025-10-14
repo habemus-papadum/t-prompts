@@ -54,7 +54,7 @@ dev = [
 ]
 
 [tool.ruff]
-target-version = "0.5.0-alpha"
+target-version = "py314"
 line-length = 120
 exclude = []
 

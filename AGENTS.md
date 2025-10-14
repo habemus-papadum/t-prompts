@@ -16,6 +16,20 @@ This is a Python library called `t-prompts` (package name: `t-prompts`, module n
 
 If you think a version change is needed, inform the user but do not make the change yourself.
 
+### Release Management
+**ABSOLUTELY NEVER RUN THE RELEASE SCRIPT (`./release.sh`).** This is a production deployment script that:
+- Publishes the package to PyPI (affects real users)
+- Creates GitHub releases (public and permanent)
+- Pushes commits and tags to the repository
+- Triggers documentation deployment
+
+**This script should ONLY be run by a human who fully understands the consequences.** Do not:
+- Execute `./release.sh` under any circumstances
+- Suggest running it unless the user explicitly asks about the release process
+- Include it in automated workflows or scripts
+
+If the user needs to make a release, explain the process but let them run the script themselves.
+
 ## Development Commands
 
 ### Environment Setup

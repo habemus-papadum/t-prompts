@@ -9,8 +9,10 @@ This script automates the release process:
 5. Updates version files to release version
 6. Creates release commit and tag
 7. Pushes tag to origin
-8. Bumps to next development version with -alpha
-9. Commits and pushes development version
+8. Publishes to PyPI
+9. Creates GitHub release (triggers docs deployment)
+10. Bumps to next development version with -alpha
+11. Commits and pushes development version
 """
 
 import argparse
@@ -104,7 +106,7 @@ def read_version_from_file(file_path: Path, pattern: str) -> str:
         SystemExit: If version not found
     """
     content = file_path.read_text()
-    match = re.search(pattern, content)
+    match = re.search(pattern, content, flags=re.MULTILINE)
 
     if not match:
         print(f"✗ ERROR: Could not find version in {file_path}")
@@ -122,7 +124,7 @@ def write_version_to_file(file_path: Path, pattern: str, new_version: str) -> No
         new_version: New version string to write (replaces group 2)
     """
     content = file_path.read_text()
-    new_content = re.sub(pattern, rf'\g<1>{new_version}\g<3>', content)
+    new_content = re.sub(pattern, rf'\g<1>{new_version}\g<3>', content, flags=re.MULTILINE)
     file_path.write_text(new_content)
 
 
@@ -137,10 +139,10 @@ def read_current_version() -> tuple[str, str]:
     """
     print_step("Reading Current Version")
 
-    # Read from pyproject.toml
+    # Read from pyproject.toml (use word boundary to match exactly "version = " not "target-version = ")
     pyproject_version = read_version_from_file(
         PYPROJECT_TOML,
-        r'(version = ")([^"]+)(")'
+        r'^(version = ")([^"]+)(")'
     )
     print(f"  pyproject.toml: {pyproject_version}")
 
@@ -236,7 +238,7 @@ def update_version_files(version: str) -> None:
     """
     write_version_to_file(
         PYPROJECT_TOML,
-        r'(version = ")([^"]+)(")',
+        r'^(version = ")([^"]+)(")',
         version
     )
     write_version_to_file(
@@ -337,6 +339,30 @@ def push_tag(version: str) -> None:
     )
 
 
+def publish_to_pypi() -> None:
+    """Publish the package to PyPI using the publish script."""
+    print_step("Publishing to PyPI")
+
+    run_command(
+        ["./publish.sh"],
+        "Running publish.sh to build and publish to PyPI"
+    )
+
+
+def create_github_release(version: str) -> None:
+    """Create a GitHub release for the version tag.
+
+    Args:
+        version: Release version string
+    """
+    print_step(f"Creating GitHub Release: {version}")
+
+    run_command(
+        ["gh", "release", "create", version, "--title", version, "--generate-notes"],
+        f"Creating GitHub release {version}"
+    )
+
+
 def create_dev_commit(version: str) -> None:
     """Create a git commit for the development version.
 
@@ -392,6 +418,26 @@ def main() -> None:
     print("="*70)
     print(f"\nBump level: {args.bump_level}")
 
+    # Confirmation prompt
+    print("\n" + "!"*70)
+    print("  WARNING: This script will perform a RELEASE")
+    print("!"*70)
+    print("\nThis script will:")
+    print("  • Run all validation checks (tests, notebooks, linting, docs)")
+    print("  • Create and push a release commit and tag")
+    print("  • Publish the package to PyPI")
+    print("  • Create a GitHub release (triggering docs deployment)")
+    print("  • Bump to the next development version")
+    print("\nThis is a SERIOUS operation that affects production!")
+    print("\nType 'acknowledge' to continue or Ctrl+C to cancel: ", end="", flush=True)
+
+    confirmation = input().strip()
+    if confirmation != "acknowledge":
+        print("\n✗ Release cancelled. You must type 'acknowledge' to proceed.")
+        sys.exit(1)
+
+    print("✓ Proceeding with release...")
+
     # Step 1: Check git status
     check_git_clean()
 
@@ -424,28 +470,36 @@ def main() -> None:
     # Step 12: Push tag to origin
     push_tag(release_version)
 
-    # Step 13: Calculate next development version
+    # Step 13: Publish to PyPI
+    publish_to_pypi()
+
+    # Step 14: Create GitHub release
+    create_github_release(release_version)
+
+    # Step 15: Calculate next development version
     next_version = bump_version(release_version, args.bump_level)
     next_dev_version = f"{next_version}-alpha"
 
     print_step(f"Preparing Next Development Version: {next_dev_version}")
     print(f"  Next development version: {next_dev_version}")
 
-    # Step 14: Update to next development version
+    # Step 16: Update to next development version
     update_version_files(next_dev_version)
 
-    # Step 15: Create development commit
+    # Step 17: Create development commit
     create_dev_commit(next_dev_version)
 
-    # Step 16: Push development commit
+    # Step 18: Push development commit
     push_dev_commit()
 
     # Success!
     print_step("Release Complete!")
     print(f"✓ Released: {release_version}")
     print(f"✓ Tagged and pushed: {release_version}")
+    print(f"✓ Published to PyPI: {release_version}")
+    print(f"✓ Created GitHub release: {release_version}")
     print(f"✓ Next development version: {next_dev_version}")
-    print("\nYou can now publish to PyPI using ./publish.sh")
+    print("\nThe GitHub release will trigger documentation deployment to GitHub Pages.")
 
 
 if __name__ == "__main__":
