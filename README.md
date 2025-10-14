@@ -54,14 +54,8 @@ uv pip install t-prompts
 Install with optional features:
 
 ```bash
-# For UI widgets in Jupyter notebooks
-pip install t-prompts[ui]
-
 # For image support
 pip install t-prompts[image]
-
-# Multiple extras
-pip install t-prompts[ui,image]
 ```
 
 ## Quick Start

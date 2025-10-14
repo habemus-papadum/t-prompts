@@ -37,19 +37,17 @@ If the user needs to make a release, explain the process but let them run the sc
 # Install dependencies and sync environment (includes dev dependencies)
 uv sync --frozen
 
-# Install all optional dependencies (ui and image) for development
+# Install all optional dependencies (image) for development
 uv sync --frozen --all-extras
 
 # Or install specific extras only
-uv sync --frozen --extra ui
 uv sync --frozen --extra image
 ```
 
 **Important for Development**:
-- Use `uv sync --frozen --all-extras` to ensure you have all optional dependencies available for testing image and UI features
+- Use `uv sync --frozen --all-extras` to ensure you have all optional dependencies available for testing image features
 - The `--frozen` flag ensures the lockfile is used without modification, maintaining reproducible builds
 - The optional dependencies are:
-  - `ui`: anywidget for Jupyter notebook widgets
   - `image`: Pillow for image interpolation support
 
 ### Testing
