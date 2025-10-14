@@ -12,6 +12,10 @@ theme:
 
 nav:
   - Home: index.md
+  - Installation: installation.md
+  - Quick Start: quick-start.md
+  - Use Cases: use-cases.md
+  - Features: features.md
   - Tutorials:
     - Basic: demos/01-basic.ipynb
     - Intermediate: demos/02-intermediate.ipynb
@@ -24,8 +28,8 @@ nav:
     - Image Interpolation: demos/topics/image-interpolation.ipynb
     - Dedenting: demos/topics/dedenting.ipynb
     - Advanced Composition: demos/topics/advanced-composition.ipynb
-  - Architecture: architecture.md
-  - API: reference.md
+  - Architecture: Architecture.md
+  - API Reference: reference.md
 
 
 # If you'd like to specify a separate docs directory, you can do so here
