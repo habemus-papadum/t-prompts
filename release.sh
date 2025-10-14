@@ -4,12 +4,13 @@
 This script automates the release process:
 1. Verifies git repo is clean
 2. Validates version has -alpha suffix
-3. Strips -alpha to create release version
-4. Runs tests, notebooks, and linting
-5. Creates release commit and tag
-6. Pushes tag to origin
-7. Bumps to next development version with -alpha
-8. Commits and pushes development version
+3. Calculates release version (strips -alpha)
+4. Runs all validation (tests, notebooks in read-only mode, linting, docs build)
+5. Updates version files to release version
+6. Creates release commit and tag
+7. Pushes tag to origin
+8. Bumps to next development version with -alpha
+9. Commits and pushes development version
 """
 
 import argparse
@@ -255,12 +256,19 @@ def run_tests() -> None:
     )
 
 
-def run_notebook_tests() -> None:
-    """Run notebook tests."""
+def run_notebook_tests(no_inplace: bool = False) -> None:
+    """Run notebook tests.
+
+    Args:
+        no_inplace: If True, run notebooks without modifying files (for validation).
+    """
     print_step("Running Notebook Tests")
+    cmd = ["./test_notebooks.sh"]
+    if no_inplace:
+        cmd.append("--no-inplace")
     run_command(
-        ["./test_notebooks.sh"],
-        "Running notebook tests"
+        cmd,
+        "Running notebook tests" + (" (read-only mode)" if no_inplace else "")
     )
 
 
@@ -270,6 +278,15 @@ def run_linting() -> None:
     run_command(
         ["uv", "run", "ruff", "check", "."],
         "Running ruff linting"
+    )
+
+
+def build_docs() -> None:
+    """Build documentation with mkdocs."""
+    print_step("Building Documentation")
+    run_command(
+        ["uv", "run", "mkdocs", "build"],
+        "Building mkdocs site"
     )
 
 
@@ -384,42 +401,43 @@ def main() -> None:
     # Step 3: Validate has -alpha
     validate_alpha_version(current_version)
 
-    # Step 4: Strip -alpha to get release version
+    # Step 4: Calculate release version (but don't update files yet)
     release_version = strip_alpha(current_version)
     print_step(f"Preparing Release: {release_version}")
     print(f"  Release version: {release_version}")
 
-    # Step 5: Update version files for release
+    # Step 5-8: Run all validation checks BEFORE modifying version
+    run_tests()
+    run_notebook_tests(no_inplace=True)
+    run_linting()
+    build_docs()
+
+    # Step 9: Update version files for release
     update_version_files(release_version)
 
-    # Step 6-8: Run all validation checks
-    run_tests()
-    run_notebook_tests()
-    run_linting()
-
-    # Step 9: Create release commit
+    # Step 10: Create release commit
     create_release_commit(release_version)
 
-    # Step 10: Create release tag
+    # Step 11: Create release tag
     create_release_tag(release_version)
 
-    # Step 11: Push tag to origin
+    # Step 12: Push tag to origin
     push_tag(release_version)
 
-    # Step 12: Calculate next development version
+    # Step 13: Calculate next development version
     next_version = bump_version(release_version, args.bump_level)
     next_dev_version = f"{next_version}-alpha"
 
     print_step(f"Preparing Next Development Version: {next_dev_version}")
     print(f"  Next development version: {next_dev_version}")
 
-    # Step 13: Update to next development version
+    # Step 14: Update to next development version
     update_version_files(next_dev_version)
 
-    # Step 14: Create development commit
+    # Step 15: Create development commit
     create_dev_commit(next_dev_version)
 
-    # Step 15: Push development commit
+    # Step 16: Push development commit
     push_dev_commit()
 
     # Success!
