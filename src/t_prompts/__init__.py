@@ -2,6 +2,7 @@
 
 from .core import (
     Element,
+    ImageInterpolation,
     IntermediateRepresentation,
     ListInterpolation,
     SourceSpan,
@@ -15,6 +16,7 @@ from .exceptions import (
     DedentError,
     DuplicateKeyError,
     EmptyExpressionError,
+    ImageRenderError,
     MissingKeyError,
     NotANestedPromptError,
     StructuredPromptsError,
@@ -26,6 +28,7 @@ __all__ = [
     "StructuredPrompt",
     "StructuredInterpolation",
     "ListInterpolation",
+    "ImageInterpolation",
     "Element",
     "Static",
     "IntermediateRepresentation",
@@ -35,6 +38,7 @@ __all__ = [
     "DedentError",
     "EmptyExpressionError",
     "DuplicateKeyError",
+    "ImageRenderError",
     "MissingKeyError",
     "NotANestedPromptError",
     "StructuredPromptsError",

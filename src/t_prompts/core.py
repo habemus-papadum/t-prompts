@@ -9,10 +9,19 @@ from .exceptions import (
     DedentError,
     DuplicateKeyError,
     EmptyExpressionError,
+    ImageRenderError,
     MissingKeyError,
     NotANestedPromptError,
     UnsupportedValueTypeError,
 )
+
+# Try to import PIL for image support (optional dependency)
+try:
+    from PIL import Image as PILImage
+    HAS_PIL = True
+except ImportError:
+    PILImage = None  # type: ignore
+    HAS_PIL = False
 
 
 def _process_dedent(
@@ -654,7 +663,52 @@ class ListInterpolation(Element):
         )
 
 
-class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpolation]]):
+@dataclass(frozen=True, slots=True)
+class ImageInterpolation(Element):
+    """
+    Immutable record of an image interpolation in a StructuredPrompt.
+
+    Represents interpolations where the value is a PIL Image object.
+    Cannot be rendered to text - raises ImageRenderError when attempting to render.
+
+    Attributes
+    ----------
+    key : str
+        The key used for dict-like access (parsed from format_spec or expression).
+    expression : str
+        The original expression text from the t-string (what was inside {}).
+    conversion : str | None
+        The conversion flag if present (!s, !r, !a), or None.
+    format_spec : str
+        The format specification string (everything after :), or empty string.
+    render_hints : str
+        Rendering hints parsed from format_spec (everything after first colon in format spec).
+    value : Any
+        The PIL Image object (typed as Any to avoid hard dependency on PIL).
+    parent : StructuredPrompt | None
+        The parent StructuredPrompt that contains this interpolation.
+    index : int
+        The position of this element in the overall element sequence.
+    """
+
+    key: str
+    expression: str
+    conversion: Optional[str]
+    format_spec: str
+    render_hints: str
+    value: Any  # PIL Image type
+    parent: Optional["StructuredPrompt"]
+    index: int
+
+    def __repr__(self) -> str:
+        """Return a helpful debug representation."""
+        return (
+            f"ImageInterpolation(key={self.key!r}, expression={self.expression!r}, "
+            f"value=<PIL.Image>, index={self.index})"
+        )
+
+
+class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpolation, ImageInterpolation]]):
     """
     A provenance-preserving, navigable tree representation of a t-string.
 
@@ -689,8 +743,8 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
     ):
         self._template = template
         self._processed_strings = _processed_strings  # Dedented/trimmed strings if provided
-        self._elements: list[Element] = []  # All elements (Static, StructuredInterpolation, ListInterpolation)
-        self._interps: list[Union[StructuredInterpolation, ListInterpolation]] = []  # Only interpolations
+        self._elements: list[Element] = []  # All elements (Static, StructuredInterpolation, ListInterpolation, ImageInterpolation)
+        self._interps: list[Union[StructuredInterpolation, ListInterpolation, ImageInterpolation]] = []  # Only interpolations
         self._allow_duplicates = allow_duplicate_keys
 
         # Index maps keys to interpolation indices (within _interps list)
@@ -751,6 +805,18 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
                         parent=self,
                         index=element_idx,
                     )
+                elif HAS_PIL and PILImage and isinstance(val, PILImage.Image):
+                    # Create ImageInterpolation node
+                    node = ImageInterpolation(
+                        key=key,
+                        expression=itp.expression,
+                        conversion=itp.conversion,
+                        format_spec=itp.format_spec,
+                        render_hints=render_hints,
+                        value=val,
+                        parent=self,
+                        index=element_idx,
+                    )
                 elif isinstance(val, StructuredPrompt) or isinstance(val, str):
                     # Create StructuredInterpolation node
                     node = StructuredInterpolation(
@@ -784,7 +850,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
 
     # Mapping protocol implementation
 
-    def __getitem__(self, key: str) -> Union[StructuredInterpolation, ListInterpolation]:
+    def __getitem__(self, key: str) -> Union[StructuredInterpolation, ListInterpolation, ImageInterpolation]:
         """
         Get the interpolation node for the given key.
 
@@ -795,7 +861,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
 
         Returns
         -------
-        StructuredInterpolation | ListInterpolation
+        StructuredInterpolation | ListInterpolation | ImageInterpolation
             The interpolation node for this key.
 
         Raises
@@ -828,7 +894,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         """Return the number of unique keys."""
         return len(set(node.key for node in self._interps))
 
-    def get_all(self, key: str) -> list[Union[StructuredInterpolation, ListInterpolation]]:
+    def get_all(self, key: str) -> list[Union[StructuredInterpolation, ListInterpolation, ImageInterpolation]]:
         """
         Get all interpolation nodes for a given key (for duplicate keys).
 
@@ -839,7 +905,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
 
         Returns
         -------
-        list[StructuredInterpolation | ListInterpolation]
+        list[StructuredInterpolation | ListInterpolation | ImageInterpolation]
             List of all interpolation nodes with this key.
 
         Raises
@@ -869,7 +935,7 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         return self._template.strings
 
     @property
-    def interpolations(self) -> tuple[Union[StructuredInterpolation, ListInterpolation], ...]:
+    def interpolations(self) -> tuple[Union[StructuredInterpolation, ListInterpolation, ImageInterpolation], ...]:
         """Return all interpolation nodes in order."""
         return tuple(self._interps)
 
@@ -911,7 +977,17 @@ class StructuredPrompt(Mapping[str, Union[StructuredInterpolation, ListInterpola
         -------
         IntermediateRepresentation
             Object containing the rendered text and source map.
+
+        Raises
+        ------
+        ImageRenderError
+            If the prompt contains any image interpolations.
         """
+        # Check for images in interpolations (cannot render to text)
+        for interp in self._interps:
+            if isinstance(interp, ImageInterpolation):
+                raise ImageRenderError()
+
         out_parts: list[str] = []
         source_map: list[SourceSpan] = []
         current_pos = 0

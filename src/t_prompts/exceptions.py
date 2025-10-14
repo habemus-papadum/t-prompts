@@ -64,3 +64,14 @@ class DedentError(StructuredPromptsError):
     def __init__(self, message: str):
         self.message = message
         super().__init__(message)
+
+
+class ImageRenderError(StructuredPromptsError):
+    """Raised when attempting to render a prompt containing images to text."""
+
+    def __init__(self):
+        super().__init__(
+            "Cannot render prompt containing images to text. "
+            "Prompts with images can only be accessed through the prompt structure. "
+            "Use p['image_key'].value to access the PIL Image object directly."
+        )

@@ -23,7 +23,7 @@ jobs:
           enable-cache: true
 
       - name: Create Virtual Environment
-        run: uv sync --frozen
+        run: uv sync --frozen --all-extras
 
       - name: Run Linting
         run: uv run ruff check .

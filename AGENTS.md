@@ -20,9 +20,23 @@ If you think a version change is needed, inform the user but do not make the cha
 
 ### Environment Setup
 ```bash
-# Install dependencies and sync environment
-uv sync
+# Install dependencies and sync environment (includes dev dependencies)
+uv sync --frozen
+
+# Install all optional dependencies (ui and image) for development
+uv sync --frozen --all-extras
+
+# Or install specific extras only
+uv sync --frozen --extra ui
+uv sync --frozen --extra image
 ```
+
+**Important for Development**:
+- Use `uv sync --frozen --all-extras` to ensure you have all optional dependencies available for testing image and UI features
+- The `--frozen` flag ensures the lockfile is used without modification, maintaining reproducible builds
+- The optional dependencies are:
+  - `ui`: anywidget for Jupyter notebook widgets
+  - `image`: Pillow for image interpolation support
 
 ### Testing
 ```bash

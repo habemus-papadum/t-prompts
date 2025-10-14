@@ -33,9 +33,38 @@ This library wraps t-strings in a `StructuredPrompt` that acts like both a rende
 - **Auditability**: Export full provenance information for logging and debugging
 - **Type Safety**: Only strings and nested prompts allowed—no accidental `str(obj)` surprises
 
-## Quick Start
+## Installation
 
 **Requirements:** Python 3.14+
+
+Install the base package using pip:
+
+```bash
+pip install t-prompts
+```
+
+Or using uv:
+
+```bash
+uv pip install t-prompts
+```
+
+### Optional Dependencies
+
+Install with optional features:
+
+```bash
+# For UI widgets in Jupyter notebooks
+pip install t-prompts[ui]
+
+# For image support
+pip install t-prompts[image]
+
+# Multiple extras
+pip install t-prompts[ui,image]
+```
+
+## Quick Start
 
 ### Basic Usage
 
@@ -337,20 +366,6 @@ print(rendered.text[interp_span.start:interp_span.end])  # "Alice"
 - **Type validation**: Only `str`, `StructuredPrompt`, and `list[StructuredPrompt]` values allowed
 - **Immutable**: All elements are frozen dataclasses
 
-## Installation
-
-Install using pip:
-
-```bash
-pip install t-prompts
-```
-
-Or using uv:
-
-```bash
-uv pip install t-prompts
-```
-
 ## Development
 
 This project uses [UV](https://docs.astral.sh/uv/) for dependency management.
@@ -361,9 +376,18 @@ This project uses [UV](https://docs.astral.sh/uv/) for dependency management.
 # Install UV if you haven't already
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Create a virtual environment and install dependencies
-uv sync
+# Create a virtual environment and install dependencies (including dev dependencies)
+uv sync --frozen
+
+# To also install optional dependencies (ui and image), use:
+uv sync --frozen --all-extras
+
+# Or install specific extras:
+uv sync --frozen --extra ui
+uv sync --frozen --extra image
 ```
+
+**Note**: For development, you'll want to use `uv sync --frozen --all-extras` to ensure all optional dependencies are available for testing image and UI features. The `--frozen` flag ensures the lockfile is used without modification.
 
 ### Running tests
 
