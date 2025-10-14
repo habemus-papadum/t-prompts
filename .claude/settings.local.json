@@ -1,27 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(tree:*)",
-      "Bash(uv run pytest:*)",
-      "Bash(uv run ruff:*)",
-      "Bash(uv run ruff format:*)",
-      "Read(//Users/nehal/src/**)",
-      "Bash(chmod:*)",
-      "Bash(./nb.sh:*)",
-      "Bash(./test_notebooks.sh:*)",
-      "Bash(git remote set-url:*)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(python:*)",
       "Bash(git checkout:*)",
-      "Bash(git mv:*)",
       "Bash(git add:*)",
-      "Bash(uv run jupyter nbconvert:*)",
-      "Bash(uv run:*)",
-      "Bash(python3:*)",
-      "Bash(ls:*)",
-      "WebSearch",
-      "Bash(uv sync:*)",
-      "Bash(git commit:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd UUID4 id fields to Element and StructuredPrompt classes\n\nThis commit adds unique identifier fields to both Element and \nStructuredPrompt classes to simplify JSON serialization and enable\neasier tracking of parent/child relationships.\n\nChanges:\n- Added uuid import and field to dataclasses imports\n- Added id field to Element dataclass with UUID4 default factory\n- Added _id field to StructuredPrompt.__init__ with UUID4 generation\n- Added id property to StructuredPrompt for public access\n\nAll elements (Static, StructuredInterpolation, ListInterpolation,\nImageInterpolation) now receive unique UUIDs upon construction.\nEach StructuredPrompt instance also gets its own unique UUID.\n\nThis change is backward compatible and doesn''t affect existing\nfunctionality.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git push:*)",
-      "Bash(gh pr create --title \"Add lightweight source location tracking for prompts\" --body \"$(cat <<''EOF''\n## Overview\n\nThis PR implements automatic tracking of where prompts are created in source code, providing better debugging, audit logging, and provenance tracking capabilities.\n\n## What''s New\n\n### Core Features\n- **SourceLocation dataclass**: Captures `filename`, `filepath`, and `line` number where prompts are created\n- **Automatic capture**: Enabled by default via `capture_source_location=True` parameter\n- **Stack frame walking**: Uses Python''s `inspect` module to find the first caller frame outside the library\n- **Zero file I/O**: Only uses information directly available from stack frames (no file reading)\n- **Provenance export**: Source location automatically included in `to_provenance()` output\n- **Opt-out available**: Can disable with `capture_source_location=False` for maximum performance\n\n### Implementation Highlights\n\nThe implementation is intentionally lightweight:\n- Walks Python call stack to find first frame outside library directory\n- Extracts filename, filepath, and line number directly from frame object\n- No source file reading required\n- Handles edge cases gracefully (REPL, eval, exec, unavailable sources)\n\n### API\n\n```python\n# Automatic capture (enabled by default)\ntask = \"translate\"\np = prompt(t\"Task: {task}\")\n\n# Access source location\nloc = p[''task''].source_location\nprint(f\"Created at {loc.filename}:{loc.line}\")\n\n# Disable if needed\np = prompt(t\"Task: {task}\", capture_source_location=False)\n```\n\n## Use Cases\n\n### 1. Debugging Complex Prompt Hierarchies\nQuickly identify where each piece of a nested prompt was created:\n\n```python\ndef build_conversation(task):\n    system = create_system_prompt()\n    user = create_user_message(task)\n    return prompt(t\"System: {system:sys}nUser: {user:usr}\")\n\nconv = build_conversation(\"translate\")\n# Each component knows its origin file and line\n```\n\n### 2. Audit Logging\nTrack which code paths generated specific prompts for compliance:\n\n```python\ndef log_prompt_creation(p, name):\n    if p.interpolations:\n        loc = p.interpolations[0].source_location\n        if loc and loc.is_available:\n            logger.info(f\"Prompt '{name}' created at {loc.filepath}:{loc.line}\")\n```\n\n### 3. Provenance Tracking\nSource location is automatically exported in provenance:\n\n```python\nprov = p.to_provenance()\n# Each node includes source_location with filename, filepath, line\n```\n\n## Testing\n\n- **11 new tests** covering all source location functionality\n- **All 208 existing tests pass** - no breaking changes\n- **8 demo notebooks execute successfully** including new source location demo\n\n## Documentation\n\nAdded comprehensive documentation:\n- **New demo notebook**: `docs/demos/topics/source-location.ipynb`\n- Examples covering:\n  - Basic usage and API\n  - Checking availability\n  - Nested prompts with separate locations\n  - Provenance export\n  - Performance considerations\n  - Real-world use cases (debugging, audit logging)\n- Complete API reference\n\n## Performance\n\nThe implementation has minimal performance overhead:\n- Only walks stack frames (fast operation)\n- No file I/O operations\n- Can be disabled entirely if needed\n- Suitable for production use\n\n## Breaking Changes\n\nNone - this is a purely additive feature with sensible defaults.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\nEOF\n)\")"
+      "Bash(gh pr create --title \"Add UUID4 id fields to Element and StructuredPrompt\" --body \"$(cat <<''EOF''\n## Summary\nThis PR adds unique identifier fields to both `Element` and `StructuredPrompt` classes to simplify JSON serialization and enable easier tracking of parent/child relationships.\n\n## Changes\n- Added `uuid` import and `field` to dataclasses imports\n- Added `id` field to `Element` dataclass with UUID4 default factory\n- Added `_id` field to `StructuredPrompt.__init__` with UUID4 generation\n- Added `id` property to `StructuredPrompt` for public access\n\n## Benefits\n- **Unique identification**: Every element and structured prompt now has a globally unique identifier\n- **JSON serialization**: These IDs simplify parent/child relationships when serializing to JSON\n- **Tracking**: The IDs make it easier to track and reference specific elements throughout the prompt tree\n\n## Testing\nVerified with test script that confirmed:\n- StructuredPrompts receive unique UUID4 IDs\n- All Elements (Static, StructuredInterpolation, etc.) receive unique UUID4 IDs\n- Nested prompts maintain separate unique IDs\n- The IDs are proper UUID4 format (36-character strings)\n\n## Backward Compatibility\nThis change is backward compatible and doesn''t affect any existing functionality.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\nEOF\n)\")",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(./test_notebooks.sh:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,6 +2,7 @@
 
 from .core import (
     Element,
+    ImageChunk,
     ImageInterpolation,
     IntermediateRepresentation,
     ListInterpolation,
@@ -10,6 +11,7 @@ from .core import (
     Static,
     StructuredInterpolation,
     StructuredPrompt,
+    TextChunk,
     dedent,
     prompt,
 )
@@ -35,6 +37,8 @@ __all__ = [
     "IntermediateRepresentation",
     "SourceSpan",
     "SourceLocation",
+    "TextChunk",
+    "ImageChunk",
     "prompt",
     "dedent",
     "DedentError",

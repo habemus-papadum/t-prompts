@@ -270,10 +270,20 @@ def test_get_span_for_key_with_path():
 
 def test_source_span_dataclass():
     """Test SourceSpan dataclass properties."""
-    span = t_prompts.SourceSpan(start=0, end=5, key="test", path=("a", "b"), element_type="interpolation")
+    span = t_prompts.SourceSpan(
+        start=0,
+        end=5,
+        key="test",
+        path=("a", "b"),
+        element_type="interpolation",
+        chunk_index=0,
+        element_id="test-uuid"
+    )
 
     assert span.start == 0
     assert span.end == 5
     assert span.key == "test"
     assert span.path == ("a", "b")
     assert span.element_type == "interpolation"
+    assert span.chunk_index == 0
+    assert span.element_id == "test-uuid"
