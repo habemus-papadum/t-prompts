@@ -32,7 +32,7 @@ from .parsing import (
 )
 from .text import process_dedent
 
-__version__ = "0.9.0"
+__version__ = "0.10.0-alpha"
 __all__ = [
     "StructuredPrompt",
     "StructuredInterpolation",

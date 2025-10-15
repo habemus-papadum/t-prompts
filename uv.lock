@@ -1970,7 +1970,7 @@ wheels = [
 
 [[package]]
 name = "t-prompts"
-version = "0.9.0"
+version = "0.10.0a0"
 source = { editable = "." }
 dependencies = [
     { name = "pytest-cov" },
