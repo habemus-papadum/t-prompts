@@ -77,11 +77,29 @@ pnpm build
 
 This will compile TypeScript sources in `widgets/src/` to `widgets/dist/`, which gets bundled with the Python package.
 
+## Set Up Visual Testing
+
+Visual tests run by default when you run `pytest`. You'll need to install Chromium:
+
+```bash
+# Option 1: Use the setup script (recommended)
+./scripts/setup-visual-tests.sh
+
+# Option 2: Manual installation
+uv run playwright install chromium
+```
+
+**If you skip this step**: Visual tests will fail when running `pytest`. You can temporarily skip them with `pytest -m "not visual"` until you install Chromium.
+
 ## Verify Installation
 
 Run the test suite to verify everything is working:
 
 ```bash
+# Run all tests except visual tests (no Playwright needed)
+uv run pytest -m "not visual"
+
+# Run all tests including visual tests (requires Playwright browsers)
 uv run pytest
 ```
 

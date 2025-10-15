@@ -79,7 +79,10 @@ This project uses [UV](https://docs.astral.sh/uv/) for dependency management.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --frozen --all-extras
 
-# Run tests
+# Install Playwright browsers for visual tests
+./scripts/setup-visual-tests.sh
+
+# Run tests (includes visual tests)
 uv run pytest
 
 # Lint and format
@@ -89,6 +92,8 @@ uv run ruff format .
 # Build documentation
 uv run mkdocs serve
 ```
+
+See [Developer Setup](https://habemus-papadum.github.io/t-prompts/developer/setup/) for detailed instructions.
 
 ## License
 

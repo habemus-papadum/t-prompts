@@ -1,7 +1,6 @@
 """Widget renderer for Jupyter notebook visualization."""
 
 import json
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:

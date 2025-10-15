@@ -1,6 +1,5 @@
 """Tests for widget export utilities."""
 
-import re
 from pathlib import Path
 
 import pytest

@@ -63,10 +63,13 @@ jobs:
       - name: Create Virtual Environment
         run: uv sync --frozen --all-extras
 
+      - name: Install Playwright Browsers
+        run: uv run playwright install --with-deps chromium
+
       - name: Run Linting
         run: uv run ruff check .
 
-      - name: Run Unit Tests with Coverage
+      - name: Run All Tests with Coverage (including visual tests)
         run: uv run pytest --cov=src/t_prompts --cov-report=xml --cov-report=term
 
       - name: Run Notebook Tests

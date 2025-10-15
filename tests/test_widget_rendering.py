@@ -1,6 +1,7 @@
 """Tests for widget rendering HTML generation."""
 
 import json
+
 from t_prompts import prompt
 
 

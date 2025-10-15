@@ -13,11 +13,11 @@ The t-prompts project has three types of tests:
 ## Quick Start
 
 ```bash
-# Run all unit tests (excludes visual tests)
-uv run pytest -m "not visual"
-
-# Run all tests including visual tests
+# Run all tests (includes visual tests by default - requires Chromium)
 uv run pytest
+
+# Run only unit tests (skip visual tests if Chromium not installed)
+uv run pytest -m "not visual"
 
 # Run only visual tests
 uv run pytest -m visual
@@ -25,6 +25,8 @@ uv run pytest -m visual
 # Run with coverage
 uv run pytest --cov=src/t_prompts
 ```
+
+**Note**: Visual tests run by default when you run `pytest`. If you haven't installed Chromium yet, they will fail. Either install Chromium with `./scripts/setup-visual-tests.sh` or skip visual tests with `-m "not visual"`.
 
 ## Unit Tests
 
@@ -70,12 +72,21 @@ Visual tests use Playwright to render widgets in a real browser and verify corre
 
 ### Setup
 
-Visual tests require Playwright browsers to be installed:
+Visual tests require Playwright browsers to be installed. Unfortunately, there's no Python package that automatically bundles Chromium with Playwright, so you need to install it separately.
 
+**Option 1: Use the setup script** (recommended)
 ```bash
-# Install Playwright browsers (run once)
+# Run the setup script
+./scripts/setup-visual-tests.sh
+```
+
+**Option 2: Manual installation**
+```bash
+# Install Playwright browsers manually (run once)
 uv run playwright install chromium
 ```
+
+**Note**: The Chromium browser is ~280MB and will be downloaded to your OS-specific cache folder (`~/.cache/ms-playwright` on Linux/macOS, `%USERPROFILE%\AppData\Local\ms-playwright` on Windows).
 
 ### Running Visual Tests
 

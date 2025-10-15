@@ -3,7 +3,6 @@
 import http.server
 import socketserver
 import threading
-from pathlib import Path
 
 import pytest
 
