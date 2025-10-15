@@ -13,7 +13,7 @@ def test_render_matches_fstring_behavior():
     # Should match f-string behavior
     expected = f"Name: {name}, Age: {age}"
     assert str(p) == expected
-    assert p.render().text == expected
+    assert p.ir().text == expected
 
 
 def test_render_format_spec_as_key():
@@ -25,7 +25,7 @@ def test_render_format_spec_as_key():
 
     # Should NOT format as "00042" - format spec is only used as key
     assert str(p) == "42"
-    assert p.render().text == "42"
+    assert p.ir().text == "42"
     assert "05d" in p  # Key is the format spec
 
 
@@ -69,37 +69,37 @@ def test_str_dunder_method():
     x = "X"
     p = t_prompts.prompt(t"{x:x}")
 
-    assert str(p) == p.render().text
-    assert p.__str__() == p.render().text
+    assert str(p) == p.ir().text
+    assert p.__str__() == p.ir().text
 
 
 def test_interpolation_render_method():
-    """Test that StructuredInterpolation.render() works correctly."""
+    """Test that TextInterpolation.ir() works correctly."""
     x = "X"
     p = t_prompts.prompt(t"{x:x}")
 
     node = p["x"]
-    assert node.render() == "X"
+    assert node.ir().text == "X"
 
 
 def test_interpolation_render_with_conversion():
-    """Test that StructuredInterpolation.render() applies conversions."""
+    """Test that TextInterpolation.ir() applies conversions."""
     text = "hello"
     p = t_prompts.prompt(t"{text!r:t}")
 
     node = p["t"]
-    assert node.render() == "'hello'"
+    assert node.ir().text == "'hello'"
 
 
 def test_interpolation_render_nested():
-    """Test that StructuredInterpolation.render() works with nested prompts."""
+    """Test that NestedPromptInterpolation.ir() works with nested prompts."""
     inner = "inner"
     p_inner = t_prompts.prompt(t"{inner:i}")
     p_outer = t_prompts.prompt(t"{p_inner:p}")
 
     node = p_outer["p"]
-    rendered = node.render()
-    # node.render() returns IntermediateRepresentation for nested prompts
+    rendered = node.ir()
+    # node.ir() returns IntermediateRepresentation for nested prompts
     assert rendered.text == "inner"
 
 
@@ -147,8 +147,8 @@ def test_render_consistency():
     x = "X"
     p = t_prompts.prompt(t"{x:x}")
 
-    result1 = p.render().text
-    result2 = p.render().text
+    result1 = p.ir().text
+    result2 = p.ir().text
     result3 = str(p)
 
     assert result1 == result2 == result3

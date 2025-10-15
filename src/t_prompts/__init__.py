@@ -1,19 +1,12 @@
 """Structured prompts using template strings"""
 
-from .core import (
+from .element import (
     Element,
-    ImageChunk,
     ImageInterpolation,
-    IntermediateRepresentation,
     ListInterpolation,
-    SourceLocation,
-    SourceSpan,
+    NestedPromptInterpolation,
     Static,
-    StructuredInterpolation,
-    StructuredPrompt,
-    TextChunk,
-    dedent,
-    prompt,
+    TextInterpolation,
 )
 from .exceptions import (
     DedentError,
@@ -22,26 +15,30 @@ from .exceptions import (
     ImageRenderError,
     MissingKeyError,
     NotANestedPromptError,
+    PromptReuseError,
     StructuredPromptsError,
     UnsupportedValueTypeError,
 )
+from .ir import ImageChunk, IntermediateRepresentation, TextChunk
 from .parsing import (
     parse_format_spec,
     parse_render_hints,
     parse_separator,
 )
+from .source_location import SourceLocation
+from .structured_prompt import StructuredPrompt, dedent, prompt
 from .text import process_dedent
 
 __version__ = "0.10.0-alpha"
 __all__ = [
     "StructuredPrompt",
-    "StructuredInterpolation",
+    "TextInterpolation",
+    "NestedPromptInterpolation",
     "ListInterpolation",
     "ImageInterpolation",
     "Element",
     "Static",
     "IntermediateRepresentation",
-    "SourceSpan",
     "SourceLocation",
     "TextChunk",
     "ImageChunk",
@@ -57,6 +54,7 @@ __all__ = [
     "ImageRenderError",
     "MissingKeyError",
     "NotANestedPromptError",
+    "PromptReuseError",
     "StructuredPromptsError",
     "UnsupportedValueTypeError",
     "__version__",

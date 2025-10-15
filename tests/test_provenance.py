@@ -202,7 +202,7 @@ def test_navigation_chain_provenance():
 
 
 def test_interpolation_metadata():
-    """Test that StructuredInterpolation preserves all metadata."""
+    """Test that TextInterpolation preserves all metadata."""
     x = "X"
 
     p = t_prompts.prompt(t"{x!r:mykey}")
@@ -381,3 +381,201 @@ def test_to_provenance_with_image_interpolation():
     assert node_data["key"] == "img"
     assert node_data["expression"] == "img"
     # Image itself shouldn't be in provenance (not JSON serializable)
+
+
+def test_parent_element_initially_none():
+    """Test that parent_element is initially None."""
+    p = t_prompts.prompt(t"simple prompt")
+    assert p.parent_element is None
+
+
+def test_parent_element_set_by_nested_interpolation():
+    """Test that NestedPromptInterpolation sets parent_element."""
+    inner = "inner"
+    p_inner = t_prompts.prompt(t"{inner:i}")
+    p_outer = t_prompts.prompt(t"{p_inner:nested}")
+
+    # p_inner should have parent_element pointing to the NestedPromptInterpolation
+    assert p_inner.parent_element is not None
+    assert p_inner.parent_element is p_outer["nested"]
+    assert p_inner.parent_element.key == "nested"
+
+
+def test_parent_element_set_by_list_interpolation():
+    """Test that ListInterpolation sets parent_element for all items."""
+    item1 = t_prompts.prompt(t"Item 1")
+    item2 = t_prompts.prompt(t"Item 2")
+    items = [item1, item2]
+    p = t_prompts.prompt(t"{items:items}")
+
+    # Both items should have parent_element pointing to the ListInterpolation
+    list_element = p["items"]
+    assert item1.parent_element is list_element
+    assert item2.parent_element is list_element
+    assert item1.parent_element.key == "items"
+    assert item2.parent_element.key == "items"
+
+
+def test_prompt_reuse_error_nested():
+    """Test that reusing a prompt in multiple NestedPromptInterpolations raises error."""
+    import pytest
+
+    from t_prompts import PromptReuseError
+
+    inner = "inner"
+    p_inner = t_prompts.prompt(t"{inner:i}")
+
+    # First nesting should work
+    _p_outer1 = t_prompts.prompt(t"{p_inner:nested1}")  # noqa: F841
+
+    # Second nesting should raise PromptReuseError
+    with pytest.raises(PromptReuseError) as exc_info:
+        _p_outer2 = t_prompts.prompt(t"{p_inner:nested2}")  # noqa: F841
+
+    # Check error message is helpful
+    assert "id=" in str(exc_info.value)
+    assert "nested1" in str(exc_info.value)
+    assert "nested2" in str(exc_info.value)
+    assert "multiple locations" in str(exc_info.value)
+
+
+def test_prompt_reuse_same_list_allowed():
+    """Test that the same prompt appearing twice in the same list is allowed.
+
+    This is acceptable because both appearances share the same parent (ListInterpolation).
+    The single-parent constraint is about preventing different parents, not
+    multiple references from the same parent.
+    """
+    item = t_prompts.prompt(t"Item")
+    items = [item, item]  # Same prompt twice
+
+    # Should NOT raise error - same parent is OK (idempotent)
+    p = t_prompts.prompt(t"{items:items}")
+
+    # Both appearances point to the same parent
+    assert item.parent_element is p["items"]
+    assert item.parent_element.key == "items"
+
+
+def test_prompt_reuse_error_list_and_nested():
+    """Test that using a prompt in both a list and elsewhere raises error."""
+    import pytest
+
+    from t_prompts import PromptReuseError
+
+    item = t_prompts.prompt(t"Item")
+    items = [item]
+
+    # First use in list
+    _p_list = t_prompts.prompt(t"{items:items}")  # noqa: F841
+
+    # Second use as nested should raise error
+    with pytest.raises(PromptReuseError) as exc_info:
+        _p_nested = t_prompts.prompt(t"{item:nested}")  # noqa: F841
+
+    assert "multiple locations" in str(exc_info.value)
+
+
+def test_set_parent_element_idempotent():
+    """Test that setting the same parent multiple times is idempotent."""
+    inner = "inner"
+    p_inner = t_prompts.prompt(t"{inner:i}")
+    p_outer = t_prompts.prompt(t"{p_inner:nested}")
+
+    nested_element = p_outer["nested"]
+
+    # Should not raise error when calling multiple times with same parent
+    p_inner._set_parent_element(nested_element)
+    p_inner._set_parent_element(nested_element)
+
+    assert p_inner.parent_element is nested_element
+
+
+def test_upward_traversal_from_leaf_to_root():
+    """Test that we can traverse upward from a leaf element to the root."""
+    inner_val = "inner"
+    middle_val = "middle"
+
+    # Create nested structure: root -> middle -> inner
+    p_inner = t_prompts.prompt(t"{inner_val:i}")
+    p_middle = t_prompts.prompt(t"{middle_val:m} {p_inner:nested_inner}")
+    p_root = t_prompts.prompt(t"{p_middle:nested_middle}")
+
+    # Start from the inner text interpolation and traverse up to root
+    leaf_node = p_inner["i"]
+    assert leaf_node.parent is p_inner
+
+    # p_inner.parent_element should be the NestedPromptInterpolation in p_middle
+    assert p_inner.parent_element is not None
+    assert p_inner.parent_element.key == "nested_inner"
+    assert p_inner.parent_element.parent is p_middle
+
+    # p_middle.parent_element should be the NestedPromptInterpolation in p_root
+    assert p_middle.parent_element is not None
+    assert p_middle.parent_element.key == "nested_middle"
+    assert p_middle.parent_element.parent is p_root
+
+    # p_root should have no parent_element (it's the root)
+    assert p_root.parent_element is None
+
+
+def test_upward_traversal_from_list_item():
+    """Test upward traversal from a prompt inside a list."""
+    item_val = "item"
+    p_item = t_prompts.prompt(t"{item_val:v}")
+    items = [p_item]
+    p_root = t_prompts.prompt(t"{items:items}")
+
+    # Start from the item and traverse up
+    leaf_node = p_item["v"]
+    assert leaf_node.parent is p_item
+
+    # p_item.parent_element should be the ListInterpolation
+    assert p_item.parent_element is not None
+    assert p_item.parent_element.key == "items"
+    assert isinstance(p_item.parent_element, t_prompts.ListInterpolation)
+    assert p_item.parent_element.parent is p_root
+
+    # p_root should have no parent_element
+    assert p_root.parent_element is None
+
+
+def test_parent_element_with_deeply_nested_prompts():
+    """Test parent_element with multiple levels of nesting."""
+    a = "A"
+    p1 = t_prompts.prompt(t"{a:a}")
+    p2 = t_prompts.prompt(t"{p1:p1}")
+    p3 = t_prompts.prompt(t"{p2:p2}")
+
+    # Check parent_element chain
+    assert p1.parent_element is not None
+    assert p1.parent_element.key == "p1"
+    assert p1.parent_element.parent is p2
+
+    assert p2.parent_element is not None
+    assert p2.parent_element.key == "p2"
+    assert p2.parent_element.parent is p3
+
+    assert p3.parent_element is None
+
+
+def test_parent_element_error_message_quality():
+    """Test that PromptReuseError provides helpful error information."""
+    from t_prompts import PromptReuseError
+
+    inner = "inner"
+    p_inner = t_prompts.prompt(t"{inner:i}")
+    _p_outer1 = t_prompts.prompt(t"{p_inner:first}")  # noqa: F841
+
+    try:
+        _p_outer2 = t_prompts.prompt(t"{p_inner:second}")  # noqa: F841
+        assert False, "Should have raised PromptReuseError"
+    except PromptReuseError as e:
+        # Check that all important info is in the error
+        assert e.prompt is p_inner
+        assert e.current_parent.key == "first"
+        assert e.new_parent.key == "second"
+        error_msg = str(e)
+        assert "first" in error_msg
+        assert "second" in error_msg
+        assert str(p_inner.id) in error_msg

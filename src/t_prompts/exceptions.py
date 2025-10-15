@@ -75,3 +75,35 @@ class ImageRenderError(StructuredPromptsError):
             "Prompts with images can only be accessed through the prompt structure. "
             "Use p['image_key'].value to access the PIL Image object directly."
         )
+
+
+class PromptReuseError(StructuredPromptsError):
+    """Raised when attempting to nest a StructuredPrompt in multiple locations."""
+
+    def __init__(self, prompt, current_parent, new_parent):
+
+        self.prompt = prompt
+        self.current_parent = current_parent
+        self.new_parent = new_parent
+
+        # Build helpful error message
+        current_desc = self._describe_parent(current_parent)
+        new_desc = self._describe_parent(new_parent)
+
+        super().__init__(
+            f"Cannot nest StructuredPrompt (id={prompt.id}) in multiple locations. "
+            f"Already nested in {current_desc}, cannot also nest in {new_desc}. "
+            f"Each StructuredPrompt can only be in one location at a time. "
+            f"Create separate prompt instances if you need to reuse content."
+        )
+
+    def _describe_parent(self, parent):
+        """Create a helpful description of the parent element."""
+        from .element import ListInterpolation, NestedPromptInterpolation
+
+        if isinstance(parent, NestedPromptInterpolation):
+            return f"NestedPromptInterpolation(key='{parent.key}')"
+        elif isinstance(parent, ListInterpolation):
+            return f"ListInterpolation(key='{parent.key}')"
+        else:
+            return f"{type(parent).__name__}"

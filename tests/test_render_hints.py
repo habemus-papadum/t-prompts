@@ -183,23 +183,6 @@ def test_header_hint_max_level_capping():
     assert "#####" not in result  # Should not have 5 hashes
 
 
-def test_header_hint_custom_max_level():
-    """Test custom max_header_level parameter."""
-    content = "content"
-    p1 = t_prompts.prompt(t"{content:c:header=Level 3}")
-    p2 = t_prompts.prompt(t"{p1:p1:header=Level 2}")
-    p3 = t_prompts.prompt(t"{p2:p2:header=Level 1}")
-
-    # Render with max_header_level=2
-    result = p3.render(max_header_level=2)
-
-    # Levels should be capped at 2
-    assert "# Level 1\n" in result.text
-    assert "## Level 2\n" in result.text
-    assert "## Level 3\n" in result.text  # Capped at 2
-    assert "###" not in result.text
-
-
 def test_header_hint_only_increments_for_header_nodes():
     """Test that header level only increments when passing through nodes with header hint."""
     inner_content = "Inner"

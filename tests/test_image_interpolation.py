@@ -10,7 +10,7 @@ try:
 except ImportError:
     HAS_PIL = False
 
-from t_prompts import ImageInterpolation, ImageRenderError, prompt
+from t_prompts import ImageInterpolation, prompt
 
 # Skip all tests in this module if PIL is not available
 pytestmark = pytest.mark.skipif(not HAS_PIL, reason="Pillow not installed")
@@ -69,25 +69,17 @@ def test_image_interpolation_with_text():
     assert img_node.value is img
 
 
-def test_image_render_raises_error():
-    """Test that rendering a prompt with images raises ImageRenderError."""
+def test_image_renders_with_placeholder():
+    """Test that rendering a prompt with images includes placeholder text."""
     img = create_checkerboard()
     p = prompt(t"Image: {img:my_image}")
 
-    with pytest.raises(ImageRenderError) as exc_info:
-        str(p)
-
-    assert "Cannot render prompt containing images to text" in str(exc_info.value)
-    assert "p['image_key'].value" in str(exc_info.value)
-
-
-def test_image_render_method_raises_error():
-    """Test that calling render() on a prompt with images raises ImageRenderError."""
-    img = create_checkerboard()
-    p = prompt(t"Image: {img:my_image}")
-
-    with pytest.raises(ImageRenderError):
-        p.render()
+    # Should render with placeholder
+    result = str(p)
+    assert "Image:" in result
+    assert "[Image:" in result  # Placeholder starts with [Image:
+    assert "64x64" in result  # Image dimensions
+    assert "RGB" in result  # Image mode
 
 
 def test_image_interpolation_metadata():
@@ -106,16 +98,16 @@ def test_image_interpolation_metadata():
 
 
 def test_image_interpolation_with_conversion():
-    """Test that image interpolations can have conversion flags (though they're not applied)."""
+    """Test that image interpolations can have conversion flags."""
     img = create_checkerboard()
     p = prompt(t"Image: {img!r:my_image}")
 
     node = p["my_image"]
     assert isinstance(node, ImageInterpolation)
     assert node.conversion == "r"
-    # Even with conversion, we can't render to text
-    with pytest.raises(ImageRenderError):
-        str(p)
+    # Renders with placeholder (conversion doesn't affect images)
+    result = str(p)
+    assert "[Image:" in result
 
 
 def test_image_interpolation_no_format_spec():
@@ -142,9 +134,11 @@ def test_multiple_images():
     assert p["img1"].value is img1
     assert p["img2"].value is img2
 
-    # Both images present, so render fails
-    with pytest.raises(ImageRenderError):
-        str(p)
+    # Both images render with placeholders
+    result = str(p)
+    assert "32x32" in result  # First image dimensions
+    assert "64x64" in result  # Second image dimensions
+    assert result.count("[Image:") == 2  # Two placeholders
 
 
 def test_image_interpolation_index():
@@ -261,6 +255,8 @@ def test_image_with_dedent():
     assert len(p) == 2
     assert isinstance(p["img"], ImageInterpolation)
 
-    # Still can't render to text
-    with pytest.raises(ImageRenderError):
-        str(p)
+    # Renders with placeholder in dedented output
+    result = str(p)
+    assert "[Image:" in result
+    assert "64x64" in result
+    assert "A pattern" in result  # Text interpolation also works

@@ -4,7 +4,8 @@ import json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .core import IntermediateRepresentation, StructuredPrompt
+    from .ir import IntermediateRepresentation
+    from .structured_prompt import StructuredPrompt
 
 # Module-level flag to track if bundle has been injected
 _bundle_injected = False

@@ -348,45 +348,6 @@ def test_mixed_tabs_and_spaces_error():
 # =============================================================================
 
 
-def test_source_mapping_with_dedent():
-    """Test that source mapping works with dedented text."""
-    text = "world"
-    p = t_prompts.prompt(t"""
-    Hello {text:t}
-    Goodbye
-    """, dedent=True)
-
-    rendered = p.render()
-
-    # Source map should map to dedented text
-    assert rendered.text == "Hello world\nGoodbye"
-
-    # Find the interpolation in the rendered text
-    span = rendered.get_interpolation_span("t")
-    assert span is not None
-    assert rendered.text[span.start:span.end] == "world"
-
-
-def test_source_mapping_statics_with_dedent():
-    """Test that static segments are properly mapped after dedenting."""
-    x = "X"
-    p = t_prompts.prompt(t"""
-    Before {x:x} After
-    """, dedent=True)
-
-    rendered = p.render()
-
-    # Get static spans
-    static0 = rendered.get_static_span(0)
-    assert static0 is not None
-    assert rendered.text[static0.start:static0.end] == "Before "
-
-    static1 = rendered.get_static_span(1)
-    assert static1 is not None
-    # After dedenting, the space before "After" is dedented away
-    assert rendered.text[static1.start:static1.end] == "After"
-
-
 def test_provenance_preserves_original_strings():
     """Test that original strings are preserved in template."""
     text = "world"

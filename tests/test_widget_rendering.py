@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from t_prompts import prompt
 
 
@@ -18,7 +20,7 @@ def test_ir_has_repr_html():
     """Test that IntermediateRepresentation has _repr_html_() method."""
     task = "translate"
     p = prompt(t"Task: {task:t}")
-    ir = p.render()
+    ir = p.ir()
 
     assert hasattr(ir, "_repr_html_")
     assert callable(ir._repr_html_)
@@ -42,7 +44,7 @@ def test_ir_repr_html_returns_html():
     """Test that IntermediateRepresentation _repr_html_() returns valid HTML."""
     task = "translate"
     p = prompt(t"Task: {task:t}")
-    ir = p.render()
+    ir = p.ir()
 
     html = ir._repr_html_()
 
@@ -119,9 +121,24 @@ def test_html_contains_valid_json_data():
         # Should be valid JSON
         data = json.loads(json_str)
 
-        # Should have expected structure (from toJSON())
-        assert "prompt_id" in data
-        assert "children" in data
+        # Should have expected structure (combined compiled_ir, ir, source_prompt)
+        assert "compiled_ir" in data
+        assert "ir" in data
+        assert "source_prompt" in data
+
+        # Validate source_prompt structure
+        assert "prompt_id" in data["source_prompt"]
+        assert "children" in data["source_prompt"]
+
+        # Validate ir structure
+        assert "chunks" in data["ir"]
+        assert "source_prompt_id" in data["ir"]
+        assert "id" in data["ir"]
+
+        # Validate compiled_ir structure
+        assert "ir_id" in data["compiled_ir"]
+        assert "subtree_map" in data["compiled_ir"]
+        assert "num_elements" in data["compiled_ir"]
 
 
 def test_nested_prompt_html():
@@ -142,19 +159,22 @@ def test_nested_prompt_html():
         json_str = html[start:end]
         data = json.loads(json_str)
 
-        # Should contain nested structure
-        assert "children" in data
-        # Find the nested_prompt element
-        for child in data["children"]:
+        # Should have combined structure
+        assert "source_prompt" in data
+        assert "children" in data["source_prompt"]
+
+        # Find the nested_prompt element in source_prompt
+        for child in data["source_prompt"]["children"]:
             if child.get("type") == "nested_prompt":
                 assert "children" in child
+                assert "prompt_id" in child
 
 
 def test_ir_html_contains_rendered_output():
     """Test that IR HTML includes chunks and source mapping."""
     task = "translate"
     p = prompt(t"Task: {task:t}")
-    ir = p.render()
+    ir = p.ir()
 
     html = ir._repr_html_()
 
@@ -166,8 +186,20 @@ def test_ir_html_contains_rendered_output():
         json_str = html[start:end]
         data = json.loads(json_str)
 
-        # Should have IR structure
-        assert "ir_id" in data
+        # Should have combined structure
+        assert "compiled_ir" in data
+        assert "ir" in data
         assert "source_prompt" in data
-        assert "chunks" in data
-        assert "source_map" in data
+
+        # Validate IR structure
+        assert "chunks" in data["ir"]
+        assert "source_prompt_id" in data["ir"]
+        assert "id" in data["ir"]
+
+        # Validate compiled_ir structure
+        assert "ir_id" in data["compiled_ir"]
+        assert "subtree_map" in data["compiled_ir"]
+
+        # Validate source_prompt structure
+        assert "prompt_id" in data["source_prompt"]
+        assert "children" in data["source_prompt"]

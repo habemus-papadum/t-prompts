@@ -87,7 +87,7 @@ def test_render_hints_not_applied_during_rendering():
 
     # Rendering should not change based on hints
     assert str(p) == "test"
-    assert p.render().text == "test"
+    assert p.ir().text == "test"
 
     # But hints should be accessible
     node = p["key"]

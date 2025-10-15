@@ -86,7 +86,7 @@ def test_nested_prompts_depth_2():
     assert str(p2) == "bazz bar Obey Always answer politely."
 
     # Test navigation
-    assert isinstance(p2["p1"], t_prompts.StructuredInterpolation)
+    assert isinstance(p2["p1"], t_prompts.NestedPromptInterpolation)
     assert isinstance(p2["p1"].value, t_prompts.StructuredPrompt)
 
     # Navigate into nested prompt
@@ -162,8 +162,8 @@ def test_mapping_protocol():
 
     # Test keys(), values(), items()
     assert list(p.keys()) == ["x", "y"]
-    assert all(isinstance(v, t_prompts.StructuredInterpolation) for v in p.values())
-    assert all(isinstance(k, str) and isinstance(v, t_prompts.StructuredInterpolation) for k, v in p.items())
+    assert all(isinstance(v, t_prompts.TextInterpolation) for v in p.values())
+    assert all(isinstance(k, str) and isinstance(v, t_prompts.TextInterpolation) for k, v in p.items())
 
 
 def test_strings_property():
@@ -185,7 +185,7 @@ def test_interpolations_property():
 
     interps = p.interpolations
     assert len(interps) == 2
-    assert all(isinstance(i, t_prompts.StructuredInterpolation) for i in interps)
+    assert all(isinstance(i, t_prompts.TextInterpolation) for i in interps)
     assert interps[0].key == "x"
     assert interps[1].key == "y"
 

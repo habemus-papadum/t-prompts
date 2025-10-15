@@ -43,7 +43,7 @@ def test_static_is_element():
 
 
 def test_interpolation_is_element():
-    """Test that StructuredInterpolation extends Element."""
+    """Test that TextInterpolation extends Element."""
     value = "test"
     p = t_prompts.prompt(t"{value:v}")
 
@@ -51,7 +51,7 @@ def test_interpolation_is_element():
     elements = p.elements
     interp_elem = elements[1]  # Middle element is the interpolation
 
-    assert isinstance(interp_elem, t_prompts.StructuredInterpolation)
+    assert isinstance(interp_elem, t_prompts.TextInterpolation)
     assert isinstance(interp_elem, t_prompts.Element)
 
 
@@ -68,9 +68,9 @@ def test_elements_property_interleaves_correctly():
 
     # Check types
     assert isinstance(elements[0], t_prompts.Static)  # "start "
-    assert isinstance(elements[1], t_prompts.StructuredInterpolation)  # a
+    assert isinstance(elements[1], t_prompts.TextInterpolation)  # a
     assert isinstance(elements[2], t_prompts.Static)  # " middle "
-    assert isinstance(elements[3], t_prompts.StructuredInterpolation)  # b
+    assert isinstance(elements[3], t_prompts.TextInterpolation)  # b
     assert isinstance(elements[4], t_prompts.Static)  # " end"
 
     # Check values
@@ -92,7 +92,15 @@ def test_static_integer_keys():
     for elem in elements:
         if isinstance(elem, t_prompts.Static):
             assert isinstance(elem.key, int)
-        elif isinstance(elem, t_prompts.StructuredInterpolation):
+        elif isinstance(
+            elem,
+            (
+                t_prompts.TextInterpolation,
+                t_prompts.NestedPromptInterpolation,
+                t_prompts.ListInterpolation,
+                t_prompts.ImageInterpolation,
+            ),
+        ):
             assert isinstance(elem.key, str)
 
 
@@ -137,7 +145,7 @@ def test_elements_with_nested_prompts():
 
     # The second element (index 1) is the interpolation containing nested prompt
     p_elem = outer_elements[1]
-    assert isinstance(p_elem, t_prompts.StructuredInterpolation)
+    assert isinstance(p_elem, t_prompts.NestedPromptInterpolation)
     assert isinstance(p_elem.value, t_prompts.StructuredPrompt)
 
     # Check inner elements
@@ -176,73 +184,6 @@ def test_empty_static_elements():
     assert isinstance(elements[0], t_prompts.Static)
     assert elements[2].value == ""
     assert isinstance(elements[2], t_prompts.Static)
-
-
-def test_source_map_includes_static_spans():
-    """Test that source map includes spans for static text."""
-    value = "test"
-    p = t_prompts.prompt(t"prefix {value:v} suffix")
-
-    rendered = p.render()
-
-    # Should have spans for: "prefix ", value, " suffix"
-    # (empty statics are filtered out)
-    assert len(rendered.source_map) == 3
-
-    # Check that we have both static and interpolation spans
-    static_spans = [s for s in rendered.source_map if s.element_type == "static"]
-    interp_spans = [s for s in rendered.source_map if s.element_type == "interpolation"]
-
-    assert len(static_spans) == 2  # "prefix " and " suffix"
-    assert len(interp_spans) == 1  # value
-
-
-def test_get_static_span():
-    """Test get_static_span helper method."""
-    value = "test"
-    p = t_prompts.prompt(t"prefix {value:v} suffix")
-
-    rendered = p.render()
-
-    # Get span for first static (key=0, which is "prefix ")
-    span = rendered.get_static_span(0)
-    assert span is not None
-    assert span.element_type == "static"
-    assert span.key == 0
-    assert rendered.text[span.start:span.end] == "prefix "
-
-    # Get span for second static after interpolation (key=1, which is " suffix")
-    span = rendered.get_static_span(1)
-    assert span is not None
-    assert rendered.text[span.start:span.end] == " suffix"
-
-
-def test_get_interpolation_span():
-    """Test get_interpolation_span helper method."""
-    value = "test"
-    p = t_prompts.prompt(t"prefix {value:v} suffix")
-
-    rendered = p.render()
-
-    # Get span for interpolation
-    span = rendered.get_interpolation_span("v")
-    assert span is not None
-    assert span.element_type == "interpolation"
-    assert span.key == "v"
-    assert rendered.text[span.start:span.end] == "test"
-
-
-def test_static_spans_not_created_for_empty_strings():
-    """Test that empty static strings don't create source map spans."""
-    value = "test"
-    p = t_prompts.prompt(t"{value:v}")
-
-    rendered = p.render()
-
-    # Should only have 1 span (the interpolation), not 3
-    # Empty statics are filtered out
-    assert len(rendered.source_map) == 1
-    assert rendered.source_map[0].element_type == "interpolation"
 
 
 def test_adjacent_interpolations_with_empty_static():
