@@ -1,10 +1,11 @@
 /**
- * Widget renderer for structured prompts - Phase 1: Minimal Static Renderer
+ * Widget renderer for structured prompts - Phase 2: Structured DOM with Mapping
  */
 
 import MarkdownIt from 'markdown-it';
 // @ts-expect-error - markdown-it-katex doesn't have types
 import markdownItKatex from 'markdown-it-katex';
+import { renderCodeView, renderCodeViewFromChunks } from './code-view-renderer';
 
 // Type definitions for widget data structures
 interface WidgetData {
@@ -308,8 +309,9 @@ export function initWidget(container: HTMLElement): void {
 
     // Determine what kind of data we have
     let treeHtml = '';
-    let codeHtml = '';
+    let codeViewElement: HTMLElement | null = null;
     let previewHtml = '';
+    let markdownString = '';
 
     console.log('Widget data type check:', {
       hasPromptId: !!data.prompt_id,
@@ -323,20 +325,30 @@ export function initWidget(container: HTMLElement): void {
       // StructuredPrompt data
       console.log('Rendering StructuredPrompt');
       treeHtml = renderTree(data);
-      codeHtml = renderCodeFromPrompt(data);
+
+      // Use new structured code view rendering
+      const codeViewResult = renderCodeView(data);
+      codeViewElement = codeViewResult.container;
+      markdownString = codeViewResult.markdownString;
 
       // Render as Markdown preview
-      previewHtml = renderPreviewFromPrompt(data);
+      previewHtml = renderMarkdownPreview(markdownString);
       console.log('Preview HTML length:', previewHtml.length);
+      console.log('Markdown string length:', markdownString.length);
     } else if (data.ir_id && data.source_prompt && data.chunks) {
       // IntermediateRepresentation data
       console.log('Rendering IntermediateRepresentation');
       treeHtml = renderTree(data.source_prompt);
-      codeHtml = renderCodeFromChunks(data.chunks);
 
-      // Render chunks as Markdown with images
-      previewHtml = renderPreviewFromChunks(data.chunks);
+      // Use new structured code view rendering from source_prompt
+      const codeViewResult = renderCodeView(data);
+      codeViewElement = codeViewResult.container;
+      markdownString = codeViewResult.markdownString;
+
+      // Render as Markdown preview
+      previewHtml = renderMarkdownPreview(markdownString);
       console.log('Preview HTML length:', previewHtml.length);
+      console.log('Markdown string length:', markdownString.length);
     } else {
       // Unknown data type
       console.error('Unknown widget data type:', data);
@@ -349,30 +361,45 @@ export function initWidget(container: HTMLElement): void {
       previewHtml = '<div class="tp-preview-placeholder">Preview is empty</div>';
     }
 
-    // Create the three-pane layout
-    const widgetHtml = `
-      <div class="tp-widget-container">
-        <div class="tp-pane tp-pane-tree">
-          <h4>Structure</h4>
-          ${treeHtml}
-        </div>
-        <div class="tp-pane tp-pane-code">
-          <h4>Code View</h4>
-          <div class="tp-code">${codeHtml}</div>
-        </div>
-        <div class="tp-pane tp-pane-preview">
-          <h4>Preview</h4>
-          <div class="tp-preview">${previewHtml}</div>
-        </div>
-      </div>
-    `;
+    // Create the three-pane layout structure
+    const widgetContainer = document.createElement('div');
+    widgetContainer.className = 'tp-widget-container';
+
+    // Tree pane
+    const treePane = document.createElement('div');
+    treePane.className = 'tp-pane tp-pane-tree';
+    treePane.innerHTML = '<h4>Structure</h4>' + treeHtml;
+    widgetContainer.appendChild(treePane);
+
+    // Code pane
+    const codePane = document.createElement('div');
+    codePane.className = 'tp-pane tp-pane-code';
+    const codeHeader = document.createElement('h4');
+    codeHeader.textContent = 'Code View';
+    codePane.appendChild(codeHeader);
+
+    const codeWrapper = document.createElement('div');
+    codeWrapper.className = 'tp-code';
+    if (codeViewElement) {
+      codeWrapper.appendChild(codeViewElement);
+    }
+    codePane.appendChild(codeWrapper);
+    widgetContainer.appendChild(codePane);
+
+    // Preview pane
+    const previewPane = document.createElement('div');
+    previewPane.className = 'tp-pane tp-pane-preview';
+    previewPane.innerHTML = '<h4>Preview</h4><div class="tp-preview">' + previewHtml + '</div>';
+    widgetContainer.appendChild(previewPane);
 
     // Find the widget mount point and render
     const mountPoint = container.querySelector('.tp-widget-mount');
     if (mountPoint) {
-      mountPoint.innerHTML = widgetHtml;
+      mountPoint.innerHTML = '';
+      mountPoint.appendChild(widgetContainer);
     } else {
-      container.innerHTML = widgetHtml;
+      container.innerHTML = '';
+      container.appendChild(widgetContainer);
     }
   } catch (error) {
     console.error('Widget initialization error:', error);
