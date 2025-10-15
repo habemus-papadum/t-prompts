@@ -5,7 +5,7 @@ This script automates the release process:
 1. Verifies git repo is clean
 2. Validates version has -alpha suffix
 3. Calculates release version (strips -alpha)
-4. Runs all validation (tests, notebooks in read-only mode, linting, docs build)
+4. Runs all validation (tests, notebooks, linting, docs, widgets build/lint/test)
 5. Updates version files to release version
 6. Updates uv.lock with new version
 7. Creates release commit and tag
@@ -330,6 +330,24 @@ def build_widgets() -> None:
     print("✓ Widget build is up-to-date")
 
 
+def run_widget_linting() -> None:
+    """Run widget linting checks with pnpm."""
+    print_step("Running Widget Linting Checks")
+    run_command(
+        ["pnpm", "lint"],
+        "Running pnpm lint"
+    )
+
+
+def run_widget_tests() -> None:
+    """Run widget unit tests with pnpm."""
+    print_step("Running Widget Unit Tests")
+    run_command(
+        ["pnpm", "test"],
+        "Running pnpm test"
+    )
+
+
 def create_release_commit(version: str) -> None:
     """Create a git commit for the release.
 
@@ -464,7 +482,7 @@ def main() -> None:
     print("  WARNING: This script will perform a RELEASE")
     print("!"*70)
     print("\nThis script will:")
-    print("  • Run all validation checks (tests, notebooks, linting, docs)")
+    print("  • Run all validation checks (tests, notebooks, linting, docs, widgets)")
     print("  • Create and push a release commit and tag")
     print("  • Publish the package to PyPI")
     print("  • Create a GitHub release (triggering docs deployment)")
@@ -493,51 +511,53 @@ def main() -> None:
     print_step(f"Preparing Release: {release_version}")
     print(f"  Release version: {release_version}")
 
-    # Step 5-9: Run all validation checks BEFORE modifying version
+    # Step 5-11: Run all validation checks BEFORE modifying version
     run_tests()
     run_notebook_tests(no_inplace=True)
     run_linting()
     build_docs()
     build_widgets()
+    run_widget_linting()
+    run_widget_tests()
 
-    # Step 10: Update version files for release
+    # Step 12: Update version files for release
     update_version_files(release_version)
 
-    # Step 11: Update lockfile with new version
+    # Step 13: Update lockfile with new version
     update_lockfile()
 
-    # Step 12: Create release commit
+    # Step 14: Create release commit
     create_release_commit(release_version)
 
-    # Step 13: Create release tag
+    # Step 15: Create release tag
     create_release_tag(release_version)
 
-    # Step 14: Push tag to origin
+    # Step 16: Push tag to origin
     push_tag(release_version)
 
-    # Step 15: Publish to PyPI
+    # Step 17: Publish to PyPI
     publish_to_pypi()
 
-    # Step 16: Create GitHub release
+    # Step 18: Create GitHub release
     create_github_release(release_version)
 
-    # Step 17: Calculate next development version
+    # Step 19: Calculate next development version
     next_version = bump_version(release_version, args.bump_level)
     next_dev_version = f"{next_version}-alpha"
 
     print_step(f"Preparing Next Development Version: {next_dev_version}")
     print(f"  Next development version: {next_dev_version}")
 
-    # Step 18: Update to next development version
+    # Step 20: Update to next development version
     update_version_files(next_dev_version)
 
-    # Step 19: Update lockfile with new dev version
+    # Step 21: Update lockfile with new dev version
     update_lockfile()
 
-    # Step 20: Create development commit
+    # Step 22: Create development commit
     create_dev_commit(next_dev_version)
 
-    # Step 21: Push development commit
+    # Step 23: Push development commit
     push_dev_commit()
 
     # Success!

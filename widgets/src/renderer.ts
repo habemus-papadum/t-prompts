@@ -3,8 +3,42 @@
  */
 
 import MarkdownIt from 'markdown-it';
-// @ts-ignore - markdown-it-katex doesn't have types
+// @ts-expect-error - markdown-it-katex doesn't have types
 import markdownItKatex from 'markdown-it-katex';
+
+// Type definitions for widget data structures
+interface WidgetData {
+  prompt_id?: string;
+  children?: ElementData[];
+  ir_id?: string;
+  source_prompt?: WidgetData;
+  chunks?: ChunkData[];
+}
+
+interface ElementData {
+  type: string;
+  key: string | number;
+  value?: string;
+  expression?: string;
+  children?: ElementData[];
+  separator?: string;
+  image_data?: ImageData;
+  [key: string]: unknown;
+}
+
+interface ChunkData {
+  type: string;
+  text?: string;
+  image_data?: ImageData;
+}
+
+interface ImageData {
+  base64_data?: string;
+  format?: string;
+  width?: number;
+  height?: number;
+  error?: string;
+}
 
 // Initialize markdown-it with KaTeX support
 const md = new MarkdownIt({
@@ -16,7 +50,7 @@ const md = new MarkdownIt({
 /**
  * Render a tree view from JSON data
  */
-function renderTree(data: any, depth = 0): string {
+function renderTree(data: WidgetData, depth = 0): string {
   if (!data) return '';
 
   const indent = '  '.repeat(depth);
@@ -41,7 +75,7 @@ function renderTree(data: any, depth = 0): string {
   return html;
 }
 
-function renderTreeElement(element: any, depth: number): string {
+function renderTreeElement(element: ElementData, depth: number): string {
   const indent = '  '.repeat(depth);
   let html = '';
 
@@ -87,7 +121,7 @@ function renderTreeElement(element: any, depth: number): string {
 /**
  * Render code view from chunks (showing rendered output with images)
  */
-function renderCodeFromChunks(chunks: any[]): string {
+function renderCodeFromChunks(chunks: ChunkData[]): string {
   if (!chunks || chunks.length === 0) return '';
 
   let html = '';
@@ -112,7 +146,7 @@ function renderCodeFromChunks(chunks: any[]): string {
 /**
  * Render code view from StructuredPrompt by reconstructing the text
  */
-function renderCodeFromPrompt(data: any): string {
+function renderCodeFromPrompt(data: WidgetData): string {
   if (!data || !data.children) return '';
 
   let code = '';
@@ -122,7 +156,7 @@ function renderCodeFromPrompt(data: any): string {
   return code;
 }
 
-function renderCodeElement(element: any): string {
+function renderCodeElement(element: ElementData): string {
   let code = '';
 
   if (element.type === 'static') {
@@ -179,7 +213,7 @@ function renderMarkdownPreview(text: string): string {
 /**
  * Render preview from chunks (text + images)
  */
-function renderPreviewFromChunks(chunks: any[]): string {
+function renderPreviewFromChunks(chunks: ChunkData[]): string {
   if (!chunks || chunks.length === 0) return '';
 
   let html = '';
@@ -204,7 +238,7 @@ function renderPreviewFromChunks(chunks: any[]): string {
 /**
  * Render preview from StructuredPrompt elements
  */
-function renderPreviewFromPrompt(data: any): string {
+function renderPreviewFromPrompt(data: WidgetData): string {
   if (!data || !data.children) return '';
 
   // Reconstruct text from elements
@@ -217,7 +251,7 @@ function renderPreviewFromPrompt(data: any): string {
   return renderMarkdownPreview(text);
 }
 
-function extractTextFromElement(element: any): string {
+function extractTextFromElement(element: ElementData): string {
   let text = '';
 
   if (element.type === 'static') {

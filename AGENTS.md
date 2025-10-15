@@ -52,8 +52,18 @@ uv sync --frozen --extra image
 
 ### Testing
 ```bash
-# Run all tests
+# Install Playwright browsers for visual tests (run once)
+./scripts/setup-visual-tests.sh
+# Or manually: uv run playwright install chromium
+
+# Run all tests (includes visual tests by default)
 uv run pytest
+
+# Run only unit tests (skip visual tests)
+uv run pytest -m "not visual"
+
+# Run only visual tests
+uv run pytest -m visual
 
 # Run a specific test file
 uv run pytest tests/test_example.py
@@ -61,6 +71,12 @@ uv run pytest tests/test_example.py
 # Run a specific test function
 uv run pytest tests/test_example.py::test_version
 ```
+
+**Important**:
+- Visual tests run by default and require Chromium (~280MB) to be installed via Playwright
+- Use `./scripts/setup-visual-tests.sh` to install Chromium after initial setup
+- Visual tests are marked with `@pytest.mark.visual` and test widget rendering in a real browser
+- If Chromium is not installed, visual tests will fail - use `-m "not visual"` to skip them temporarily
 
 ### Code Quality
 ```bash
@@ -240,3 +256,12 @@ cd widgets && pnpm run typecheck
 - Test functions must start with `test_` prefix
 - Tests run with `-s` flag (no capture) by default
 - Coverage reporting: use `--cov=src/t_prompts --cov-report=xml --cov-report=term`
+
+**Visual Tests**:
+- Located in `tests/visual/` directory
+- Use Playwright to render widgets in Chromium and verify correct rendering
+- Marked with `@pytest.mark.visual` decorator
+- Run by default unless explicitly skipped with `-m "not visual"`
+- Require Chromium to be installed: `./scripts/setup-visual-tests.sh`
+- Take screenshots that can be analyzed for verification
+- Include 14 comprehensive tests covering all widget features
