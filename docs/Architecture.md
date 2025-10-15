@@ -330,12 +330,9 @@ class StructuredPrompt(Mapping[str, StructuredInterpolation]):
     def __str__(self) -> str:
         return self.render().text
 
-    # Convenience
-    def to_values(self) -> dict[str, Union[str, dict]]:
-        # JSON-serializable values tree (render nested prompts)
-        ...
-    def to_provenance(self) -> dict:
-        # JSON-serializable provenance tree including expression, conversion, format_spec, etc.
+    # JSON export
+    def toJSON(self) -> dict:
+        # Hierarchical tree structure with explicit children arrays
         ...
 
 def prompt(template: Template, /, **opts) -> StructuredPrompt:
@@ -392,21 +389,9 @@ The format spec is parsed as `"key : render_hints"`:
 
 - `StructuredPrompt` preserves the original interpolation order for iteration and repr.
 
-**Provenance export**
+**JSON export**
 
-`to_provenance()` returns a nested dict like:
-
-```json
-{
-  "strings": ["prefix ", " ", ""],
-  "nodes": [
-    {"key":"foo","expression":"foo","conversion":null,"format_spec":""},
-    {"key":"p","expression":"p","conversion":null,"format_spec":""}
-  ]
-}
-```
-
-`to_values()` returns only rendered values (strings), resolving child prompts.
+`toJSON()` returns a hierarchical tree structure with explicit `children` arrays, making it ideal for analysis and external tools processing prompt structure.
 
 ## 6) Example walkthrough
 
@@ -470,7 +455,7 @@ p2 = prompt(t"bazz {foo} {p}")
 ### Phase 4 — Navigation & utilities
 
 - `__getitem__`, `get_all`, iteration order
-- `to_values()` and `to_provenance()` (JSON-safe)
+- `toJSON()` for hierarchical tree export (JSON-safe)
 - Friendly `__repr__` for debugging
 
 ### Phase 5 — Errors & docs
@@ -509,10 +494,9 @@ p2 = prompt(t"bazz {foo} {p}")
 
 `str(prompt(t"..."))` equals expected f-string rendering when no format spec is provided (format specs are used only as keys, never for formatting).
 
-#### Provenance
+#### JSON export
 
-- `to_provenance()` includes `expression`, `conversion`, `format_spec`, positions, and matches the source
-- `to_values()` produces nested dict of plain strings
+- `toJSON()` produces hierarchical tree structure with explicit children arrays, including all metadata like `expression`, `conversion`, `format_spec`, source locations, and IDs
 
 #### Property tests (optional stretch)
 

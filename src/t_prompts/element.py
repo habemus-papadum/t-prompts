@@ -88,7 +88,7 @@ except ImportError:
     HAS_PIL = False
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Element(ABC):
     """
     Base class for all elements in a StructuredPrompt.
@@ -119,6 +119,28 @@ class Element(ABC):
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    # Interpolation fields (None for Static and non-interpolated StructuredPrompts)
+    expression: Optional[str] = None
+    conversion: Optional[str] = None
+    format_spec: Optional[str] = None
+    render_hints: Optional[str] = None
+    interpolation_location: Optional[SourceLocation] = None
+
+    @property
+    def is_interpolated(self) -> bool:
+        """
+        Check if this element has been interpolated into a parent prompt.
+
+        Returns True if the element has interpolation metadata (expression is not None).
+        For Static elements and non-interpolated StructuredPrompts, returns False.
+
+        Returns
+        -------
+        bool
+            True if element has been interpolated, False otherwise.
+        """
+        return self.expression is not None
+
     @abstractmethod
     def ir(self, ctx: Optional["RenderContext"] = None) -> "IntermediateRepresentation":
         """
@@ -140,6 +162,63 @@ class Element(ABC):
         """
         pass
 
+    def _base_json_dict(self) -> dict[str, Any]:
+        """
+        Get base fields common to all elements.
+
+        Returns a dictionary with the base fields that all elements share:
+        key, index, source_location, id, parent_id, metadata.
+
+        Returns
+        -------
+        dict[str, Any]
+            Dictionary with base fields (without "type" field).
+        """
+        return {
+            "key": self.key,
+            "index": self.index,
+            "source_location": self.source_location.toJSON() if self.source_location else None,
+            "id": self.id,
+            "parent_id": self.parent.id if self.parent else None,
+            "metadata": self.metadata,
+        }
+
+    def _interpolation_json_dict(
+        self,
+        expression: str,
+        conversion: Optional[str],
+        format_spec: str,
+        render_hints: str,
+    ) -> dict[str, Any]:
+        """
+        Get fields common to all interpolation types.
+
+        This helper returns the fields shared by TextInterpolation,
+        NestedPromptInterpolation, ListInterpolation, and ImageInterpolation.
+
+        Parameters
+        ----------
+        expression : str
+            The original expression text from the t-string.
+        conversion : str | None
+            The conversion flag if present (!s, !r, !a), or None.
+        format_spec : str
+            The format specification string.
+        render_hints : str
+            Rendering hints parsed from format_spec.
+
+        Returns
+        -------
+        dict[str, Any]
+            Dictionary with interpolation fields.
+        """
+        return {
+            "expression": expression,
+            "conversion": conversion,
+            "format_spec": format_spec,
+            "render_hints": render_hints,
+        }
+
     @abstractmethod
     def toJSON(self) -> dict[str, Any]:
         """
@@ -157,7 +236,7 @@ class Element(ABC):
         pass
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Static(Element):
     """
     Represents a static string segment from the t-string.
@@ -217,17 +296,12 @@ class Static(Element):
         """
         return {
             "type": "Static",
-            "key": self.key,
-            "index": self.index,
-            "source_location": self.source_location.toJSON() if self.source_location else None,
-            "id": self.id,
+            **self._base_json_dict(),
             "value": self.value,
-            "parent_id": self.parent.id if self.parent else None,
-            "metadata": self.metadata,
         }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class TextInterpolation(Element):
     """
     Immutable record of a text interpolation in a StructuredPrompt.
@@ -256,10 +330,7 @@ class TextInterpolation(Element):
         The string value.
     """
 
-    expression: str = ""
-    conversion: Optional[str] = None
-    format_spec: str = ""
-    render_hints: str = ""
+    # Inherited from Element: expression, conversion, format_spec, render_hints
     value: str = ""
 
     def __getitem__(self, key: str) -> InterpolationType:
@@ -335,21 +406,13 @@ class TextInterpolation(Element):
         """
         return {
             "type": "TextInterpolation",
-            "key": self.key,
-            "index": self.index,
-            "source_location": self.source_location.toJSON() if self.source_location else None,
-            "id": self.id,
-            "expression": self.expression,
-            "conversion": self.conversion,
-            "format_spec": self.format_spec,
-            "render_hints": self.render_hints,
+            **self._base_json_dict(),
+            **self._interpolation_json_dict(self.expression, self.conversion, self.format_spec, self.render_hints),
             "value": self.value,
-            "parent_id": self.parent.id if self.parent else None,
-            "metadata": self.metadata,
         }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class NestedPromptInterpolation(Element):
     """
     Immutable record of a nested prompt interpolation in a StructuredPrompt.
@@ -378,10 +441,7 @@ class NestedPromptInterpolation(Element):
         The nested StructuredPrompt value.
     """
 
-    expression: str = ""
-    conversion: Optional[str] = None
-    format_spec: str = ""
-    render_hints: str = ""
+    # Inherited from Element: expression, conversion, format_spec, render_hints
     value: "StructuredPrompt" = None  # type: ignore
 
     def __post_init__(self) -> None:
@@ -469,21 +529,13 @@ class NestedPromptInterpolation(Element):
         """
         return {
             "type": "NestedPromptInterpolation",
-            "key": self.key,
-            "index": self.index,
-            "source_location": self.source_location.toJSON() if self.source_location else None,
-            "id": self.id,
-            "expression": self.expression,
-            "conversion": self.conversion,
-            "format_spec": self.format_spec,
-            "render_hints": self.render_hints,
+            **self._base_json_dict(),
+            **self._interpolation_json_dict(self.expression, self.conversion, self.format_spec, self.render_hints),
             "value_id": self.value.id,
-            "parent_id": self.parent.id if self.parent else None,
-            "metadata": self.metadata,
         }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ListInterpolation(Element):
     """
     Immutable record of a list interpolation in a StructuredPrompt.
@@ -509,26 +561,66 @@ class ListInterpolation(Element):
         The format specification string (everything after :), or empty string.
     render_hints : str
         Rendering hints parsed from format_spec (everything after first colon in format spec).
-    items : list[StructuredPrompt]
-        The list of StructuredPrompt items.
     separator : str
         The separator to use when joining items (parsed from render_hints, default "\n").
+    item_elements : list[NestedPromptInterpolation]
+        Wrapper elements for each item (created in __post_init__).
+        Each wrapper enables hierarchical expansion/collapse in the UI.
+        Iterate over this to access wrapper elements, or use indexing to access prompts.
     """
 
-    expression: str = ""
-    conversion: Optional[str] = None
-    format_spec: str = ""
-    render_hints: str = ""
-    items: list["StructuredPrompt"] = None  # type: ignore
+    # Inherited from Element: expression, conversion, format_spec, render_hints
+    items: list["StructuredPrompt"] = field(default=None, repr=False)  # type: ignore  # Temporary, used only in __post_init__
     separator: str = "\n"
+    item_elements: list["NestedPromptInterpolation"] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        """Set parent element links for all items after construction."""
-        # Set the parent_element link on each item in the list
-        # This allows upward tree traversal from list items
-        # Will automatically error if same prompt appears twice (Option A)
-        for item in self.items:
-            item._set_parent_element(self)
+        """Create NestedPromptInterpolation wrappers for each list item."""
+        from .exceptions import PromptReuseError
+
+        # Get items from temporary field
+        items = object.__getattribute__(self, 'items')
+
+        # Check for duplicate prompts (disallow reuse in lists)
+        seen_ids = set()
+        for item in items:
+            if item.id in seen_ids:
+                raise PromptReuseError(
+                    item,
+                    None,  # Don't have reference to first occurrence
+                    self,
+                    message=f"Cannot reuse StructuredPrompt (id={item.id}) in the same list"
+                )
+            seen_ids.add(item.id)
+
+        # Create wrapper elements normally (one per item) for hierarchical expansion/collapse
+        wrapped_items = []
+        for idx, item in enumerate(items):
+            # Create wrapper using normal constructor
+            # The wrapper's __post_init__ will set item.parent_element = wrapper
+            # But we'll override it below to point to this ListInterpolation instead
+            wrapper = NestedPromptInterpolation(
+                key=idx,
+                expression=f"[{idx}]",
+                conversion=None,
+                format_spec="",
+                render_hints="",
+                value=item,
+                parent=self.parent,
+                index=self.index,
+                source_location=self.source_location,
+            )
+            wrapped_items.append(wrapper)
+
+        # Store in item_elements (use object.__setattr__ since frozen dataclass)
+        object.__setattr__(self, 'item_elements', wrapped_items)
+
+        # Override parent_element to point to this ListInterpolation (not the wrappers)
+        # Wrappers are just for element tree organization
+        for item in items:
+            # Force set parent_element to this ListInterpolation
+            # This overrides what NestedPromptInterpolation.__post_init__ set
+            object.__setattr__(item, 'parent_element', self)
 
     def __getitem__(self, idx: int) -> "StructuredPrompt":
         """
@@ -549,11 +641,15 @@ class ListInterpolation(Element):
         IndexError
             If the index is out of bounds.
         """
-        return self.items[idx]
+        return self.item_elements[idx].value
 
     def __len__(self) -> int:
         """Return the number of items in the list."""
-        return len(self.items)
+        return len(self.item_elements)
+
+    def __iter__(self):
+        """Iterate over wrapper elements."""
+        return iter(self.item_elements)
 
     def ir(self, ctx: Optional["RenderContext"] = None, base_indent: str = "") -> "IntermediateRepresentation":
         """
@@ -582,18 +678,12 @@ class ListInterpolation(Element):
         # Parse render hints
         hints = parse_render_hints(self.render_hints, str(self.key))
 
-        # Convert each item to IR with updated context
-        next_level = ctx.header_level + 1 if "header" in hints else ctx.header_level
-        item_ctx_args = {
-            "_path": ctx.path + (self.key,),
-            "_header_level": next_level,
-            "max_header_level": ctx.max_header_level,
-        }
-
-        item_irs = [item.ir(**item_ctx_args) for item in self.items]
+        # Render each item through its wrapper element (NestedPromptInterpolation)
+        # This enables hierarchical expansion/collapse in the UI
+        item_irs = [wrapper.ir(ctx) for wrapper in self.item_elements]
 
         # Merge items with separator using chunk-based merge operation
-        # TODO: Add support for base_indent in a future refactor
+        # The separator chunks will have element_id = self.id (the ListInterpolation)
         merged_ir = IntermediateRepresentation.merge(item_irs, separator=self.separator, separator_element_id=self.id)
 
         # Apply render hints using chunk-based operations
@@ -605,7 +695,7 @@ class ListInterpolation(Element):
         """Return a helpful debug representation."""
         return (
             f"ListInterpolation(key={self.key!r}, expression={self.expression!r}, "
-            f"separator={self.separator!r}, items={len(self.items)}, index={self.index})"
+            f"separator={self.separator!r}, items={len(self.item_elements)}, index={self.index})"
         )
 
     def toJSON(self) -> dict[str, Any]:
@@ -623,22 +713,14 @@ class ListInterpolation(Element):
         """
         return {
             "type": "ListInterpolation",
-            "key": self.key,
-            "index": self.index,
-            "source_location": self.source_location.toJSON() if self.source_location else None,
-            "id": self.id,
-            "expression": self.expression,
-            "conversion": self.conversion,
-            "format_spec": self.format_spec,
-            "render_hints": self.render_hints,
-            "item_ids": [item.id for item in self.items],
+            **self._base_json_dict(),
+            **self._interpolation_json_dict(self.expression, self.conversion, self.format_spec, self.render_hints),
+            "item_ids": [wrapper.value.id for wrapper in self.item_elements],
             "separator": self.separator,
-            "parent_id": self.parent.id if self.parent else None,
-            "metadata": self.metadata,
         }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ImageInterpolation(Element):
     """
     Immutable record of an image interpolation in a StructuredPrompt.
@@ -668,10 +750,7 @@ class ImageInterpolation(Element):
         The PIL Image object (typed as Any to avoid hard dependency on PIL).
     """
 
-    expression: str = ""
-    conversion: Optional[str] = None
-    format_spec: str = ""
-    render_hints: str = ""
+    # Inherited from Element: expression, conversion, format_spec, render_hints
     value: Any = None  # PIL Image type
 
     def ir(self, ctx: Optional["RenderContext"] = None) -> "IntermediateRepresentation":
@@ -718,17 +797,9 @@ class ImageInterpolation(Element):
         """
         return {
             "type": "ImageInterpolation",
-            "key": self.key,
-            "index": self.index,
-            "source_location": self.source_location.toJSON() if self.source_location else None,
-            "id": self.id,
-            "expression": self.expression,
-            "conversion": self.conversion,
-            "format_spec": self.format_spec,
-            "render_hints": self.render_hints,
+            **self._base_json_dict(),
+            **self._interpolation_json_dict(self.expression, self.conversion, self.format_spec, self.render_hints),
             "value": _serialize_image(self.value),
-            "parent_id": self.parent.id if self.parent else None,
-            "metadata": self.metadata,
         }
 
 

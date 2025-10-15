@@ -137,19 +137,13 @@ def wait_for_widget_render(page):
     """
     Fixture that provides a function to wait for widget rendering to complete.
 
-    This is useful when you need to ensure all three panes (Structure, Code, Preview)
-    are fully rendered before taking screenshots or making assertions.
+    This waits for the simplified widget output to be rendered.
     """
 
     def _wait():
-        """Wait for all widget panes to be rendered."""
-        # Wait for all three panes to be present
-        page.wait_for_selector('.tp-pane-tree', timeout=5000)
-        page.wait_for_selector('.tp-pane-code', timeout=5000)
-        page.wait_for_selector('.tp-pane-preview', timeout=5000)
-
-        # Wait for tree structure to be rendered
-        page.wait_for_selector('.tp-tree', timeout=5000)
+        """Wait for widget output to be rendered."""
+        # Wait for widget output container to be present
+        page.wait_for_selector('.tp-widget-output', timeout=5000)
 
         # Small additional delay for CSS rendering
         page.wait_for_timeout(100)

@@ -162,7 +162,7 @@ def test_image_in_elements_property():
     img = create_checkerboard()
     p = prompt(t"Image: {img:my_image}")
 
-    elements = p.elements
+    elements = p.children
     # Should have 2 statics and 1 image interpolation
     assert len(elements) == 3
 

@@ -114,7 +114,7 @@ You should see all tests passing.
 uv run pytest
 
 # Run specific test file
-uv run pytest tests/test_to_json.py
+uv run pytest tests/test_core.py
 
 # Run with verbose output
 uv run pytest -v
@@ -223,11 +223,13 @@ t-prompts/
 ## Need Help?
 
 - Check the [Architecture documentation](../Architecture.md) for design details
-- See [toJSON Format Reference](to-json-format.md) for JSON export format
+- See [JSON Format Reference](json-format.md) for JSON export format
+- Review [Widget Architecture](widget-architecture.md) for widget system design
 - Open an issue on GitHub for questions or bug reports
 
 ## Next Steps
 
-- Read the [toJSON Format Reference](to-json-format.md) to understand the JSON export format
+- Read the [JSON Format Reference](json-format.md) to understand the JSON export format
 - Explore the [Architecture documentation](../Architecture.md) for system design
+- Review the [Widget Architecture](widget-architecture.md) for the widget system
 - Check out the [API Reference](../reference.md) for detailed API docs

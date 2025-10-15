@@ -372,17 +372,3 @@ def test_hints_with_conversions():
     # Conversion should be applied to content
     expected = "# Section\n<data>\n'test'\n</data>"
     assert str(p) == expected
-
-
-def test_hints_preserve_provenance():
-    """Test that hints don't break provenance tracking."""
-    content = "content"
-    p = t_prompts.prompt(t"{content:c:header=Section:xml=data}")
-
-    # Should be able to export provenance
-    prov = p.to_provenance()
-    assert prov is not None
-    assert "nodes" in prov
-    assert len(prov["nodes"]) == 1
-    assert prov["nodes"][0]["key"] == "c"
-    assert prov["nodes"][0]["render_hints"] == "header=Section:xml=data"

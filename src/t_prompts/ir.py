@@ -494,7 +494,7 @@ class CompiledIR:
         prompt : StructuredPrompt
             The prompt to collect elements from.
         """
-        for elem in prompt.elements:
+        for elem in prompt.children:
             self._elements[elem.id] = elem
 
             # Import here to avoid circular dependency
@@ -503,8 +503,10 @@ class CompiledIR:
             if isinstance(elem, NestedPromptInterpolation):
                 self._collect_elements(elem.value)
             elif isinstance(elem, ListInterpolation):
-                for item_prompt in elem.items:
-                    self._collect_elements(item_prompt)
+                # Collect wrapper elements and recurse into them
+                for wrapper in elem.item_elements:
+                    self._elements[wrapper.id] = wrapper
+                    self._collect_elements(wrapper.value)
 
     def _build_subtree_index(
         self,
@@ -523,7 +525,7 @@ class CompiledIR:
         """
         all_indices = []
 
-        for elem in prompt.elements:
+        for elem in prompt.children:
             elem_indices = self._build_element_subtree(elem, chunk_indices_by_element)
             all_indices.extend(elem_indices)
 
@@ -562,18 +564,17 @@ class CompiledIR:
         if isinstance(elem, NestedPromptInterpolation):
             nested_prompt = elem.value
             nested_indices = []
-            for child_elem in nested_prompt.elements:
+            for child_elem in nested_prompt.children:
                 nested_indices.extend(self._build_element_subtree(child_elem, chunk_indices_by_element))
             indices.extend(nested_indices)
-            self._subtree_chunks[nested_prompt.id] = nested_indices
+            # NOTE: Do NOT store nested_prompt.id in _subtree_chunks!
+            # Only Element IDs should be stored, not StructuredPrompt IDs.
 
         elif isinstance(elem, ListInterpolation):
-            for item_prompt in elem.items:
-                item_indices = []
-                for child_elem in item_prompt.elements:
-                    item_indices.extend(self._build_element_subtree(child_elem, chunk_indices_by_element))
-                indices.extend(item_indices)
-                self._subtree_chunks[item_prompt.id] = item_indices
+            # Recurse into item_elements (NestedPromptInterpolation wrappers)
+            for wrapper in elem.item_elements:
+                wrapper_indices = self._build_element_subtree(wrapper, chunk_indices_by_element)
+                indices.extend(wrapper_indices)
 
         # Store for this element
         self._subtree_chunks[elem.id] = indices
@@ -611,7 +612,7 @@ class CompiledIR:
         >>> compiled.get_chunks_for_subtree(p.id)
         [TextChunk('Hello '), TextChunk('world'), TextChunk('!')]
         >>> # Get chunks just for the interpolation element
-        >>> compiled.get_chunks_for_subtree(p.elements[1].id)
+        >>> compiled.get_chunks_for_subtree(p.children[1].id)
         [TextChunk('world')]
         """
         indices = self._subtree_chunks.get(element_id, [])

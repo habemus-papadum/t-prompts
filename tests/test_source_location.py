@@ -70,7 +70,7 @@ def test_source_location_on_static_elements():
     p = prompt(t"Task: {task}")
 
     # Check static elements
-    for element in p.elements:
+    for element in p.children:
         if isinstance(element, Static):
             # Static elements should also have source location
             assert element.source_location is not None
@@ -95,41 +95,6 @@ def test_source_location_on_nested_prompts():
 
     # They should be from different lines
     assert outer['i'].source_location.line != inner_prompt['x'].source_location.line
-
-
-def test_source_location_in_provenance():
-    """Test that source location is included in provenance export."""
-    task = "translate"
-    p = prompt(t"Task: {task}")
-
-    prov = p.to_provenance()
-    nodes = prov["nodes"]
-
-    assert len(nodes) == 1
-    node = nodes[0]
-
-    # Should have source_location in provenance
-    assert "source_location" in node
-    loc = node["source_location"]
-
-    assert loc["filename"] == "test_source_location.py"
-    assert loc["filepath"].endswith("test_source_location.py")
-    assert loc["line"] > 0
-
-
-def test_source_location_not_in_provenance_when_disabled():
-    """Test that source location is not in provenance when disabled."""
-    task = "translate"
-    p = prompt(t"Task: {task}", capture_source_location=False)
-
-    prov = p.to_provenance()
-    nodes = prov["nodes"]
-
-    assert len(nodes) == 1
-    node = nodes[0]
-
-    # Should NOT have source_location in provenance
-    assert "source_location" not in node
 
 
 def test_source_location_with_multiple_interpolations():

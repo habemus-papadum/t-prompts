@@ -108,7 +108,6 @@ def test_save_widget_html_with_nested_prompt(temp_output_dir):
     assert 'data-tp-widget' in html_content
 
 
-@pytest.mark.skip(reason="IR widget rendering depends on toJSON() interface being redesigned")
 def test_save_widget_html_with_intermediate_representation(temp_output_dir):
     """Test saving an IntermediateRepresentation widget."""
     name = "Alice"
@@ -188,7 +187,6 @@ def test_create_widget_gallery_contains_count(temp_output_dir):
     assert "Widget Gallery - 4 items" in html_content
 
 
-@pytest.mark.skip(reason="IR widget rendering depends on toJSON() interface being redesigned")
 def test_create_widget_gallery_contains_type_info(temp_output_dir):
     """Test that gallery shows type information for each widget."""
     p = prompt(t"Simple prompt")

@@ -147,7 +147,7 @@ print(str(p))
 
 ## Provenance Access
 
-Export full provenance information for logging and debugging:
+Access metadata about interpolations for logging and debugging:
 
 ```python
 context = "User is Alice"
@@ -155,19 +155,15 @@ instructions = "Be concise"
 
 p = prompt(t"Context: {context:ctx}. {instructions:inst}")
 
-# Export to JSON for logging
-provenance = p.to_provenance()
-# {
-#   "strings": ["Context: ", ". ", ""],
-#   "nodes": [
-#     {"key": "ctx", "expression": "context", "value": "User is Alice", ...},
-#     {"key": "inst", "expression": "instructions", "value": "Be concise", ...}
-#   ]
-# }
+# Access metadata for each interpolation
+ctx_node = p['ctx']
+print(ctx_node.expression)  # "context"
+print(ctx_node.value)  # "User is Alice"
+print(ctx_node.key)  # "ctx"
 
-# Or get just the values
-values = p.to_values()
-# {"ctx": "User is Alice", "inst": "Be concise"}
+# Export complete structure to JSON
+data = p.toJSON()
+# Hierarchical tree with all elements, metadata, and IDs
 ```
 
 ## Format Spec Mini-Language

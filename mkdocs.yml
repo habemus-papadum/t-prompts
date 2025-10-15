@@ -19,6 +19,8 @@ nav:
   - Tutorials:
     - Basic: demos/01-basic.ipynb
     - Intermediate: demos/02-intermediate.ipynb
+    - IR Visualization: demos/03-ir-visualization.ipynb
+    - Widget Test: demos/widget-test.ipynb
   - Topics:
     - Few-Shot Prompts: demos/topics/few-shot-prompts.ipynb
     - Source Mapping: demos/topics/source-mapping.ipynb
@@ -32,8 +34,14 @@ nav:
   - Developer:
     - Setup: developer/setup.md
     - Testing: developer/testing.md
-    - toJSON Format: developer/to-json-format.md
-    - IR toJSON Format: developer/ir-to-json-format.md
+    - JSON Format: developer/json-format.md
+    - Widget Architecture: developer/widget-architecture.md
+  - Design Proposals:
+    - Implementation Plan: implementation-plan.md
+    - Dedent Implementation: dedent-implementation-plan.md
+    - Widget Proposal: Widget proposal.md
+  - Code Reviews:
+    - Code Review: code-review.md
   - API Reference: reference.md
 
 

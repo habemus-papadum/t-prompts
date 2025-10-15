@@ -302,12 +302,6 @@ print(node.conversion)   # "r" (from !r)
 print(node.format_spec)  # "u"
 print(node.key)          # "u"
 print(node.index)        # 1 (second element after first static)
-
-# Export all provenance
-prov = p.to_provenance()
-print(prov['nodes'][0]['expression'])  # "user"
-print(prov['nodes'][0]['value'])       # "Alice"
-print(prov['nodes'][0]['conversion'])  # "r"
 ```
 
 ## Conversions
@@ -339,56 +333,6 @@ print(p2['v'].render())  # "'hello'"
 ## JSON Export
 
 Serialize prompts to JSON for logging or transmission.
-
-### to_values()
-
-Export just the values:
-
-```python
-from t_prompts import prompt
-import json
-
-name = "Alice"
-age = "30"
-p = prompt(t"{name:n}, age {age:a}")
-
-values = p.to_values()
-print(json.dumps(values, indent=2))
-# {
-#   "n": "Alice",
-#   "a": "30"
-# }
-```
-
-### to_provenance()
-
-Export complete provenance:
-
-```python
-from t_prompts import prompt
-import json
-
-name = "Bob"
-p = prompt(t"Hello {name:n}")
-
-prov = p.to_provenance()
-print(json.dumps(prov, indent=2))
-# {
-#   "strings": ["Hello ", ""],
-#   "nodes": [
-#     {
-#       "key": "n",
-#       "expression": "name",
-#       "conversion": null,
-#       "format_spec": "n",
-#       "render_hints": "",
-#       "index": 1,
-#       "source_location": {...},
-#       "value": "Bob"
-#     }
-#   ]
-# }
-```
 
 ### toJSON()
 

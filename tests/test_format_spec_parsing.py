@@ -118,16 +118,3 @@ def test_empty_key_with_colon_delimiter():
         assert False, "Should have raised EmptyExpressionError"
     except t_prompts.EmptyExpressionError:
         pass
-
-
-def test_format_spec_in_provenance():
-    """Test that render_hints appear in provenance export."""
-    value = "test"
-    p = t_prompts.prompt(t"{value:key:format=json,indent=2}")
-
-    prov = p.to_provenance()
-    node_data = prov["nodes"][0]
-
-    assert node_data["key"] == "key"
-    assert node_data["render_hints"] == "format=json,indent=2"
-    assert node_data["format_spec"] == "key:format=json,indent=2"

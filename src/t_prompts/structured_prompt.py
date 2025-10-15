@@ -75,8 +75,8 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         self.metadata: dict[str, Any] = {}  # Metadata dictionary for storing analysis results
         # Parent element for upward traversal
         self.parent_element: Optional[Union[NestedPromptInterpolation, ListInterpolation]] = None
-        # All elements (Static, StructuredInterpolation, ListInterpolation, ImageInterpolation)
-        self._elements: list[Element] = []
+        # All children (Static, StructuredInterpolation, ListInterpolation, ImageInterpolation)
+        self._children: list[Element] = []
         # Only interpolations
         self._interps: list[InterpolationType] = []
         self._allow_duplicates = allow_duplicate_keys
@@ -106,7 +106,7 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
                 index=element_idx,
                 source_location=self._source_location,
             )
-            self._elements.append(static)
+            self._children.append(static)
             element_idx += 1
 
             # Add interpolation if there's one after this static
@@ -184,7 +184,7 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
                     raise UnsupportedValueTypeError(key, type(val), itp.expression)
 
                 self._interps.append(node)
-                self._elements.append(node)
+                self._children.append(node)
                 element_idx += 1
 
                 # Update index (maps string keys to positions in _interps list)
@@ -296,9 +296,9 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         return tuple(self._interps)
 
     @property
-    def elements(self) -> tuple[Element, ...]:
-        """Return all elements (Static and StructuredInterpolation) in order."""
-        return tuple(self._elements)
+    def children(self) -> tuple[Element, ...]:
+        """Return all children (Static and StructuredInterpolation) in order."""
+        return tuple(self._children)
 
     # Parent element management
 
@@ -393,9 +393,9 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         ctx = RenderContext(path=_path, header_level=_header_level, max_header_level=max_header_level)
 
         # Convert each element to IR
-        element_irs = [element.ir(ctx) for element in self._elements]
+        element_irs = [element.ir(ctx) for element in self._children]
 
-        # Merge all element IRs (no separator - elements are already interleaved with statics)
+        # Merge all element IRs (no separator - children are already interleaved with statics)
         merged_ir = IntermediateRepresentation.merge(element_irs, separator="")
 
         # Create final IR with source_prompt set to self
@@ -407,71 +407,6 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
     def __str__(self) -> str:
         """Render to string (convenience for ir().text)."""
         return self.ir().text
-
-    # Convenience methods for JSON export
-
-    def to_values(self) -> dict[str, Any]:
-        """
-        Export a JSON-serializable dict of rendered values.
-
-        Nested StructuredPrompts are recursively converted to dicts.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary mapping keys to rendered string values or nested dicts.
-        """
-        result = {}
-        for node in self._interps:
-            if isinstance(node, ListInterpolation):
-                result[node.key] = [item.to_values() for item in node.items]
-            elif isinstance(node, NestedPromptInterpolation):
-                result[node.key] = node.value.to_values()
-            elif isinstance(node, TextInterpolation):
-                # Get rendered value for this node
-                rendered = node.ir()
-                result[node.key] = rendered if isinstance(rendered, str) else rendered.text
-        return result
-
-    def to_provenance(self) -> dict[str, Any]:
-        """
-        Export a JSON-serializable dict with full provenance information.
-
-        Returns
-        -------
-        dict[str, Any]
-            A dictionary with 'strings' (the static segments) and 'nodes'
-            (list of dicts with key, expression, conversion, format_spec, render_hints, value info,
-            and source_location if available).
-        """
-        nodes_data = []
-        for node in self._interps:
-            node_dict = {
-                "key": node.key,
-                "expression": node.expression,
-                "conversion": node.conversion,
-                "format_spec": node.format_spec,
-                "render_hints": node.render_hints,
-                "index": node.index,
-            }
-
-            # Add source location if available
-            if node.source_location is not None and node.source_location.is_available:
-                node_dict["source_location"] = {
-                    "filename": node.source_location.filename,
-                    "filepath": node.source_location.filepath,
-                    "line": node.source_location.line,
-                }
-
-            if isinstance(node, ListInterpolation):
-                node_dict["value"] = [item.to_provenance() for item in node.items]
-            elif isinstance(node, NestedPromptInterpolation):
-                node_dict["value"] = node.value.to_provenance()
-            elif isinstance(node, TextInterpolation):
-                node_dict["value"] = node.value
-            nodes_data.append(node_dict)
-
-        return {"strings": list(self._template.strings), "nodes": nodes_data}
 
     def toJSON(self) -> dict[str, Any]:
         """
@@ -556,11 +491,8 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
                     "render_hints": element.render_hints,
                     "separator": element.separator,
                 })
-                # Build array of child prompt structures
-                base["children"] = [
-                    {"prompt_id": item.id, "children": _build_children_tree(item, element.id)}
-                    for item in element.items
-                ]
+                # Build array of wrapper elements (NestedPromptInterpolation for each item)
+                base["children"] = [_build_element_tree(wrapper, element.id) for wrapper in element.item_elements]
 
             elif isinstance(element, ImageInterpolation):
                 base["type"] = "image"
@@ -576,7 +508,7 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
 
         def _build_children_tree(prompt: "StructuredPrompt", parent_id: str) -> list[dict[str, Any]]:
             """Build children array for a prompt."""
-            return [_build_element_tree(elem, parent_id) for elem in prompt.elements]
+            return [_build_element_tree(elem, parent_id) for elem in prompt.children]
 
         return {"prompt_id": self._id, "children": _build_children_tree(self, self._id)}
 

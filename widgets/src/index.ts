@@ -5,6 +5,7 @@
 
 import { initWidget } from './renderer';
 import widgetStyles from './styles.css';
+import { STYLES_HASH } from './generated';
 
 // Export version matching Python package
 export const VERSION = '0.9.0-alpha';
@@ -24,15 +25,20 @@ declare global {
  * Inject widget styles into the document (once per page)
  */
 function injectStyles(): void {
-  if (window.__TPWidget?.stylesInjected) {
+  // Use hash-based style ID for cache busting
+  const styleId = `tp-widget-styles-${STYLES_HASH}`;
+
+  // Check if this version is already injected
+  // Use querySelector instead of getElementById for reliability across environments
+  if (document.querySelector(`#${styleId}`)) {
     return;
   }
 
-  const styleId = 'tp-widget-styles';
-  if (document.getElementById(styleId)) {
-    return;
-  }
+  // Remove any old versions of the styles
+  const oldStyles = document.querySelectorAll('[id^="tp-widget-styles"]');
+  oldStyles.forEach(el => el.remove());
 
+  // Inject new styles
   const styleElement = document.createElement('style');
   styleElement.id = styleId;
   styleElement.textContent = widgetStyles;

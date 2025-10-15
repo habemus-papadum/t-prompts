@@ -17,7 +17,7 @@ def test_static_class_attributes():
     # Access elements property
     # Pattern: strings = ('prefix ', ' suffix'), interpolations = [value]
     # Elements: static "prefix ", interp v, static " suffix"
-    elements = p.elements
+    elements = p.children
     assert len(elements) == 3
 
     # First element should be Static with value "prefix "
@@ -35,7 +35,7 @@ def test_static_is_element():
     p = t_prompts.prompt(t"prefix {value:v}")
 
     # Elements: static "prefix ", interp v, static ""
-    elements = p.elements
+    elements = p.children
     static_elem = elements[0]  # First element is the static "prefix "
 
     assert isinstance(static_elem, t_prompts.Static)
@@ -48,7 +48,7 @@ def test_interpolation_is_element():
     p = t_prompts.prompt(t"{value:v}")
 
     # Elements: static "", interp v, static ""
-    elements = p.elements
+    elements = p.children
     interp_elem = elements[1]  # Middle element is the interpolation
 
     assert isinstance(interp_elem, t_prompts.TextInterpolation)
@@ -63,7 +63,7 @@ def test_elements_property_interleaves_correctly():
 
     # strings = ("start ", " middle ", " end"), interpolations = [a, b]
     # Elements: static "start ", a, static " middle ", b, static " end"
-    elements = p.elements
+    elements = p.children
     assert len(elements) == 5
 
     # Check types
@@ -86,7 +86,7 @@ def test_static_integer_keys():
     value = "test"
     p = t_prompts.prompt(t"prefix {value:v} suffix")
 
-    elements = p.elements
+    elements = p.children
 
     # Check that Static elements have integer keys
     for elem in elements:
@@ -110,7 +110,7 @@ def test_element_indices():
     b = "B"
     p = t_prompts.prompt(t"{a:a} {b:b}")
 
-    elements = p.elements
+    elements = p.children
 
     # Should be: "" (0), a (1), " " (2), b (3), "" (4)
     assert elements[0].index == 0
@@ -125,7 +125,7 @@ def test_element_parent_references():
     value = "test"
     p = t_prompts.prompt(t"prefix {value:v} suffix")
 
-    elements = p.elements
+    elements = p.children
 
     for elem in elements:
         assert elem.parent is p
@@ -140,7 +140,7 @@ def test_elements_with_nested_prompts():
     # Check outer elements
     # strings = ("outer ", ""), interpolations = [p_inner]
     # Elements: static "outer ", p_inner interp, static ""
-    outer_elements = p_outer.elements
+    outer_elements = p_outer.children
     assert len(outer_elements) == 3
 
     # The second element (index 1) is the interpolation containing nested prompt
@@ -151,7 +151,7 @@ def test_elements_with_nested_prompts():
     # Check inner elements
     # strings = ("", ""), interpolations = [inner]
     # Elements: static "", inner interp, static ""
-    inner_elements = p_inner.elements
+    inner_elements = p_inner.children
     assert len(inner_elements) == 3
 
 
@@ -160,7 +160,7 @@ def test_static_frozen_dataclass():
     value = "test"
     p = t_prompts.prompt(t"prefix {value:v}")
 
-    elements = p.elements
+    elements = p.children
     static_elem = elements[1]
 
     # Should not be able to modify frozen dataclass
@@ -176,7 +176,7 @@ def test_empty_static_elements():
     value = "test"
     p = t_prompts.prompt(t"{value:v}")
 
-    elements = p.elements
+    elements = p.children
 
     # Should be: "" (empty), value interp, "" (empty)
     assert len(elements) == 3
@@ -192,7 +192,7 @@ def test_adjacent_interpolations_with_empty_static():
     b = "B"
     p = t_prompts.prompt(t"{a:a}{b:b}")
 
-    elements = p.elements
+    elements = p.children
 
     # Should be: "" (empty), a, "" (empty), b, "" (empty)
     assert len(elements) == 5

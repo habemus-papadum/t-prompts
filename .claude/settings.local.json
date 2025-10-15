@@ -23,7 +23,17 @@
       "Bash(pnpm test)",
       "Bash(pnpm lint)",
       "WebFetch(domain:playwright.dev)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(for file in \"demos/03-ir-visualization.ipynb\" \"demos/widget-test.ipynb\" \"developer/json-format.md\" \"developer/widget-architecture.md\" \"implementation-plan.md\" \"dedent-implementation-plan.md\" \"Widget proposal.md\" \"code-review.md\")",
+      "Bash(do)",
+      "Bash(if [ -f \"docs/$file\" ])",
+      "Bash(then)",
+      "Bash(echo:*)",
+      "Bash(else)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(pnpm vitest run:*)",
+      "Bash(node build.js)"
     ],
     "deny": [],
     "ask": []

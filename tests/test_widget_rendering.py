@@ -2,8 +2,6 @@
 
 import json
 
-import pytest
-
 from t_prompts import prompt
 
 

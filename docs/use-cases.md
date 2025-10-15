@@ -28,12 +28,12 @@ print(p['name'].value)       # "Alice"
 print(p['role'].expression)  # "user_role"
 print(p['t'].expression)     # "task"
 
-# Export full provenance for logging
-provenance = p.to_provenance()
-# Contains expression, value, format_spec, and source location for each interpolation
+# Export complete structure for logging
+data = p.toJSON()
+# Contains expression, value, format_spec, and source location for each element
 ```
 
-**Real-world scenario**: When an LLM produces unexpected output, you can inspect the provenance to see exactly which variables were interpolated and their values, making debugging much faster.
+**Real-world scenario**: When an LLM produces unexpected output, you can inspect the metadata to see exactly which variables were interpolated and their values, making debugging much faster.
 
 ## Structured Access
 
@@ -115,7 +115,7 @@ print(len(full_prompt['ctx']['facts']))  # 2 (list of facts)
 
 **Problem**: For compliance, security, or debugging, you need complete records of what prompts were sent to LLMs, including where each part came from.
 
-**Solution**: `t-prompts` provides `to_provenance()` for full audit trails and optional source location tracking.
+**Solution**: `t-prompts` provides `toJSON()` for full audit trails and optional source location tracking.
 
 ```python
 from t_prompts import prompt
@@ -130,14 +130,14 @@ p = prompt(t"""
 {sensitive_data:data}
 """, dedent=True)
 
-# Export complete provenance for audit log
+# Export complete structure for audit log
 audit_record = {
     "prompt_id": "req_789",
     "timestamp": "2024-10-14T12:00:00Z",
-    "provenance": p.to_provenance()
+    "structure": p.toJSON()
 }
 
-# provenance includes:
+# structure includes:
 # - expression: original variable name
 # - value: interpolated value
 # - format_spec: any formatting applied
@@ -148,10 +148,12 @@ with open("audit_log.json", "w") as f:
     json.dump(audit_record, f, indent=2)
 
 # Later, reconstruct exactly what was sent and where it came from
-prov = audit_record["provenance"]
-for node in prov["nodes"]:
-    print(f"Variable '{node['expression']}' from {node['source_location']['filename']}:{node['source_location']['line']}")
-    print(f"  Value: {node['value']}")
+structure = audit_record["structure"]
+for child in structure["children"]:
+    if child["type"] in ["interpolation", "text", "nested_prompt"]:
+        loc = child.get("source_location", {})
+        print(f"Variable '{child.get('expression', 'N/A')}' from {loc.get('filename', 'unknown')}:{loc.get('line', '?')}")
+        print(f"  Value: {child.get('value', 'N/A')}")
 ```
 
 **Real-world scenario**: Healthcare or financial applications where you need to log exactly what data was sent to an LLM for compliance audits.

@@ -6,12 +6,38 @@ describe('initWidget', () => {
     const container = document.createElement('div');
     container.setAttribute('data-tp-widget', 'true');
 
-    // Add minimal widget data
+    // Add minimal widget data with proper structure
     const scriptTag = document.createElement('script');
     scriptTag.setAttribute('data-role', 'tp-widget-data');
     scriptTag.textContent = JSON.stringify({
-      prompt_id: 'test-123',
-      children: []
+      ir: {
+        chunks: [
+          {
+            type: 'TextChunk',
+            text: 'Test',
+            element_id: 'elem-1',
+            id: 'chunk-1',
+            metadata: {},
+          },
+        ],
+        source_prompt_id: 'prompt-1',
+        id: 'ir-1',
+        metadata: {},
+      },
+      source_prompt: {
+        prompt_id: 'prompt-1',
+        children: [
+          {
+            type: 'static',
+            id: 'elem-1',
+            parent_id: 'prompt-1',
+            key: 0,
+            index: 0,
+            source_location: null,
+            value: 'Test',
+          },
+        ],
+      },
     });
     container.appendChild(scriptTag);
 
@@ -21,7 +47,8 @@ describe('initWidget', () => {
     container.appendChild(mountPoint);
 
     initWidget(container);
-    expect(container.querySelector('.tp-widget-container')).toBeTruthy();
+    // Check for the output container that actually gets created
+    expect(container.querySelector('.tp-widget-output')).toBeTruthy();
   });
 
   it('should include version', () => {
