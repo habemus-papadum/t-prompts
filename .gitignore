@@ -220,5 +220,11 @@ widgets/coverage/
 # Don't ignore widgets/dist - it's bundled with Python package
 !widgets/dist/
 
+# Prevent widget build artifacts from being copied to src/
+# (They should only come from widgets/dist via force-include in pyproject.toml)
+src/t_prompts/widgets/index.js
+src/t_prompts/widgets/index.js.map
+src/t_prompts/widgets/katex.css
+
 # Scratchpad directory for temporary test/development code
 scratchpad/
