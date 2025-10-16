@@ -27,8 +27,7 @@ from .parsing import (
 from .source_location import SourceLocation
 from .structured_prompt import StructuredPrompt, dedent, prompt
 from .text import process_dedent
-from .widget import Widget
-from .widget_config import WidgetConfig, get_default_widget_config, set_default_widget_config
+from .widgets import Widget, WidgetConfig, get_default_widget_config, set_default_widget_config
 
 __version__ = "0.10.0-alpha"
 __all__ = [

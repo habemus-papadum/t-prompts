@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-_WIDGETS_DIR = Path(__file__).parent / "widgets"
+_WIDGETS_DIR = Path(__file__).parent
 
 
 def get_widget_path() -> Path:

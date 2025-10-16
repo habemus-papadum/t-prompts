@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from t_prompts.widget_export import save_widget_html
+from t_prompts.widgets import save_widget_html
 
 
 @pytest.fixture(scope="session")
@@ -83,7 +83,7 @@ def widget_page(page, http_server, save_widget_for_test):
         """Load a widget into the browser and wait for it to initialize."""
         # Reset the bundle injection state for each test
         # This ensures the widget HTML includes the full bundle
-        import t_prompts.widget_renderer as widget_renderer
+        from t_prompts.widgets import renderer as widget_renderer
 
         widget_renderer._bundle_injected = False
 

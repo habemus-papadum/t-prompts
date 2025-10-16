@@ -38,7 +38,8 @@
       "Bash(do echo \"=== $nb ===\" uv run jupyter nbconvert --execute --to notebook --inplace --ExecutePreprocessor.timeout=60 \"$nb\")",
       "Bash(./nb.sh:*)",
       "Bash(cat:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []

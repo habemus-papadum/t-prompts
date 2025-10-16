@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from .ir import IntermediateRepresentation
-    from .structured_prompt import StructuredPrompt
+    from ..ir import IntermediateRepresentation
+    from ..structured_prompt import StructuredPrompt
 
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">

@@ -128,7 +128,6 @@
   color: var(--tp-color-fg);
   max-width: 100ch;
   word-break: break-all;
-  padding-left: 16px; /* Gutter space for wrap indicators */
   position: relative;
 }
 
@@ -141,18 +140,6 @@
 .tp-output-container.scroll {
   white-space: pre;
   overflow-x: auto;
-}
-
-/* Wrap indicator for the last span on lines that wrap */
-.tp-wrapped-line::after {
-  content: '↘';
-  position: absolute;
-  right: -14px;
-  color: var(--tp-color-muted);
-  font-size: 10px;
-  opacity: 0.5;
-  user-select: none;
-  pointer-events: none;
 }
 
 /* =============================================================================

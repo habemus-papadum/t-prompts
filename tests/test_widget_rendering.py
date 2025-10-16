@@ -66,7 +66,7 @@ def test_html_contains_embedded_json():
 
 def test_html_contains_javascript_bundle():
     """Test that first call includes JavaScript bundle."""
-    from t_prompts import widget_renderer
+    from t_prompts.widgets import renderer as widget_renderer
 
     # Reset the bundle injection flag
     widget_renderer._bundle_injected = False
@@ -81,7 +81,7 @@ def test_html_contains_javascript_bundle():
 
 def test_html_singleton_injection():
     """Test that JavaScript bundle is only injected once."""
-    from t_prompts import widget_renderer
+    from t_prompts.widgets import renderer as widget_renderer
 
     # Reset the bundle injection flag
     widget_renderer._bundle_injected = False

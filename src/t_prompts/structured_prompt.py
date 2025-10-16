@@ -23,8 +23,8 @@ from .text import process_dedent as _process_dedent
 
 if TYPE_CHECKING:
     from .ir import IntermediateRepresentation, RenderContext
-    from .widget import Widget
-    from .widget_config import WidgetConfig
+    from .widgets.config import WidgetConfig
+    from .widgets.widget import Widget
 
 
 class StructuredPrompt(Element, Mapping[str, InterpolationType]):

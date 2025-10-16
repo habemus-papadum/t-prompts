@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from t_prompts import dedent, prompt
-from t_prompts.widget_export import create_widget_gallery, save_widget_html
+from t_prompts.widgets import create_widget_gallery, save_widget_html
 
 
 @pytest.fixture

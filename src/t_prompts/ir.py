@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 if TYPE_CHECKING:
     from .element import Element
     from .structured_prompt import StructuredPrompt
-    from .widget import Widget
-    from .widget_config import WidgetConfig
+    from .widgets.config import WidgetConfig
+    from .widgets.widget import Widget
 
 
 @dataclass(frozen=True, slots=True)
@@ -721,9 +721,7 @@ class CompiledIR:
         >>> from t_prompts import WidgetConfig
         >>> widget = compiled.widget(WidgetConfig(wrapping=False))
         """
-        from .widget import Widget
-        from .widget_config import get_default_widget_config
-        from .widget_renderer import _render_widget_html
+        from .widgets import Widget, _render_widget_html, get_default_widget_config
 
         # Use provided config or fall back to package default
         if config is None:

@@ -372,53 +372,6 @@ function renderChunksToDOM(
 }
 
 /**
- * Detect and mark wrapped lines in the output container.
- *
- * Adds 'tp-wrapped-line' class to the last span on each line that wraps.
- * The class triggers a CSS ::before pseudo-element showing a wrap indicator.
- */
-function markWrappedLines(container: HTMLElement): void {
-  const spans = Array.from(container.querySelectorAll('span[id^="id-"]'));
-
-  // Clear previous wrap markers
-  spans.forEach(span => span.classList.remove('tp-wrapped-line'));
-
-  // Mark the last span on each line that wraps (look ahead to detect wrapping)
-  for (let i = 0; i < spans.length - 1; i++) {
-    const currentTop = (spans[i] as HTMLElement).offsetTop;
-    const nextTop = (spans[i + 1] as HTMLElement).offsetTop;
-
-    if (nextTop > currentTop) {
-      // Next span is on a new line - this span is the last before wrap
-      spans[i].classList.add('tp-wrapped-line');
-    }
-  }
-}
-
-/**
- * Setup wrap detection with automatic re-detection on resize.
- *
- * Uses ResizeObserver to efficiently re-detect wrapping whenever
- * the container size changes (window resize, dev tools, etc.)
- */
-function setupWrapDetection(container: HTMLElement): void {
-  // Initial detection
-  markWrappedLines(container);
-
-  // Re-detect on resize (only if ResizeObserver is available)
-  if (typeof ResizeObserver !== 'undefined') {
-    const resizeObserver = new ResizeObserver(() => {
-      markWrappedLines(container);
-    });
-
-    resizeObserver.observe(container);
-
-    // Store observer on container for potential cleanup later
-    (container as HTMLElement & { _wrapResizeObserver?: ResizeObserver })._wrapResizeObserver = resizeObserver;
-  }
-}
-
-/**
  * Mark first and last spans for each element based on compiled IR
  */
 function markElementBoundaries(
@@ -486,9 +439,6 @@ export function initWidget(container: HTMLElement): void {
 
     // Mark element boundaries using compiled IR
     markElementBoundaries(outputContainer, data.compiled_ir || null, metadata);
-
-    // Setup wrap detection with automatic resize handling
-    setupWrapDetection(outputContainer);
 
     // Store text mapping on container for future use
     (outputContainer as HTMLDivElement & { _textMapping: TextMapping })._textMapping = textMapping;

@@ -4,8 +4,8 @@ import json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .ir import IntermediateRepresentation
-    from .structured_prompt import StructuredPrompt
+    from ..ir import IntermediateRepresentation
+    from ..structured_prompt import StructuredPrompt
 
 # Module-level flag to track if bundle has been injected
 _bundle_injected = False
@@ -20,11 +20,11 @@ def _get_widget_bundle() -> tuple[str, str]:
     tuple[str, str]
         JavaScript bundle and CSS content as strings.
     """
-    # Import from widgets.py which has the path logic
-    from . import widgets
+    # Import from utils.py which has the path logic
+    from . import utils
 
-    js_path = widgets.get_widget_path() / "index.js"
-    css_path = widgets.get_widget_path() / "katex.css"
+    js_path = utils.get_widget_path() / "index.js"
+    css_path = utils.get_widget_path() / "katex.css"
 
     if not js_path.exists():
         raise FileNotFoundError(

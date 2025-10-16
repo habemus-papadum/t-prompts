@@ -1994,6 +1994,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-playwright" },
     { name = "ruff" },
+    { name = "watchdog" },
 ]
 
 [package.metadata]
@@ -2016,6 +2017,7 @@ dev = [
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-playwright", specifier = ">=0.5.0" },
     { name = "ruff", specifier = ">=0.13.3" },
+    { name = "watchdog", specifier = ">=3.0.0" },
 ]
 
 [[package]]
