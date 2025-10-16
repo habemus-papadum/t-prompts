@@ -126,9 +126,10 @@
   font-size: 12px;
   line-height: 1.6;
   color: var(--tp-color-fg);
-  max-width: 100ch;
+  max-width: 110ch;
   word-break: break-all;
   position: relative;
+  outline: none; /* Remove focus outline for keyboard events */
 }
 
 /* Wrapping mode (default) */
@@ -366,6 +367,40 @@
   }
 }
 
+/* =============================================================================
+   LINE WRAPPING STYLES
+   ============================================================================= */
+
+/* Line break element created by wrapping transform */
+.tp-wrap-newline {
+  display: block;
+  height: 0;
+  line-height: 0;
+}
+
+/* Container created when an element is wrapped */
+.tp-wrap-container {
+  display: inline;
+}
+
+/* Continuation lines (after a wrap) - add gutter icon */
+.tp-wrap-continuation::before {
+  content: '↩';
+  position: absolute;
+  left: -2ch;
+  color: var(--tp-color-muted);
+  font-size: 0.9em;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Dark mode - slightly more visible gutter icon */
+@media (prefers-color-scheme: dark) {
+  .tp-wrap-continuation::before {
+    opacity: 0.5;
+  }
+}
+
 /* Error display */
 .tp-error {
   color: var(--tp-color-error);
@@ -392,5 +427,38 @@
 @media (min-width: 1201px) and (max-width: 1600px) {
   .tp-widget-container {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* =============================================================================
+   COLLAPSED CHUNKS
+   ============================================================================= */
+
+/* Collapsed chunk styling */
+.tp-chunk-collapsed {
+  display: inline-block;
+  padding: 2px 6px;
+  margin: 0 2px;
+  background-color: var(--tp-color-muted-bg, #e0e0e0);
+  color: var(--tp-color-muted, #666);
+  border-radius: 3px;
+  font-size: 0.9em;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tp-chunk-collapsed:hover {
+  background-color: var(--tp-color-muted-bg-hover, #d0d0d0);
+}
+
+/* Dark mode for collapsed chunks */
+@media (prefers-color-scheme: dark) {
+  .tp-chunk-collapsed {
+    background-color: var(--tp-color-muted-bg, #30363d);
+    color: var(--tp-color-muted, #8b949e);
+  }
+
+  .tp-chunk-collapsed:hover {
+    background-color: var(--tp-color-muted-bg-hover, #40464d);
   }
 }

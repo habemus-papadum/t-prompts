@@ -20,8 +20,8 @@ nav:
     - Basic: demos/01-basic.ipynb
     - Intermediate: demos/02-intermediate.ipynb
     - IR Visualization: demos/03-ir-visualization.ipynb
-    - Widget Test: demos/widget-test.ipynb
   - Topics:
+    - Widget Interaction: demos/topics/widget-interaction.ipynb
     - Few-Shot Prompts: demos/topics/few-shot-prompts.ipynb
     - Source Mapping: demos/topics/source-mapping.ipynb
     - Source Location: demos/topics/source-location.ipynb

@@ -10,6 +10,7 @@
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata } from '../types';
 import { buildCodeView } from './CodeView';
+import { FoldingController } from '../folding/controller';
 
 /**
  * Widget container component interface
@@ -18,6 +19,7 @@ export interface WidgetContainer extends Component {
   // Container-specific
   views: Component[]; // Child components
   toolbar?: HTMLElement; // Future: toolbar
+  foldingController: FoldingController; // Exposed for testing
 
   // Operations
   addView(view: Component): void;
@@ -32,8 +34,12 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   const element = document.createElement('div');
   element.className = 'tp-widget-output';
 
-  // 2. Build code view
-  const codeView = buildCodeView(data, metadata);
+  // 2. Initialize folding controller with chunk sequence
+  const initialChunkIds = data.ir?.chunks?.map((chunk) => chunk.id) || [];
+  const foldingController = new FoldingController(initialChunkIds);
+
+  // 3. Build code view with folding controller
+  const codeView = buildCodeView(data, metadata, foldingController);
 
   // 3. Assemble
   // Future: Add toolbar here
@@ -50,16 +56,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     element,
     views,
     toolbar: undefined, // Future
-
-    hide(ids: string[]): void {
-      // Delegate to all views
-      views.forEach((view) => view.hide(ids));
-    },
-
-    show(ids: string[]): void {
-      // Delegate to all views
-      views.forEach((view) => view.show(ids));
-    },
+    foldingController, // Expose for testing
 
     destroy(): void {
       // Cleanup all views

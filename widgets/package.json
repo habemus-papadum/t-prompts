@@ -1,6 +1,7 @@
 {
   "name": "@t-prompts/widgets",
   "version": "0.9.0-alpha",
+  "type": "module",
   "description": "Jupyter notebook widgets for visualizing t-prompts structures",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
