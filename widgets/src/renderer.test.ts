@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { initWidget } from './index';
-import { toElementId, trimSourcePrefix } from './renderer';
+import { toElementId } from './transforms/base';
+import { trimSourcePrefix } from './metadata';
 
 describe('Element boundary marking', () => {
   let container: HTMLDivElement;

@@ -39,7 +39,9 @@
       "Bash(./nb.sh:*)",
       "Bash(cat:*)",
       "Bash(python3:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(pnpm --filter @t-prompts/widgets lint:*)",
+      "Bash(pnpm --filter @t-prompts/widgets test)"
     ],
     "deny": [],
     "ask": []
