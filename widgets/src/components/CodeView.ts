@@ -6,24 +6,20 @@
  */
 
 import type { Component } from './base';
-import type { WidgetData, WidgetMetadata, TextMapping } from '../types';
+import type { WidgetData, WidgetMetadata } from '../types';
 import type { TransformState } from '../transforms/base';
 import { applyTransform_CreateChunks } from '../transforms/createChunks';
 import { applyTransform_AddTyping } from '../transforms/typing';
+import { applyTransform_ImageTruncate } from '../transforms/imageTruncate';
+import { applyTransform_ImageHoverPreview } from '../transforms/imageHoverPreview';
 import { applyTransform_MarkBoundaries } from '../transforms/boundaries';
-import { applyTransform_BuildTextMapping } from '../transforms/textMapping';
 
 /**
  * Code view component interface
  */
 export interface CodeView extends Component {
   // Text-specific data
-  textMapping: TextMapping | null;
-  chunks: Map<string, HTMLElement>; // chunkId → DOM element
-
-  // Operations
-  highlightRange(start: number, end: number): void;
-  clearHighlight(): void;
+  chunks: Map<string, HTMLElement[]>; // chunkId → array of top-level DOM elements
 }
 
 /**
@@ -35,7 +31,7 @@ export function buildCodeView(data: WidgetData, metadata: WidgetMetadata): CodeV
   element.className = 'tp-output-container wrap';
 
   // 2. Build chunks map
-  const chunks = new Map<string, HTMLElement>();
+  const chunks = new Map<string, HTMLElement[]>();
 
   // 3. Apply transformation pipeline
   let state: TransformState = { element, chunks, data, metadata };
@@ -43,7 +39,8 @@ export function buildCodeView(data: WidgetData, metadata: WidgetMetadata): CodeV
   // Transform pipeline - each function modifies state
   state = applyTransform_CreateChunks(state);
   state = applyTransform_AddTyping(state);
-  state = applyTransform_BuildTextMapping(state);
+  state = applyTransform_ImageTruncate(state);
+  state = applyTransform_ImageHoverPreview(state);
   state = applyTransform_MarkBoundaries(state);
 
   // Future transforms can be added here:
@@ -53,36 +50,29 @@ export function buildCodeView(data: WidgetData, metadata: WidgetMetadata): CodeV
   // 4. Return component with operations
   return {
     element: state.element,
-    textMapping: state.textMapping || null,
     chunks: state.chunks,
 
     hide(ids: string[]): void {
       ids.forEach((id) => {
-        const el = chunks.get(id);
-        if (el) el.style.display = 'none';
+        const elements = chunks.get(id);
+        if (elements) {
+          elements.forEach((el) => (el.style.display = 'none'));
+        }
       });
     },
 
     show(ids: string[]): void {
       ids.forEach((id) => {
-        const el = chunks.get(id);
-        if (el) el.style.display = '';
+        const elements = chunks.get(id);
+        if (elements) {
+          elements.forEach((el) => (el.style.display = ''));
+        }
       });
     },
 
     destroy(): void {
       element.remove();
       chunks.clear();
-    },
-
-    highlightRange(start: number, end: number): void {
-      // Future: Use textMapping to find chunks and highlight them
-      console.log(`Highlight range: ${start}-${end}`);
-    },
-
-    clearHighlight(): void {
-      // Future: Clear highlight styling
-      console.log('Clear highlight');
     },
   };
 }

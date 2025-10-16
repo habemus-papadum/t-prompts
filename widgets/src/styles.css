@@ -236,6 +236,7 @@
 .tp-chunk-image-container {
   position: relative;
   display: inline-block;
+  overflow: visible !important; /* Override overflow: hidden from tp-chunk-image class */
 }
 
 /* Hidden image preview - shown on hover */

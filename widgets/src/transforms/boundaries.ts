@@ -6,13 +6,12 @@
  */
 
 import type { TransformState } from './base';
-import { toElementId } from './base';
 
 /**
  * Mark first and last chunks for each element
  */
 export function applyTransform_MarkBoundaries(state: TransformState): TransformState {
-  const { element, data, metadata } = state;
+  const { chunks, data, metadata } = state;
 
   if (!data.compiled_ir?.subtree_map) {
     return state;
@@ -27,18 +26,22 @@ export function applyTransform_MarkBoundaries(state: TransformState): TransformS
     // Get element type for this element
     const elementType = metadata.elementTypeMap[elementId] || 'unknown';
 
-    // Mark first chunk - convert Python UUID to element ID for DOM query
+    // Mark first chunk - get all elements for this chunk
     const firstChunkId = chunkIds[0];
-    const firstSpan = element.querySelector(`[id="${toElementId(firstChunkId)}"]`);
-    if (firstSpan) {
-      firstSpan.classList.add(`tp-first-${elementType}`);
+    const firstElements = chunks.get(firstChunkId);
+    if (firstElements) {
+      for (const el of firstElements) {
+        el.classList.add(`tp-first-${elementType}`);
+      }
     }
 
     // Mark last chunk
     const lastChunkId = chunkIds[chunkIds.length - 1];
-    const lastSpan = element.querySelector(`[id="${toElementId(lastChunkId)}"]`);
-    if (lastSpan) {
-      lastSpan.classList.add(`tp-last-${elementType}`);
+    const lastElements = chunks.get(lastChunkId);
+    if (lastElements) {
+      for (const el of lastElements) {
+        el.classList.add(`tp-last-${elementType}`);
+      }
     }
   }
 

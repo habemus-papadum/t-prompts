@@ -65,12 +65,6 @@ export interface ImageData {
   height: number;
 }
 
-export interface TextMapping {
-  fullText: string;
-  offsetToChunkId: string[];
-  chunkIdToOffsets: Record<string, { start: number; end: number }>;
-}
-
 /**
  * Centralized metadata computed from widget data.
  * These maps are view-agnostic and can be reused across different visualizations.

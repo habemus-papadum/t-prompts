@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { initWidget } from './index';
-import { toElementId } from './transforms/base';
 import { trimSourcePrefix } from './metadata';
 
 describe('Element boundary marking', () => {
@@ -70,8 +69,7 @@ describe('Element boundary marking', () => {
     initWidget(container);
 
     // Check that the chunk span has both type-specific classes
-    // Note: Use container.querySelector with toElementId to get the prefixed DOM ID
-    const span = container.querySelector(`#${toElementId(chunkId)}`);
+    const span = container.querySelector(`[data-chunk-id="${chunkId}"]`);
     expect(span).toBeTruthy();
     expect(span?.classList.contains('tp-first-static')).toBe(true);
     expect(span?.classList.contains('tp-last-static')).toBe(true);
@@ -149,19 +147,19 @@ describe('Element boundary marking', () => {
     initWidget(container);
 
     // Check first chunk has tp-first-static only
-    const firstSpan = container.querySelector(`#${toElementId(chunkIds[0])}`);
+    const firstSpan = container.querySelector(`[data-chunk-id="${chunkIds[0]}"]`);
     expect(firstSpan).toBeTruthy();
     expect(firstSpan?.classList.contains('tp-first-static')).toBe(true);
     expect(firstSpan?.classList.contains('tp-last-static')).toBe(false);
 
     // Check middle chunk has neither
-    const middleSpan = container.querySelector(`#${toElementId(chunkIds[1])}`);
+    const middleSpan = container.querySelector(`[data-chunk-id="${chunkIds[1]}"]`);
     expect(middleSpan).toBeTruthy();
     expect(middleSpan?.classList.contains('tp-first-static')).toBe(false);
     expect(middleSpan?.classList.contains('tp-last-static')).toBe(false);
 
     // Check last chunk has tp-last-static only
-    const lastSpan = container.querySelector(`#${toElementId(chunkIds[2])}`);
+    const lastSpan = container.querySelector(`[data-chunk-id="${chunkIds[2]}"]`);
     expect(lastSpan).toBeTruthy();
     expect(lastSpan?.classList.contains('tp-first-static')).toBe(false);
     expect(lastSpan?.classList.contains('tp-last-static')).toBe(true);
@@ -263,20 +261,20 @@ describe('Element boundary marking', () => {
     initWidget(container);
 
     // Check element 1 (single chunk, static type)
-    const elem1Span = container.querySelector(`#${toElementId(element1ChunkId)}`);
+    const elem1Span = container.querySelector(`[data-chunk-id="${element1ChunkId}"]`);
     expect(elem1Span?.classList.contains('tp-first-static')).toBe(true);
     expect(elem1Span?.classList.contains('tp-last-static')).toBe(true);
 
     // Check element 2 (three chunks, interpolation type)
-    const elem2FirstSpan = container.querySelector(`#${toElementId(element2ChunkIds[0])}`);
+    const elem2FirstSpan = container.querySelector(`[data-chunk-id="${element2ChunkIds[0]}"]`);
     expect(elem2FirstSpan?.classList.contains('tp-first-interpolation')).toBe(true);
     expect(elem2FirstSpan?.classList.contains('tp-last-interpolation')).toBe(false);
 
-    const elem2MiddleSpan = container.querySelector(`#${toElementId(element2ChunkIds[1])}`);
+    const elem2MiddleSpan = container.querySelector(`[data-chunk-id="${element2ChunkIds[1]}"]`);
     expect(elem2MiddleSpan?.classList.contains('tp-first-interpolation')).toBe(false);
     expect(elem2MiddleSpan?.classList.contains('tp-last-interpolation')).toBe(false);
 
-    const elem2LastSpan = container.querySelector(`#${toElementId(element2ChunkIds[2])}`);
+    const elem2LastSpan = container.querySelector(`[data-chunk-id="${element2ChunkIds[2]}"]`);
     expect(elem2LastSpan?.classList.contains('tp-first-interpolation')).toBe(false);
     expect(elem2LastSpan?.classList.contains('tp-last-interpolation')).toBe(true);
   });
@@ -329,7 +327,7 @@ describe('Element boundary marking', () => {
     initWidget(container);
 
     // Check that widget rendered but no classes added
-    const span = container.querySelector(`#${toElementId('chunk-1')}`);
+    const span = container.querySelector(`[data-chunk-id="chunk-1"]`);
     expect(span).toBeTruthy();
     expect(span?.textContent).toBe('Hello');
     expect(span?.classList.contains('tp-first-static')).toBe(false);
@@ -388,7 +386,7 @@ describe('Element boundary marking', () => {
     initWidget(container);
 
     // Check that widget rendered but no classes added
-    const span = container.querySelector(`#${toElementId('chunk-1')}`);
+    const span = container.querySelector(`[data-chunk-id="chunk-1"]`);
     expect(span).toBeTruthy();
     expect(span?.classList.contains('tp-first-static')).toBe(false);
     expect(span?.classList.contains('tp-last-static')).toBe(false);

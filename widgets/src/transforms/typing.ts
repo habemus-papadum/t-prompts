@@ -18,25 +18,13 @@ export function applyTransform_AddTyping(state: TransformState): TransformState 
   }
 
   for (const chunk of data.ir.chunks) {
-    const chunkElement = chunks.get(chunk.id);
-    if (!chunkElement) continue;
+    const elements = chunks.get(chunk.id);
+    if (!elements) continue;
 
-    // Determine element type and apply CSS class
-    const elementType = metadata.elementTypeMap[chunk.element_id] || 'unknown';
-
-    // For image chunks, the class is already set on the text span, not the container
-    if (chunk.type === 'ImageChunk') {
-      // Find the text span inside the container
-      const textSpan = chunkElement.querySelector('.tp-chunk-image');
-      if (textSpan) {
-        // The class is already set, just add location
-        const location = metadata.elementLocationMap[chunk.element_id];
-        if (location) {
-          textSpan.setAttribute('title', location);
-        }
-      }
-    } else {
-      // Regular text chunk - set class and title
+    // Apply typing to all elements for this chunk
+    for (const chunkElement of elements) {
+      // Determine element type and apply CSS class
+      const elementType = metadata.elementTypeMap[chunk.element_id] || 'unknown';
       chunkElement.className = `tp-chunk-${elementType}`;
 
       // Add source location as title (hover tooltip) if available

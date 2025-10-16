@@ -5,7 +5,7 @@
  * They allow incremental modification of DOM structure and data.
  */
 
-import type { WidgetData, WidgetMetadata, TextMapping } from '../types';
+import type { WidgetData, WidgetMetadata } from '../types';
 
 /**
  * State that flows through the transform pipeline
@@ -13,15 +13,14 @@ import type { WidgetData, WidgetMetadata, TextMapping } from '../types';
 export interface TransformState {
   // DOM
   element: HTMLElement;
-  chunks: Map<string, HTMLElement>; // chunkId → DOM element
+  chunks: Map<string, HTMLElement[]>; // chunkId → array of top-level DOM elements
 
   // Data
   data: WidgetData;
   metadata: WidgetMetadata;
 
   // Analysis results (built incrementally)
-  textMapping?: TextMapping;
-  // Future: lineBreaks, syntaxTree, etc.
+  // Future: textMapping, lineBreaks, syntaxTree, etc.
 }
 
 /**
@@ -31,26 +30,62 @@ export interface TransformState {
 export type Transform = (state: TransformState) => TransformState;
 
 /**
- * ID Conversion Utilities
+ * Chunk ID Utilities
  *
- * Convention: Python UUIDs are prefixed with "id-" when used as DOM element IDs.
- * This ensures IDs always start with a letter (HTML spec compliant) and avoids
- * CSS selector issues with IDs starting with digits.
+ * Chunks are identified using data-chunk-id attributes rather than HTML IDs.
+ * This allows multiple DOM elements to be associated with the same chunk.
  */
 
 /**
- * Convert a Python UUID to a DOM element ID by prefixing with "id-"
+ * Get the chunk ID from an element's data-chunk-id attribute
  */
-export function toElementId(pythonId: string): string {
-  return `id-${pythonId}`;
+export function getChunkId(element: HTMLElement): string | null {
+  return element.getAttribute('data-chunk-id');
 }
 
 /**
- * Convert a DOM element ID back to Python UUID by removing the "id-" prefix
+ * Copy chunk ID from one element to another
  */
-export function fromElementId(elementId: string): string {
-  if (elementId.startsWith('id-')) {
-    return elementId.substring(3);
+export function copyChunkId(fromElement: HTMLElement, toElement: HTMLElement): void {
+  const chunkId = getChunkId(fromElement);
+  if (chunkId) {
+    toElement.setAttribute('data-chunk-id', chunkId);
   }
-  return elementId;
+}
+
+/**
+ * Add an element to the chunks map for a given chunk ID
+ */
+export function addToChunksMap(
+  chunkId: string,
+  element: HTMLElement,
+  map: Map<string, HTMLElement[]>
+): void {
+  const existing = map.get(chunkId);
+  if (existing) {
+    existing.push(element);
+  } else {
+    map.set(chunkId, [element]);
+  }
+}
+
+/**
+ * Remove a specific element from the chunks map for a given chunk ID
+ */
+export function removeFromChunksMap(
+  chunkId: string,
+  element: HTMLElement,
+  map: Map<string, HTMLElement[]>
+): void {
+  const existing = map.get(chunkId);
+  if (existing) {
+    const index = existing.indexOf(element);
+    if (index !== -1) {
+      existing.splice(index, 1);
+    }
+    // Remove the key entirely if array is now empty
+    if (existing.length === 0) {
+      map.delete(chunkId);
+    }
+  }
 }
