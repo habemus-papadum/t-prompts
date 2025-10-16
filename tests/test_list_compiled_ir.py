@@ -51,7 +51,7 @@ def test_list_compiled_ir_includes_separators():
 
     # CRITICAL: Check that item prompts are NOT in the _subtree_chunks map
     # This is the actual bug - item_prompt.id should not be a key in _subtree_chunks
-    print(f"\n=== Checking _subtree_chunks ===")
+    print("\n=== Checking _subtree_chunks ===")
     print(f"Keys in _subtree_chunks: {list(compiled_ir._subtree_chunks.keys())}")
 
     # Get the item prompt IDs

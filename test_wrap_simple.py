@@ -1,9 +1,11 @@
 """Simple wrap indicator test with obvious wrapping."""
 
+from pathlib import Path
+
+from playwright.sync_api import sync_playwright
+
 from t_prompts import prompt
 from t_prompts.widget_export import save_widget_html
-from playwright.sync_api import sync_playwright
-from pathlib import Path
 
 # Create a simple prompt with very long lines to guarantee wrapping
 p = prompt(t"""AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
@@ -41,6 +43,6 @@ with sync_playwright() as playwright:
     browser.close()
 
 print(f"✅ Screenshot saved to: {screenshot_path}")
-print(f"\n📄 Files created:")
+print("\n📄 Files created:")
 print(f"   - HTML: {html_path}")
 print(f"   - Screenshot: {screenshot_path}")

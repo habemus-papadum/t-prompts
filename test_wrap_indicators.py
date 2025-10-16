@@ -1,18 +1,29 @@
 """Temporary script to test wrap indicators visually."""
 
+from pathlib import Path
+
+from playwright.sync_api import sync_playwright
+
 from t_prompts import prompt
 from t_prompts.widget_export import save_widget_html
-from playwright.sync_api import sync_playwright
-from pathlib import Path
 
 # Create a prompt with long text that should wrap
 # Using multiple long strings to ensure wrapping at different points
-long_text = "This is a very long piece of text that should definitely wrap when displayed in the widget viewer because it exceeds the typical character width of a monospace display."
+long_text = (
+    "This is a very long piece of text that should definitely wrap when displayed "
+    "in the widget viewer because it exceeds the typical character width of a monospace display."
+)
 
 items = [
-    "First item with a moderate amount of text that may or may not wrap depending on the viewport size and font settings used",
+    (
+        "First item with a moderate amount of text that may or may not wrap "
+        "depending on the viewport size and font settings used"
+    ),
     "Second item",
-    "Third item containing an extraordinarily long sentence that goes on and on without any breaks to force wrapping behavior",
+    (
+        "Third item containing an extraordinarily long sentence that goes on and on "
+        "without any breaks to force wrapping behavior"
+    ),
 ]
 
 p = prompt(t"""

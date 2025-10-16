@@ -1,9 +1,11 @@
 """Final wrap indicator test with multiple spans on same line."""
 
+from pathlib import Path
+
+from playwright.sync_api import sync_playwright
+
 from t_prompts import prompt
 from t_prompts.widget_export import save_widget_html
-from playwright.sync_api import sync_playwright
-from pathlib import Path
 
 # Create a prompt with multiple interpolations that will create many spans
 part1 = "The quick brown fox jumps over the lazy dog multiple times"
@@ -52,7 +54,7 @@ with sync_playwright() as playwright:
     browser.close()
 
 print(f"✅ Screenshot saved to: {screenshot_path}")
-print(f"\n📄 Files for review:")
+print("\n📄 Files for review:")
 print(f"   - HTML: {html_path}")
 print(f"   - Screenshot: {screenshot_path}")
-print(f"\nThe screenshot should show ↘ arrows at the end of lines that wrap to the next line.")
+print("\nThe screenshot should show ↘ arrows at the end of lines that wrap to the next line.")
