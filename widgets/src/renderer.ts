@@ -378,19 +378,23 @@ function renderChunksToDOM(
  * The class triggers a CSS ::before pseudo-element showing a wrap indicator.
  */
 function markWrappedLines(container: HTMLElement): void {
-  const spans = Array.from(container.querySelectorAll('span[id^="id-"]'));
+  const spans = Array.from(
+    container.querySelectorAll<HTMLElement>('span[id^="id-"]')
+  );
 
   // Clear previous wrap markers
   spans.forEach(span => span.classList.remove('tp-wrapped-line'));
 
-  // Mark the last span on each line that wraps (look ahead to detect wrapping)
+  // Mark the first span on each line that results from wrapping (look ahead)
   for (let i = 0; i < spans.length - 1; i++) {
-    const currentTop = (spans[i] as HTMLElement).offsetTop;
-    const nextTop = (spans[i + 1] as HTMLElement).offsetTop;
+    const currentSpan = spans[i];
+    const nextSpan = spans[i + 1];
+    const currentTop = currentSpan.offsetTop;
+    const nextTop = nextSpan.offsetTop;
 
     if (nextTop > currentTop) {
-      // Next span is on a new line - this span is the last before wrap
-      spans[i].classList.add('tp-wrapped-line');
+      // Next span is the first element on the wrapped line
+      nextSpan.classList.add('tp-wrapped-line');
     }
   }
 }

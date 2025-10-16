@@ -143,11 +143,15 @@
   overflow-x: auto;
 }
 
-/* Wrap indicator for the last span on lines that wrap */
-.tp-wrapped-line::after {
+/* Wrap indicator for the first span on wrapped lines */
+.tp-wrapped-line {
+  position: relative;
+}
+
+.tp-wrapped-line::before {
   content: '↘';
   position: absolute;
-  right: -14px;
+  left: -14px;
   color: var(--tp-color-muted);
   font-size: 10px;
   opacity: 0.5;
