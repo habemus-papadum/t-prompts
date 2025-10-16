@@ -143,7 +143,7 @@
   overflow-x: auto;
 }
 
-/* Wrap indicator for the last span on lines that wrap */
+/* Wrap indicator for the first span on lines that wrap */
 .tp-wrapped-line::after {
   content: '↘';
   position: absolute;

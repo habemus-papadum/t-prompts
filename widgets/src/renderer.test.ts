@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { initWidget } from './index';
 import { toElementId, trimSourcePrefix } from './renderer';
 
@@ -391,6 +391,127 @@ describe('Element boundary marking', () => {
     expect(span).toBeTruthy();
     expect(span?.classList.contains('tp-first-static')).toBe(false);
     expect(span?.classList.contains('tp-last-static')).toBe(false);
+  });
+});
+
+describe('Wrap detection', () => {
+  let container: HTMLDivElement;
+  let originalResizeObserver: typeof ResizeObserver | undefined;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    container.setAttribute('data-tp-widget', 'true');
+    originalResizeObserver = globalThis.ResizeObserver;
+  });
+
+  afterEach(() => {
+    if (originalResizeObserver) {
+      globalThis.ResizeObserver = originalResizeObserver;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete (globalThis as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver;
+    }
+  });
+
+  it('marks the first span on each wrapped line', () => {
+    class MockResizeObserver implements ResizeObserver {
+      callback: ResizeObserverCallback;
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+        mockObserverInstance = this;
+      }
+
+      observe(): void {}
+
+      unobserve(): void {}
+
+      disconnect(): void {}
+
+      trigger(): void {
+        this.callback([], this);
+      }
+    }
+
+    let mockObserverInstance: MockResizeObserver | null = null;
+    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
+    const chunkIds = ['chunk-1', 'chunk-2', 'chunk-3', 'chunk-4'];
+    const elementId = 'element-1';
+
+    const widgetData = {
+      compiled_ir: {
+        ir_id: 'ir-1',
+        subtree_map: {
+          [elementId]: chunkIds,
+        },
+        num_elements: 1,
+      },
+      ir: {
+        chunks: chunkIds.map((id, index) => ({
+          type: 'TextChunk',
+          text: `Part ${index + 1} `,
+          element_id: elementId,
+          id,
+          metadata: {},
+        })),
+        source_prompt_id: 'prompt-1',
+        id: 'ir-1',
+        metadata: {},
+      },
+      source_prompt: {
+        prompt_id: 'prompt-1',
+        children: [
+          {
+            type: 'static',
+            id: elementId,
+            parent_id: 'prompt-1',
+            key: 0,
+            index: 0,
+            source_location: null,
+            value: 'Part 1 Part 2 Part 3 Part 4',
+          },
+        ],
+      },
+    };
+
+    const scriptTag = document.createElement('script');
+    scriptTag.setAttribute('data-role', 'tp-widget-data');
+    scriptTag.setAttribute('type', 'application/json');
+    scriptTag.textContent = JSON.stringify(widgetData);
+    container.appendChild(scriptTag);
+
+    const mountPoint = document.createElement('div');
+    mountPoint.className = 'tp-widget-mount';
+    container.appendChild(mountPoint);
+
+    initWidget(container);
+
+    const outputContainer = container.querySelector('.tp-output-container') as HTMLDivElement & {
+      _wrapResizeObserver?: ResizeObserver;
+    };
+
+    expect(outputContainer).toBeTruthy();
+
+    const spans = Array.from(outputContainer.querySelectorAll('span[id^="id-"]')) as HTMLElement[];
+    expect(spans.length).toBe(chunkIds.length);
+
+    const offsets = [0, 0, 20, 40];
+    spans.forEach((span, index) => {
+      Object.defineProperty(span, 'offsetTop', {
+        value: offsets[index],
+        configurable: true,
+      });
+    });
+
+    const observer = (mockObserverInstance ?? outputContainer._wrapResizeObserver) as MockResizeObserver | undefined;
+    expect(observer).toBeTruthy();
+    observer?.trigger();
+
+    expect(spans[0].classList.contains('tp-wrapped-line')).toBe(false);
+    expect(spans[1].classList.contains('tp-wrapped-line')).toBe(false);
+    expect(spans[2].classList.contains('tp-wrapped-line')).toBe(true);
+    expect(spans[3].classList.contains('tp-wrapped-line')).toBe(true);
   });
 });
 
