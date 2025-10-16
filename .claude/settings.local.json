@@ -48,7 +48,8 @@
       "Bash(pnpm --filter @t-prompts/widgets build)",
       "Bash(node:*)",
       "Bash(pnpm --filter @t-prompts/widgets test CodeView)",
-      "Read(//Users/nehal/src/**)"
+      "Read(//Users/nehal/src/**)",
+      "Bash(unzip:*)"
     ],
     "deny": [],
     "ask": []
