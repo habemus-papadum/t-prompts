@@ -89,3 +89,34 @@ export function removeFromChunksMap(
     }
   }
 }
+
+/**
+ * Replace an element in the chunks map with a new element.
+ * Only replaces if the old element is actually in the map.
+ * Does NOT add new elements if the old element wasn't tracked.
+ *
+ * This maintains the invariant that only top-level wrapped containers
+ * are tracked in the map, not nested containers created during recursive wrapping.
+ */
+export function replaceInChunksMap(
+  oldElement: HTMLElement,
+  newElement: HTMLElement,
+  map: Map<string, HTMLElement[]>
+): void {
+  const chunkId = getChunkId(oldElement);
+  if (!chunkId) return;
+
+  // Check if old element is tracked
+  const existing = map.get(chunkId);
+  if (existing) {
+    const index = existing.indexOf(oldElement);
+    if (index !== -1) {
+      // Replace in the array
+      existing[index] = newElement;
+      return;
+    }
+  }
+
+  // Old element not found in map - do NOT add the new element.
+  // This prevents nested containers from being added to the map during recursive wrapping.
+}

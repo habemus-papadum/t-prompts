@@ -17,8 +17,6 @@ export interface Component {
   element: HTMLElement; // Root DOM element
 
   // Operations (extensible)
-  hide(ids: string[]): void; // Hide chunks/elements
-  show(ids: string[]): void; // Show chunks/elements
   destroy(): void; // Cleanup
 
   // State (optional, stored on component)

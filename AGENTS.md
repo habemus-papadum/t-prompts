@@ -104,28 +104,135 @@ uv run mkdocs build
 
 **Important**: After making any changes to demo notebooks (files in `docs/demos/*.ipynb`), you MUST run `./test_notebooks.sh` to verify the notebook executes without errors. Do not consider notebook changes complete until this test passes.
 
+### Scratchpad Directory
+
+**Always use `scratchpad/` for temporary/test code**:
+- Located at project root: `scratchpad/`
+- Already in `.gitignore` - won't be committed
+- Use for test scripts, generated HTML files, screenshots, etc.
+- Clean it up periodically, but don't worry about leaving files
+
+```python
+# Example: scratchpad/test_feature.py
+from t_prompts import prompt
+from t_prompts.widgets import Widget, save_widget_html
+
+@prompt
+def test_prompt():
+    return "Hello world"
+
+widget = Widget(test_prompt().compile())
+save_widget_html(widget, "scratchpad/output.html")
+```
+
+### Development Workflows for Visual Widget Changes
+
+When working on visual/UI changes, there are two main workflows:
+
+#### Workflow 1: User as Eyes and Hands (Preferred)
+
+1. **Write code** with unit tests to validate logic
+2. **Build**: `pnpm --filter @t-prompts/widgets build`
+3. **User previews** the changes in browser (user will run Python code or open HTML)
+4. **User provides feedback** via description or screenshot
+5. Iterate on changes
+
+This is the preferred workflow for rapid iteration.
+
+#### Workflow 2: Automated Screenshot Testing (Independent)
+
+If you want to verify visual output without user intervention:
+
+1. **Write code** with unit tests
+2. **Build**: `pnpm --filter @t-prompts/widgets build`
+3. **Create Python test script** in `scratchpad/` directory
+4. **Use widget export utilities** to generate screenshots:
+   ```python
+   from t_prompts import prompt
+   from t_prompts.widgets import Widget, save_widget_html
+
+   @prompt
+   def my_test():
+       return "test content here"
+
+   widget = Widget(my_test().compile())
+   save_widget_html(widget, "scratchpad/output.html")
+   ```
+5. **Run Python code**: `uv run python scratchpad/my_test.py`
+
+Note: Check `src/t_prompts/widgets/preview.py` for additional screenshot/export capabilities.
+
 ### JavaScript Widgets
+
+**The project uses pnpm workspaces.** Always use the `--filter` flag to target the correct package from the root directory:
+
 ```bash
 # Install JavaScript dependencies (from root)
 pnpm install
 
 # Build widgets (compiles TypeScript to JavaScript)
-pnpm build
+pnpm --filter @t-prompts/widgets build
 
 # Run widget tests
-pnpm test
+pnpm --filter @t-prompts/widgets test
+
+# Run specific test file
+pnpm --filter @t-prompts/widgets test lineWrap
 
 # Run widget linting
-pnpm lint
+pnpm --filter @t-prompts/widgets lint
 
 # Type check widgets
-cd widgets && pnpm run typecheck
+pnpm --filter @t-prompts/widgets typecheck
 ```
 
+**DO NOT** `cd` into subdirectories and run pnpm directly. Use `--filter` from the root.
+
 **Important**: The JavaScript build output (`widgets/dist/`) is committed to version control and bundled with the Python package. After modifying widget sources, you MUST:
-1. Run `pnpm build` to compile
-2. Commit both source and compiled output
-3. CI will fail if compiled output is out of sync with sources
+1. Write/update unit tests first
+2. Run tests: `pnpm --filter @t-prompts/widgets test`
+3. Run `pnpm --filter @t-prompts/widgets build` to compile
+4. Commit both source and compiled output
+5. CI will fail if compiled output is out of sync with sources
+
+#### Writing Widget Unit Tests
+
+Widget code runs in browsers, but tests use `vitest` with `jsdom` to simulate the DOM.
+
+**Test file location**: `widgets/src/**/*.test.ts` (next to the source file)
+
+**Example test structure**:
+```typescript
+import { describe, it, expect, beforeEach } from 'vitest';
+import { myTransform } from './myTransform';
+
+describe('myTransform', () => {
+  let container: HTMLDivElement;
+
+  beforeEach(() => {
+    // Create fresh DOM for each test
+    container = document.createElement('div');
+  });
+
+  it('should do something', () => {
+    const span = document.createElement('span');
+    span.setAttribute('data-chunk-id', 'chunk1');
+    span.textContent = 'test';
+    container.appendChild(span);
+
+    // Test assertions
+    expect(container.children.length).toBe(1);
+    expect(span.textContent).toBe('test');
+  });
+});
+```
+
+**Key testing patterns**:
+- Use `document.createElement()` to build test DOM structures
+- Use `querySelector` / `querySelectorAll` to inspect results
+- Check classes: `element.classList.contains('class-name')`
+- Check attributes: `element.getAttribute('data-foo')`
+- Check text content: `element.textContent`
 
 
 ## Architecture
@@ -207,3 +314,11 @@ TODO
 - Take screenshots that can be analyzed for verification
 TODO -- explain utils and workflows
 - Include 14 comprehensive tests covering all widget features
+
+## Common Pitfalls
+
+### JavaScript/Widget Development
+- ❌ Don't `cd widgets && pnpm test` → ✅ Use `pnpm --filter @t-prompts/widgets test` from root
+- ❌ Don't create test files in root → ✅ Use `scratchpad/` directory
+- ❌ Don't modify `widgets/dist/` directly → ✅ Edit `src/` and rebuild
+- ❌ Don't forget to run tests before building → ✅ Test → Build → Preview workflow

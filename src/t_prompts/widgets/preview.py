@@ -7,7 +7,6 @@ This module provides a development server that:
 """
 
 import argparse
-import importlib
 import socket
 import sys
 import threading
@@ -42,7 +41,7 @@ class WidgetPreviewHandler(SimpleHTTPRequestHandler):
         """Handle GET requests."""
         if self.path == "/" or self.path == "/index.html":
             try:
-                print(f"\n[GET /] Generating HTML...")
+                print("\n[GET /] Generating HTML...")
                 self.send_response(200)
                 self.send_header("Content-type", "text/html; charset=utf-8")
                 # Prevent caching
@@ -56,7 +55,7 @@ class WidgetPreviewHandler(SimpleHTTPRequestHandler):
                 html_size = len(html)
                 print(f"[GET /] Generated {html_size} bytes of HTML")
                 if html_size < 500:
-                    print(f"[GET /] WARNING: HTML is very small, content might be missing!")
+                    print("[GET /] WARNING: HTML is very small, content might be missing!")
                     print(f"[GET /] HTML preview: {html[:500]}")
                 self.wfile.write(html.encode("utf-8"))
             except Exception as e:
@@ -127,7 +126,9 @@ class FileChangeHandler(FileSystemEventHandler):
             self.callback()
 
 
-def _generate_html(generator_func: Callable[[], "StructuredPrompt"], reload_script: str = "", show_banner: bool = True) -> str:
+def _generate_html(
+    generator_func: Callable[[], "StructuredPrompt"], reload_script: str = "", show_banner: bool = True
+) -> str:
     """Generate the full HTML page with widget and auto-reload.
 
     Parameters
@@ -488,11 +489,11 @@ def run_preview(
     print(f"Watch mode: {'enabled' if watch else 'disabled'}")
 
     if watch:
-        print(f"\nWatching for changes in:")
+        print("\nWatching for changes in:")
         print(f"  - {demo_path}")
         print(f"  - {widgets_js_path}")
 
-    print(f"\nPress Ctrl+C to stop the server")
+    print("\nPress Ctrl+C to stop the server")
     print(f"{'=' * 60}\n")
 
     # Open browser

@@ -41,7 +41,14 @@
       "Bash(python3:*)",
       "Bash(git mv:*)",
       "Bash(pnpm --filter @t-prompts/widgets lint:*)",
-      "Bash(pnpm --filter @t-prompts/widgets test)"
+      "Bash(pnpm --filter @t-prompts/widgets test)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm --filter @t-prompts/widgets build)",
+      "Bash(node:*)",
+      "Bash(pnpm --filter @t-prompts/widgets test CodeView)",
+      "Read(//Users/nehal/src/**)"
     ],
     "deny": [],
     "ask": []
