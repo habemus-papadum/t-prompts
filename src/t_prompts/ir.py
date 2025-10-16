@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 if TYPE_CHECKING:
     from .element import Element
     from .structured_prompt import StructuredPrompt
+    from .widget import Widget
+    from .widget_config import WidgetConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -407,6 +409,34 @@ class IntermediateRepresentation:
         """Return a helpful debug representation."""
         return f"IntermediateRepresentation(chunks={len(self._chunks)})"
 
+    def widget(self, config: Optional["WidgetConfig"] = None) -> "Widget":
+        """
+        Create a Widget for Jupyter notebook display.
+
+        This compiles the IR first, then delegates to CompiledIR.widget().
+
+        Parameters
+        ----------
+        config : WidgetConfig | None, optional
+            Widget configuration. If None, uses the package default config.
+
+        Returns
+        -------
+        Widget
+            Widget instance with rendered HTML.
+
+        Examples
+        --------
+        >>> p = prompt(t"Hello {name}")
+        >>> ir = p.ir()
+        >>> widget = ir.widget()
+        >>> # Or with custom config
+        >>> from t_prompts import WidgetConfig
+        >>> widget = ir.widget(WidgetConfig(wrapping=False))
+        """
+        compiled = self.compile()
+        return compiled.widget(config)
+
     def _repr_html_(self) -> str:
         """
         Return HTML representation for Jupyter notebook display.
@@ -419,9 +449,7 @@ class IntermediateRepresentation:
         str
             HTML string with widget visualization.
         """
-        # Compile the IR and use its HTML representation
-        compiled = self.compile()
-        return compiled._repr_html_()
+        return self.widget()._repr_html_()
 
 
 class CompiledIR:
@@ -498,15 +526,17 @@ class CompiledIR:
             self._elements[elem.id] = elem
 
             # Import here to avoid circular dependency
-            from .element import ListInterpolation, NestedPromptInterpolation
+            from .element import ListInterpolation
+            from .structured_prompt import StructuredPrompt
 
-            if isinstance(elem, NestedPromptInterpolation):
-                self._collect_elements(elem.value)
+            if isinstance(elem, StructuredPrompt):
+                # StructuredPrompt is now stored directly as a child element
+                self._collect_elements(elem)
             elif isinstance(elem, ListInterpolation):
-                # Collect wrapper elements and recurse into them
-                for wrapper in elem.item_elements:
-                    self._elements[wrapper.id] = wrapper
-                    self._collect_elements(wrapper.value)
+                # Items are now stored directly as StructuredPrompts (no wrappers)
+                for item in elem.item_elements:
+                    self._elements[item.id] = item
+                    self._collect_elements(item)
 
     def _build_subtree_index(
         self,
@@ -554,27 +584,49 @@ class CompiledIR:
         list[int]
             Chunk indices for this element's entire subtree.
         """
-        # Start with element's direct chunks
-        indices = list(chunk_indices_by_element.get(elem.id, []))
-
         # Import here to avoid circular dependency
-        from .element import ListInterpolation, NestedPromptInterpolation
+        from .element import ListInterpolation
+        from .structured_prompt import StructuredPrompt
 
-        # Add chunks from descendants
-        if isinstance(elem, NestedPromptInterpolation):
-            nested_prompt = elem.value
-            nested_indices = []
-            for child_elem in nested_prompt.children:
-                nested_indices.extend(self._build_element_subtree(child_elem, chunk_indices_by_element))
-            indices.extend(nested_indices)
-            # NOTE: Do NOT store nested_prompt.id in _subtree_chunks!
-            # Only Element IDs should be stored, not StructuredPrompt IDs.
+        # Handle ListInterpolation specially - interleave separators between items
+        if isinstance(elem, ListInterpolation):
+            # Get separator chunks (these have the list element's ID)
+            separator_indices = list(chunk_indices_by_element.get(elem.id, []))
 
-        elif isinstance(elem, ListInterpolation):
-            # Recurse into item_elements (NestedPromptInterpolation wrappers)
-            for wrapper in elem.item_elements:
-                wrapper_indices = self._build_element_subtree(wrapper, chunk_indices_by_element)
-                indices.extend(wrapper_indices)
+            # Assert: number of separators should be one less than number of items
+            assert len(separator_indices) == len(elem.item_elements) - 1, (
+                f"ListInterpolation should have {len(elem.item_elements) - 1} separators, "
+                f"but found {len(separator_indices)}"
+            )
+
+            # Interleave: item[i] chunks, then separator[i], repeat
+            # Pattern: [item0, sep0, item1, sep1, ..., itemN] (no separator after last)
+            indices = []
+            for i, item in enumerate(elem.item_elements):
+                # Add all chunks from this item's subtree
+                item_indices = self._build_element_subtree(item, chunk_indices_by_element)
+                indices.extend(item_indices)
+
+                # Add separator after this item (except for last item)
+                if i < len(separator_indices):
+                    indices.append(separator_indices[i])
+        else:
+            # For all other element types, start with element's direct chunks
+            indices = list(chunk_indices_by_element.get(elem.id, []))
+
+            # Add chunks from descendants
+            if isinstance(elem, StructuredPrompt):
+                # StructuredPrompt stored directly - recurse into its children
+                nested_indices = []
+                for child_elem in elem.children:
+                    nested_indices.extend(self._build_element_subtree(child_elem, chunk_indices_by_element))
+                indices.extend(nested_indices)
+
+                # IMPORTANT: Sort indices to preserve chunk order from IR
+                # When a StructuredPrompt has render hints (xml, header), the wrapper chunks
+                # are at the beginning and end of the IR, but we collect them separately.
+                # Sorting ensures: [wrapper_open, ...content..., wrapper_close]
+                indices.sort()
 
         # Store for this element
         self._subtree_chunks[elem.id] = indices
@@ -646,6 +698,51 @@ class CompiledIR:
         """Return a helpful debug representation."""
         return f"CompiledIR(chunks={len(self._chunks)}, elements={len(self._subtree_chunks)})"
 
+    def widget(self, config: Optional["WidgetConfig"] = None) -> "Widget":
+        """
+        Create a Widget for Jupyter notebook display.
+
+        Parameters
+        ----------
+        config : WidgetConfig | None, optional
+            Widget configuration. If None, uses the package default config.
+
+        Returns
+        -------
+        Widget
+            Widget instance with rendered HTML.
+
+        Examples
+        --------
+        >>> p = prompt(t"Hello {name}")
+        >>> compiled = p.ir().compile()
+        >>> widget = compiled.widget()
+        >>> # Or with custom config
+        >>> from t_prompts import WidgetConfig
+        >>> widget = compiled.widget(WidgetConfig(wrapping=False))
+        """
+        from .widget import Widget
+        from .widget_config import get_default_widget_config
+        from .widget_renderer import _render_widget_html
+
+        # Use provided config or fall back to package default
+        if config is None:
+            config = get_default_widget_config()
+
+        # Create combined JSON data with compiled IR, IR, source prompt, and config
+        data = {
+            "compiled_ir": self.toJSON(),
+            "ir": self._ir.toJSON(),
+            "source_prompt": self._ir.source_prompt.toJSON(),
+            "config": {
+                "wrapping": config.wrapping,
+                "sourcePrefix": config.sourcePrefix,
+            },
+        }
+
+        html = _render_widget_html(data)
+        return Widget(html)
+
     def _repr_html_(self) -> str:
         """
         Return HTML representation for Jupyter notebook display.
@@ -658,13 +755,4 @@ class CompiledIR:
         str
             HTML string with widget visualization.
         """
-        from .widget_renderer import _render_widget_html
-
-        # Create combined JSON data with compiled IR, IR, and source prompt
-        data = {
-            "compiled_ir": self.toJSON(),
-            "ir": self._ir.toJSON(),
-            "source_prompt": self._ir.source_prompt.toJSON(),
-        }
-
-        return _render_widget_html(data)
+        return self.widget()._repr_html_()

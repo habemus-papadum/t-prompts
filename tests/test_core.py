@@ -85,9 +85,8 @@ def test_nested_prompts_depth_2():
     # Test rendering
     assert str(p2) == "bazz bar Obey Always answer politely."
 
-    # Test navigation
-    assert isinstance(p2["p1"], t_prompts.NestedPromptInterpolation)
-    assert isinstance(p2["p1"].value, t_prompts.StructuredPrompt)
+    # Test navigation - StructuredPrompt is now stored directly
+    assert isinstance(p2["p1"], t_prompts.StructuredPrompt)
 
     # Navigate into nested prompt
     inst_node = p2["p1"]["inst"]

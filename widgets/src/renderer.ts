@@ -7,6 +7,12 @@ interface WidgetData {
   compiled_ir?: CompiledIRData;
   ir?: IRData;
   source_prompt?: PromptData;
+  config?: ConfigData;
+}
+
+interface ConfigData {
+  wrapping: boolean;
+  sourcePrefix: string;
 }
 
 interface CompiledIRData {
@@ -27,10 +33,18 @@ interface PromptData {
   children: ElementData[];
 }
 
+interface SourceLocationData {
+  filename: string | null;
+  filepath: string | null;
+  line: number | null;
+}
+
 interface ElementData {
   type: string;
   key: string | number;
   id: string;
+  source_location?: SourceLocationData | null;
+  creation_location?: SourceLocationData | null;
   children?: ElementData[];
   [key: string]: unknown;
 }
@@ -63,6 +77,15 @@ interface RenderResult {
 }
 
 /**
+ * Centralized metadata computed from widget data.
+ * These maps are view-agnostic and can be reused across different visualizations.
+ */
+interface WidgetMetadata {
+  elementTypeMap: Record<string, string>;
+  elementLocationMap: Record<string, string>;
+}
+
+/**
  * ID Conversion Utilities
  *
  * Convention: Python UUIDs are prefixed with "id-" when used as DOM element IDs.
@@ -88,6 +111,115 @@ export function fromElementId(elementId: string): string {
 }
 
 /**
+ * Trim the source prefix from a file path to make it relative
+ *
+ * @param filepath - The absolute file path
+ * @param prefix - The prefix to remove (e.g., project root directory)
+ * @returns The relative path, or original path if prefix doesn't match
+ *
+ * @example
+ * trimSourcePrefix('/Users/dev/project/src/main.py', '/Users/dev/project')
+ * // Returns: 'src/main.py'
+ */
+export function trimSourcePrefix(filepath: string | null, prefix: string): string | null {
+  if (!filepath) {
+    return null;
+  }
+
+  // Normalize prefix to ensure it ends with a separator
+  const normalizedPrefix = prefix.endsWith('/') ? prefix : prefix + '/';
+
+  // Check if filepath starts with the prefix
+  if (filepath.startsWith(normalizedPrefix)) {
+    return filepath.substring(normalizedPrefix.length);
+  }
+
+  // Also check without trailing slash in case filepath === prefix
+  if (filepath === prefix) {
+    return '.';
+  }
+
+  // Prefix doesn't match - return original path
+  return filepath;
+}
+
+/**
+ * Format a source location as a compact string
+ *
+ * @param location - The source location data
+ * @param sourcePrefix - The prefix to trim from filepaths
+ * @returns Formatted location string (e.g., "src/main.py:42") or null if location not available
+ */
+function formatSourceLocation(
+  location: SourceLocationData | null | undefined,
+  sourcePrefix: string
+): string | null {
+  if (!location || !location.filename) {
+    return null;
+  }
+
+  // Use filepath if available, otherwise use filename
+  const path = location.filepath || location.filename;
+  const relativePath = trimSourcePrefix(path, sourcePrefix) || path;
+
+  // Add line number if available
+  if (location.line !== null && location.line !== undefined) {
+    return `${relativePath}:${location.line}`;
+  }
+
+  return relativePath;
+}
+
+/**
+ * Build a map from element_id to formatted location string by walking the source prompt tree
+ *
+ * For elements with both source_location and creation_location (nested prompts),
+ * the format is: "source.py:84 (created: other.py:42)"
+ */
+function buildElementLocationMap(
+  promptData: PromptData | null,
+  sourcePrefix: string
+): Record<string, string> {
+  const map: Record<string, string> = {};
+
+  if (!promptData) {
+    return map;
+  }
+
+  function walkElements(elements: ElementData[]): void {
+    for (const element of elements) {
+      // Format source_location (where interpolated/used)
+      const sourceLoc = formatSourceLocation(element.source_location, sourcePrefix);
+
+      // Format creation_location (where originally created)
+      const creationLoc = formatSourceLocation(element.creation_location, sourcePrefix);
+
+      // Build location string
+      if (sourceLoc && creationLoc && sourceLoc !== creationLoc) {
+        // Both locations exist and differ (nested prompt case)
+        map[element.id] = `${sourceLoc} (created: ${creationLoc})`;
+      } else if (sourceLoc) {
+        // Just source location
+        map[element.id] = sourceLoc;
+      } else if (creationLoc) {
+        // Just creation location (shouldn't happen normally)
+        map[element.id] = creationLoc;
+      }
+      // If neither exists, no entry in map
+
+      // Recursively process nested elements
+      if (element.children) {
+        walkElements(element.children);
+      }
+    }
+  }
+
+  // Start walking from the root prompt's children
+  walkElements(promptData.children);
+  return map;
+}
+
+/**
  * Build a map from element_id to element_type by walking the source prompt tree
  */
 function buildElementTypeMap(promptData: PromptData | null): Record<string, string> {
@@ -97,7 +229,7 @@ function buildElementTypeMap(promptData: PromptData | null): Record<string, stri
     return map;
   }
 
-  function walkElements(elements: ElementData[]) {
+  function walkElements(elements: ElementData[]): void {
     for (const element of elements) {
       map[element.id] = element.type;
 
@@ -114,11 +246,28 @@ function buildElementTypeMap(promptData: PromptData | null): Record<string, stri
 }
 
 /**
+ * Compute all widget metadata from widget data.
+ * This centralizes all map-building logic and creates view-agnostic metadata
+ * that can be reused across different visualizations.
+ *
+ * @param data - The widget data
+ * @returns Metadata containing all computed maps
+ */
+function computeWidgetMetadata(data: WidgetData): WidgetMetadata {
+  const sourcePrefix = data.config?.sourcePrefix || '';
+
+  return {
+    elementTypeMap: buildElementTypeMap(data.source_prompt || null),
+    elementLocationMap: buildElementLocationMap(data.source_prompt || null, sourcePrefix),
+  };
+}
+
+/**
  * Render chunks to DOM elements with text mapping
  */
 function renderChunksToDOM(
   chunks: ChunkData[],
-  elementTypeMap: Record<string, string>
+  metadata: WidgetMetadata
 ): RenderResult {
   // Create container
   const container = document.createElement('div');
@@ -131,30 +280,66 @@ function renderChunksToDOM(
 
   // Process each chunk
   for (const chunk of chunks) {
-    const span = document.createElement('span');
-    span.id = toElementId(chunk.id);
-
     let chunkText = '';
+    let chunkElement: HTMLElement;
 
     if (chunk.type === 'TextChunk' && chunk.text !== undefined) {
       // Text chunk - use actual text
       chunkText = chunk.text;
+
+      const span = document.createElement('span');
+      span.id = toElementId(chunk.id);
       span.textContent = chunkText;
 
       // Determine element type and apply class
-      const elementType = elementTypeMap[chunk.element_id] || 'unknown';
+      const elementType = metadata.elementTypeMap[chunk.element_id] || 'unknown';
       span.className = `tp-chunk-${elementType}`;
+
+      // Add source location as title (hover tooltip) if available
+      const location = metadata.elementLocationMap[chunk.element_id];
+      if (location) {
+        span.title = location;
+      }
+
+      chunkElement = span;
     } else if (chunk.type === 'ImageChunk' && chunk.image) {
-      // Image chunk - use markdown-style placeholder with data URL
+      // Image chunk - create container with text placeholder and hidden preview image
       const imgData = chunk.image;
       const format = imgData.format || 'PNG';
       const dataUrl = `data:image/${format.toLowerCase()};base64,${imgData.base64_data}`;
       chunkText = `![${format} ${imgData.width}x${imgData.height}](${dataUrl})`;
-      span.textContent = chunkText;
-      span.className = 'tp-chunk-image';
 
-      // Add title with full info for hover
-      span.title = `Image: ${format} ${imgData.width}x${imgData.height}`;
+      // Create container for text + preview image
+      const container = document.createElement('span');
+      container.className = 'tp-chunk-image-container';
+      container.id = toElementId(chunk.id);
+
+      // Text placeholder
+      const textSpan = document.createElement('span');
+      textSpan.className = 'tp-chunk-image';
+      textSpan.textContent = chunkText;
+
+      // Add source location as title if available
+      const location = metadata.elementLocationMap[chunk.element_id];
+      if (location) {
+        textSpan.title = location;
+      }
+
+      // Hidden preview image (shown on hover via CSS)
+      const previewImg = document.createElement('img');
+      previewImg.className = 'tp-chunk-image-preview';
+      previewImg.src = dataUrl;
+      previewImg.alt = `${format} ${imgData.width}x${imgData.height}`;
+
+      container.appendChild(textSpan);
+      container.appendChild(previewImg);
+
+      chunkElement = container;
+    } else {
+      // Unknown chunk type - create empty span
+      const span = document.createElement('span');
+      span.id = toElementId(chunk.id);
+      chunkElement = span;
     }
 
     // Record text mapping
@@ -172,8 +357,8 @@ function renderChunksToDOM(
     // Map chunk ID to offsets
     chunkIdToOffsets[chunk.id] = { start: startOffset, end: endOffset };
 
-    // Append span to container
-    container.appendChild(span);
+    // Append element to container
+    container.appendChild(chunkElement);
   }
 
   return {
@@ -187,12 +372,59 @@ function renderChunksToDOM(
 }
 
 /**
+ * Detect and mark wrapped lines in the output container.
+ *
+ * Adds 'tp-wrapped-line' class to the last span on each line that wraps.
+ * The class triggers a CSS ::before pseudo-element showing a wrap indicator.
+ */
+function markWrappedLines(container: HTMLElement): void {
+  const spans = Array.from(container.querySelectorAll('span[id^="id-"]'));
+
+  // Clear previous wrap markers
+  spans.forEach(span => span.classList.remove('tp-wrapped-line'));
+
+  // Mark the last span on each line that wraps (look ahead to detect wrapping)
+  for (let i = 0; i < spans.length - 1; i++) {
+    const currentTop = (spans[i] as HTMLElement).offsetTop;
+    const nextTop = (spans[i + 1] as HTMLElement).offsetTop;
+
+    if (nextTop > currentTop) {
+      // Next span is on a new line - this span is the last before wrap
+      spans[i].classList.add('tp-wrapped-line');
+    }
+  }
+}
+
+/**
+ * Setup wrap detection with automatic re-detection on resize.
+ *
+ * Uses ResizeObserver to efficiently re-detect wrapping whenever
+ * the container size changes (window resize, dev tools, etc.)
+ */
+function setupWrapDetection(container: HTMLElement): void {
+  // Initial detection
+  markWrappedLines(container);
+
+  // Re-detect on resize (only if ResizeObserver is available)
+  if (typeof ResizeObserver !== 'undefined') {
+    const resizeObserver = new ResizeObserver(() => {
+      markWrappedLines(container);
+    });
+
+    resizeObserver.observe(container);
+
+    // Store observer on container for potential cleanup later
+    (container as HTMLElement & { _wrapResizeObserver?: ResizeObserver })._wrapResizeObserver = resizeObserver;
+  }
+}
+
+/**
  * Mark first and last spans for each element based on compiled IR
  */
 function markElementBoundaries(
   outputContainer: HTMLDivElement,
   compiledIR: CompiledIRData | null,
-  elementTypeMap: Record<string, string>
+  metadata: WidgetMetadata
 ): void {
   if (!compiledIR || !compiledIR.subtree_map) {
     return;
@@ -205,7 +437,7 @@ function markElementBoundaries(
     }
 
     // Get element type for this element
-    const elementType = elementTypeMap[elementId] || 'unknown';
+    const elementType = metadata.elementTypeMap[elementId] || 'unknown';
 
     // Mark first chunk - convert Python UUID to element ID for DOM query
     const firstChunkId = chunkIds[0];
@@ -243,20 +475,23 @@ export function initWidget(container: HTMLElement): void {
       return;
     }
 
-    // Build element type map from source prompt
-    const elementTypeMap = buildElementTypeMap(data.source_prompt || null);
+    // Compute all metadata (element type map, location map, etc.)
+    const metadata = computeWidgetMetadata(data);
 
     // Render chunks to DOM with text mapping
     const { container: outputContainer, textMapping } = renderChunksToDOM(
       data.ir.chunks,
-      elementTypeMap
+      metadata
     );
 
     // Mark element boundaries using compiled IR
-    markElementBoundaries(outputContainer, data.compiled_ir || null, elementTypeMap);
+    markElementBoundaries(outputContainer, data.compiled_ir || null, metadata);
+
+    // Setup wrap detection with automatic resize handling
+    setupWrapDetection(outputContainer);
 
     // Store text mapping on container for future use
-    (outputContainer as any)._textMapping = textMapping;
+    (outputContainer as HTMLDivElement & { _textMapping: TextMapping })._textMapping = textMapping;
 
     // Wrap in widget output container
     const widgetOutput = document.createElement('div');

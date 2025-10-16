@@ -99,10 +99,12 @@ class PromptReuseError(StructuredPromptsError):
 
     def _describe_parent(self, parent):
         """Create a helpful description of the parent element."""
-        from .element import ListInterpolation, NestedPromptInterpolation
+        from .element import ListInterpolation
 
-        if isinstance(parent, NestedPromptInterpolation):
-            return f"NestedPromptInterpolation(key='{parent.key}')"
+        # Handle objects with parent and key attributes (new structure or temp wrappers)
+        if hasattr(parent, 'parent') and hasattr(parent, 'key') and parent.key is not None:
+            parent_type = type(parent).__name__
+            return f"{parent_type}(key='{parent.key}')"
         elif isinstance(parent, ListInterpolation):
             return f"ListInterpolation(key='{parent.key}')"
         else:

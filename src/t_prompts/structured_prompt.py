@@ -11,7 +11,6 @@ from .element import (
     ImageInterpolation,
     InterpolationType,
     ListInterpolation,
-    NestedPromptInterpolation,
     PILImage,
     Static,
     TextInterpolation,
@@ -23,10 +22,12 @@ from .source_location import SourceLocation, _capture_source_location
 from .text import process_dedent as _process_dedent
 
 if TYPE_CHECKING:
-    from .ir import IntermediateRepresentation
+    from .ir import IntermediateRepresentation, RenderContext
+    from .widget import Widget
+    from .widget_config import WidgetConfig
 
 
-class StructuredPrompt(Mapping[str, InterpolationType]):
+class StructuredPrompt(Element, Mapping[str, InterpolationType]):
     """
     A provenance-preserving, navigable tree representation of a t-string.
 
@@ -34,13 +35,13 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
     and provides dict-like access to its interpolations, preserving full
     provenance information (expression, conversion, format_spec, value).
 
+    As an Element, StructuredPrompt can be a root prompt or nested within another prompt.
+    When nested, its parent, key, and interpolation metadata are set.
+
     Attributes
     ----------
     metadata : dict[str, Any]
         Metadata dictionary for storing analysis results and other information.
-    parent_element : NestedPromptInterpolation | ListInterpolation | None
-        The parent element that contains this StructuredPrompt (if nested).
-        None for root prompts. Enables upward tree traversal.
 
     Parameters
     ----------
@@ -60,6 +61,16 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         If an empty expression {} is encountered.
     """
 
+    __slots__ = (
+        '_template',
+        '_processed_strings',
+        '_children',
+        '_interps',
+        '_allow_duplicates',
+        '_index',
+        '_creation_location',
+    )
+
     def __init__(
         self,
         template: Template,
@@ -68,13 +79,25 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         _processed_strings: Optional[tuple[str, ...]] = None,
         _source_location: Optional[SourceLocation] = None,
     ):
+        # Initialize Element fields (for root prompt - unattached state)
+        self.key = None  # Will be set when interpolated
+        self.parent = None  # Will be set when nested
+        self.index = 0  # Will be set when nested
+        # NEW: Store where this prompt was created (via prompt() call)
+        self._creation_location = _source_location
+        # source_location will be updated to interpolation site when nested
+        # For root prompts, source_location == creation_location initially
+        self.source_location = _source_location
+        self.id = str(uuid.uuid4())
+        self.metadata = {}
+        self.expression = None  # Will be set when interpolated
+        self.conversion = None
+        self.format_spec = None
+        self.render_hints = None
+
+        # StructuredPrompt-specific fields
         self._template = template
         self._processed_strings = _processed_strings  # Dedented/trimmed strings if provided
-        self._source_location = _source_location  # Source location for all elements in this prompt
-        self._id = str(uuid.uuid4())  # Unique identifier for this StructuredPrompt
-        self.metadata: dict[str, Any] = {}  # Metadata dictionary for storing analysis results
-        # Parent element for upward traversal
-        self.parent_element: Optional[Union[NestedPromptInterpolation, ListInterpolation]] = None
         # All children (Static, StructuredInterpolation, ListInterpolation, ImageInterpolation)
         self._children: list[Element] = []
         # Only interpolations
@@ -99,12 +122,13 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         # Interleave statics and interpolations
         for static_key, static_text in enumerate(strings):
             # Add static element
+            # Use creation_location for child elements - they're created where parent was defined
             static = Static(
                 key=static_key,
                 value=static_text,
                 parent=self,
                 index=element_idx,
-                source_location=self._source_location,
+                source_location=self._creation_location,
             )
             self._children.append(static)
             element_idx += 1
@@ -139,7 +163,7 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
                         separator=separator,
                         parent=self,
                         index=element_idx,
-                        source_location=self._source_location,
+                        source_location=self._creation_location,
                     )
                 elif HAS_PIL and PILImage and isinstance(val, PILImage.Image):
                     # Create ImageInterpolation node
@@ -152,21 +176,37 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
                         value=val,
                         parent=self,
                         index=element_idx,
-                        source_location=self._source_location,
+                        source_location=self._creation_location,
                     )
                 elif isinstance(val, StructuredPrompt):
-                    # Create NestedPromptInterpolation node
-                    node = NestedPromptInterpolation(
-                        key=key,
-                        expression=itp.expression,
-                        conversion=itp.conversion,
-                        format_spec=itp.format_spec,
-                        render_hints=render_hints,
-                        value=val,
-                        parent=self,
-                        index=element_idx,
-                        source_location=self._source_location,
-                    )
+                    # Check for reuse - prompt cannot be nested in multiple locations
+                    from .exceptions import PromptReuseError
+
+                    if val.parent is not None:
+                        # Already attached elsewhere - find old parent element for error message
+                        old_parent_element = val.parent[val.key] if val.key and val.key in val.parent else None
+                        # Create a temporary wrapper-like object for error message compatibility
+                        # This is needed because PromptReuseError expects elements with parent/key
+                        class _TempWrapper:
+                            def __init__(self, parent, key):
+                                self.parent = parent
+                                self.key = key
+                        new_wrapper = _TempWrapper(self, key)
+                        raise PromptReuseError(val, old_parent_element, new_wrapper)
+
+                    # Attach the nested prompt directly - set interpolation metadata
+                    val.key = key
+                    val.expression = itp.expression
+                    val.conversion = itp.conversion
+                    val.format_spec = itp.format_spec
+                    val.render_hints = render_hints
+                    val.parent = self
+                    val.index = element_idx
+                    # Set source_location to where it was interpolated (parent's creation location)
+                    # val._creation_location remains where the nested prompt was originally created
+                    val.source_location = self._creation_location
+
+                    node = val  # The StructuredPrompt itself is the node
                 elif isinstance(val, str):
                     # Create TextInterpolation node
                     node = TextInterpolation(
@@ -178,7 +218,7 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
                         value=val,
                         parent=self,
                         index=element_idx,
-                        source_location=self._source_location,
+                        source_location=self._creation_location,
                     )
                 else:
                     raise UnsupportedValueTypeError(key, type(val), itp.expression)
@@ -212,7 +252,7 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
 
         Returns
         -------
-        TextInterpolation | NestedPromptInterpolation | ListInterpolation | ImageInterpolation
+        InterpolationType
             The interpolation node for this key.
 
         Raises
@@ -256,7 +296,7 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
 
         Returns
         -------
-        list[TextInterpolation | NestedPromptInterpolation | ListInterpolation | ImageInterpolation]
+        list[InterpolationType]
             List of all interpolation nodes with this key.
 
         Raises
@@ -274,11 +314,7 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
             return [self._interps[idx]]
 
     # Properties for provenance
-
-    @property
-    def id(self) -> str:
-        """Return the unique identifier for this StructuredPrompt."""
-        return self._id
+    # (id is inherited from Element)
 
     @property
     def template(self) -> Template:
@@ -300,66 +336,31 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         """Return all children (Static and StructuredInterpolation) in order."""
         return tuple(self._children)
 
-    # Parent element management
-
-    def _set_parent_element(self, parent: Union[NestedPromptInterpolation, ListInterpolation]) -> None:
+    @property
+    def creation_location(self) -> Optional[SourceLocation]:
         """
-        Set the parent element for this StructuredPrompt.
+        Return the location where this StructuredPrompt was created (via prompt() call).
 
-        This method enables upward tree traversal by linking nested prompts back
-        to their containing elements. It enforces the single-parent constraint:
-        each StructuredPrompt can only be nested in one location at a time.
+        This is distinct from source_location, which indicates where the prompt was interpolated.
+        For root prompts, creation_location and source_location are the same.
+        For nested prompts, creation_location is where prompt() was called originally,
+        while source_location is where it was interpolated into the parent.
 
-        Parameters
-        ----------
-        parent : NestedPromptInterpolation | ListInterpolation
-            The parent element that contains this StructuredPrompt.
-
-        Raises
-        ------
-        PromptReuseError
-            If this StructuredPrompt is already nested in a different location.
-            The error will not be raised if called multiple times with the same parent
-            (idempotent operation).
-
-        Notes
-        -----
-        This method is called automatically by NestedPromptInterpolation and
-        ListInterpolation during construction. Users typically don't need to
-        call this method directly.
-
-        Examples
-        --------
-        This method is called automatically when nesting prompts:
-
-        >>> inner = prompt(t"inner")
-        >>> outer = prompt(t"{inner:i}")  # Calls inner._set_parent_element(outer['i'])
-        >>> inner.parent_element is outer['i']
-        True
-
-        Attempting to reuse the same prompt instance will raise an error:
-
-        >>> inner = prompt(t"inner")
-        >>> outer1 = prompt(t"{inner:i}")
-        >>> outer2 = prompt(t"{inner:j}")  # Raises PromptReuseError
+        Returns
+        -------
+        SourceLocation | None
+            The creation location, or None if not captured.
         """
-        from .exceptions import PromptReuseError
-
-        # If already set to the same parent, do nothing (idempotent)
-        if self.parent_element is parent:
-            return
-
-        # If already set to a different parent, raise error
-        if self.parent_element is not None:
-            raise PromptReuseError(self, self.parent_element, parent)
-
-        # Set the parent
-        self.parent_element = parent
+        return self._creation_location
 
     # Rendering
 
     def ir(
-        self, _path: tuple[Union[str, int], ...] = (), max_header_level: int = 4, _header_level: int = 1
+        self,
+        ctx: Optional["RenderContext"] = None,
+        _path: tuple[Union[str, int], ...] = (),
+        max_header_level: int = 4,
+        _header_level: int = 1,
     ) -> "IntermediateRepresentation":
         """
         Convert this StructuredPrompt to an IntermediateRepresentation with source mapping.
@@ -368,6 +369,9 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         Conversions (!s, !r, !a) are always applied.
         Format specs are parsed as "key : render_hints".
 
+        When this StructuredPrompt has been nested (has render_hints set), the render hints
+        are applied to the output (xml wrapping, header level adjustments, etc.).
+
         The IntermediateRepresentation is ideal for:
         - Structured optimization when approaching context limits
         - Debugging and auditing with full provenance
@@ -375,6 +379,8 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
 
         Parameters
         ----------
+        ctx : RenderContext | None, optional
+            Rendering context. If None, uses _path, _header_level, and max_header_level.
         _path : tuple[Union[str, int], ...]
             Internal parameter for tracking path during recursive rendering.
         max_header_level : int, optional
@@ -387,10 +393,25 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         IntermediateRepresentation
             Object containing chunks with source mapping via element_id.
         """
+        from .element import apply_render_hints
         from .ir import IntermediateRepresentation, RenderContext
+        from .parsing import parse_render_hints
 
-        # Create render context
-        ctx = RenderContext(path=_path, header_level=_header_level, max_header_level=max_header_level)
+        # Create render context if not provided
+        if ctx is None:
+            ctx = RenderContext(path=_path, header_level=_header_level, max_header_level=max_header_level)
+
+        # If this prompt has been nested (has render_hints), parse them and update context
+        if self.render_hints:
+            hints = parse_render_hints(self.render_hints, str(self.key))
+            # Update header level if header hint is present
+            next_level = ctx.header_level + 1 if "header" in hints else ctx.header_level
+            # Update context for nested rendering
+            ctx = RenderContext(
+                path=ctx.path + (self.key,) if self.key is not None else ctx.path,
+                header_level=next_level,
+                max_header_level=ctx.max_header_level
+            )
 
         # Convert each element to IR
         element_irs = [element.ir(ctx) for element in self._children]
@@ -398,10 +419,19 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         # Merge all element IRs (no separator - children are already interleaved with statics)
         merged_ir = IntermediateRepresentation.merge(element_irs, separator="")
 
-        # Create final IR with source_prompt set to self
+        # Apply render hints if this prompt has been nested
+        if self.render_hints:
+            hints = parse_render_hints(self.render_hints, str(self.key))
+            # Use parent's header level for hint application (before increment)
+            parent_header_level = ctx.header_level - 1 if "header" in hints else ctx.header_level
+            merged_ir = apply_render_hints(merged_ir, hints, parent_header_level, ctx.max_header_level, self.id)
+
+        # Create final IR with source_prompt set to self (only for root prompts)
+        # Nested prompts don't set source_prompt to avoid confusion
+        source_prompt = self if self.parent is None else None
         return IntermediateRepresentation(
             chunks=merged_ir.chunks,
-            source_prompt=self,
+            source_prompt=source_prompt,
         )
 
     def __str__(self) -> str:
@@ -460,17 +490,19 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
                 base["type"] = "static"
                 base["value"] = element.value
 
-            elif isinstance(element, NestedPromptInterpolation):
+            elif isinstance(element, StructuredPrompt):
+                # StructuredPrompt is now stored directly as a child element
                 base["type"] = "nested_prompt"
                 base.update({
                     "expression": element.expression,
                     "conversion": element.conversion,
                     "format_spec": element.format_spec,
                     "render_hints": element.render_hints,
-                    "prompt_id": element.value.id,
+                    "prompt_id": element.id,  # Element itself is the prompt
+                    "creation_location": _serialize_source_location(element.creation_location),
                 })
-                # Nested prompt - recurse
-                base["children"] = _build_children_tree(element.value, element.id)
+                # Nested prompt - recurse into its children
+                base["children"] = _build_children_tree(element, element.id)
 
             elif isinstance(element, TextInterpolation):
                 base["type"] = "interpolation"
@@ -491,8 +523,8 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
                     "render_hints": element.render_hints,
                     "separator": element.separator,
                 })
-                # Build array of wrapper elements (NestedPromptInterpolation for each item)
-                base["children"] = [_build_element_tree(wrapper, element.id) for wrapper in element.item_elements]
+                # Build array of list items (StructuredPrompts now stored directly)
+                base["children"] = [_build_element_tree(item, element.id) for item in element.item_elements]
 
             elif isinstance(element, ImageInterpolation):
                 base["type"] = "image"
@@ -510,7 +542,7 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
             """Build children array for a prompt."""
             return [_build_element_tree(elem, parent_id) for elem in prompt.children]
 
-        return {"prompt_id": self._id, "children": _build_children_tree(self, self._id)}
+        return {"prompt_id": self.id, "children": _build_children_tree(self, self.id)}
 
     def __repr__(self) -> str:
         """Return a helpful debug representation."""
@@ -518,6 +550,34 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         if len(self) > 3:
             keys += ", ..."
         return f"StructuredPrompt(keys=[{keys}], num_interpolations={len(self._interps)})"
+
+    def widget(self, config: Optional["WidgetConfig"] = None) -> "Widget":
+        """
+        Create a Widget for Jupyter notebook display.
+
+        This converts to IR, compiles it, then delegates to CompiledIR.widget().
+
+        Parameters
+        ----------
+        config : WidgetConfig | None, optional
+            Widget configuration. If None, uses the package default config.
+
+        Returns
+        -------
+        Widget
+            Widget instance with rendered HTML.
+
+        Examples
+        --------
+        >>> p = prompt(t"Hello {name}")
+        >>> widget = p.widget()
+        >>> # Or with custom config
+        >>> from t_prompts import WidgetConfig
+        >>> widget = p.widget(WidgetConfig(wrapping=False))
+        """
+        ir = self.ir()
+        compiled = ir.compile()
+        return compiled.widget(config)
 
     def _repr_html_(self) -> str:
         """
@@ -531,10 +591,7 @@ class StructuredPrompt(Mapping[str, InterpolationType]):
         str
             HTML string with widget visualization.
         """
-        # Create IR, compile it, and use CompiledIR's HTML representation
-        ir = self.ir()
-        compiled = ir.compile()
-        return compiled._repr_html_()
+        return self.widget()._repr_html_()
 
 
 def prompt(

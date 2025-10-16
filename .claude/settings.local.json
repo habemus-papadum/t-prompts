@@ -33,7 +33,9 @@
       "Bash(fi)",
       "Bash(done)",
       "Bash(pnpm vitest run:*)",
-      "Bash(node build.js)"
+      "Bash(node build.js)",
+      "Bash(for nb in docs/demos/03-ir-visualization.ipynb docs/demos/topics/{few-shot-prompts,source-mapping,source-location,format-spec-mini-language,render-hints,advanced-composition}.ipynb)",
+      "Bash(do echo \"=== $nb ===\" uv run jupyter nbconvert --execute --to notebook --inplace --ExecutePreprocessor.timeout=60 \"$nb\")"
     ],
     "deny": [],
     "ask": []

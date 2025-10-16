@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { initWidget } from './index';
-import { toElementId } from './renderer';
+import { toElementId, trimSourcePrefix } from './renderer';
 
 describe('Element boundary marking', () => {
   let container: HTMLDivElement;
@@ -391,5 +391,43 @@ describe('Element boundary marking', () => {
     expect(span).toBeTruthy();
     expect(span?.classList.contains('tp-first-static')).toBe(false);
     expect(span?.classList.contains('tp-last-static')).toBe(false);
+  });
+});
+
+describe('trimSourcePrefix utility', () => {
+  it('should trim matching prefix with trailing slash', () => {
+    const result = trimSourcePrefix('/Users/dev/project/src/main.py', '/Users/dev/project');
+    expect(result).toBe('src/main.py');
+  });
+
+  it('should trim matching prefix without trailing slash', () => {
+    const result = trimSourcePrefix('/Users/dev/project/src/main.py', '/Users/dev/project/');
+    expect(result).toBe('src/main.py');
+  });
+
+  it('should return "." when filepath equals prefix', () => {
+    const result = trimSourcePrefix('/Users/dev/project', '/Users/dev/project');
+    expect(result).toBe('.');
+  });
+
+  it('should return original path when prefix does not match', () => {
+    const result = trimSourcePrefix('/other/path/file.py', '/Users/dev/project');
+    expect(result).toBe('/other/path/file.py');
+  });
+
+  it('should handle null filepath', () => {
+    const result = trimSourcePrefix(null, '/Users/dev/project');
+    expect(result).toBe(null);
+  });
+
+  it('should handle nested paths correctly', () => {
+    const result = trimSourcePrefix('/home/user/repo/src/lib/utils.ts', '/home/user/repo');
+    expect(result).toBe('src/lib/utils.ts');
+  });
+
+  it('should not partially match directory names', () => {
+    // /Users/dev/project2 should not match /Users/dev/project
+    const result = trimSourcePrefix('/Users/dev/project2/file.py', '/Users/dev/project');
+    expect(result).toBe('/Users/dev/project2/file.py');
   });
 });

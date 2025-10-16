@@ -183,6 +183,7 @@ def test_empty_nested_prompt():
 
     assert str(p_outer) == "X and just text"
 
+    # StructuredPrompt is now stored directly as a child element
     empty_node = p_outer["empty"]
-    assert isinstance(empty_node.value, t_prompts.StructuredPrompt)
-    assert len(empty_node.value) == 0
+    assert isinstance(empty_node, t_prompts.StructuredPrompt)
+    assert len(empty_node) == 0

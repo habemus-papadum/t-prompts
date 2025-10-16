@@ -96,7 +96,7 @@ def test_static_integer_keys():
             elem,
             (
                 t_prompts.TextInterpolation,
-                t_prompts.NestedPromptInterpolation,
+                t_prompts.StructuredPrompt,
                 t_prompts.ListInterpolation,
                 t_prompts.ImageInterpolation,
             ),
@@ -143,10 +143,9 @@ def test_elements_with_nested_prompts():
     outer_elements = p_outer.children
     assert len(outer_elements) == 3
 
-    # The second element (index 1) is the interpolation containing nested prompt
+    # The second element (index 1) is the nested prompt (stored directly)
     p_elem = outer_elements[1]
-    assert isinstance(p_elem, t_prompts.NestedPromptInterpolation)
-    assert isinstance(p_elem.value, t_prompts.StructuredPrompt)
+    assert isinstance(p_elem, t_prompts.StructuredPrompt)
 
     # Check inner elements
     # strings = ("", ""), interpolations = [inner]

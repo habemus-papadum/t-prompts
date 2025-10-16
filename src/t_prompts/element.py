@@ -17,9 +17,9 @@ if TYPE_CHECKING:
 # Type alias for interpolation return types to keep lines under 120 chars
 InterpolationType = Union[
     "TextInterpolation",
-    "NestedPromptInterpolation",
     "ListInterpolation",
     "ImageInterpolation",
+    "StructuredPrompt",
 ]
 
 # Workaround for Python 3.14.0b3 missing convert function
@@ -45,7 +45,7 @@ def apply_render_hints(
     Apply render hints (xml wrapper, header) to an IR using chunk-based operations.
 
     This helper function ensures consistent application of render hints across
-    TextInterpolation, NestedPromptInterpolation, and ListInterpolation.
+    TextInterpolation, StructuredPrompt, and ListInterpolation.
 
     Parameters
     ----------
@@ -112,9 +112,9 @@ class Element(ABC):
         Metadata dictionary for storing analysis results and other information.
     """
 
-    key: Union[str, int]
-    parent: Optional["StructuredPrompt"]
-    index: int
+    key: Union[str, int, None] = None  # None for root StructuredPrompts
+    parent: Optional["StructuredPrompt"] = None
+    index: int = 0
     source_location: Optional[SourceLocation] = None
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -124,7 +124,6 @@ class Element(ABC):
     conversion: Optional[str] = None
     format_spec: Optional[str] = None
     render_hints: Optional[str] = None
-    interpolation_location: Optional[SourceLocation] = None
 
     @property
     def is_interpolated(self) -> bool:
@@ -413,129 +412,6 @@ class TextInterpolation(Element):
 
 
 @dataclass(slots=True)
-class NestedPromptInterpolation(Element):
-    """
-    Immutable record of a nested prompt interpolation in a StructuredPrompt.
-
-    Represents interpolations where the value is a nested StructuredPrompt.
-
-    Attributes
-    ----------
-    key : str
-        The key used for dict-like access (parsed from format_spec or expression).
-    parent : StructuredPrompt | None
-        The parent StructuredPrompt that contains this interpolation.
-    index : int
-        The position of this element in the overall element sequence.
-    source_location : SourceLocation | None
-        Source code location information for this element (if available).
-    expression : str
-        The original expression text from the t-string (what was inside {}).
-    conversion : str | None
-        The conversion flag if present (!s, !r, !a), or None.
-    format_spec : str
-        The format specification string (everything after :), or empty string.
-    render_hints : str
-        Rendering hints parsed from format_spec (everything after first colon in format spec).
-    value : StructuredPrompt
-        The nested StructuredPrompt value.
-    """
-
-    # Inherited from Element: expression, conversion, format_spec, render_hints
-    value: "StructuredPrompt" = None  # type: ignore
-
-    def __post_init__(self) -> None:
-        """Set parent element link after construction."""
-        # Set the parent_element link on the nested StructuredPrompt
-        # This allows upward tree traversal from the nested prompt
-        self.value._set_parent_element(self)
-
-    def __getitem__(self, key: str) -> InterpolationType:
-        """
-        Delegate dict-like access to nested StructuredPrompt.
-
-        Parameters
-        ----------
-        key : str
-            The key to look up in the nested prompt.
-
-        Returns
-        -------
-        TextInterpolation | NestedPromptInterpolation | ListInterpolation | ImageInterpolation
-            The interpolation node from the nested prompt.
-        """
-        return self.value[key]
-
-    def ir(self, ctx: Optional["RenderContext"] = None) -> "IntermediateRepresentation":
-        """
-        Convert nested prompt interpolation to IR with render hints.
-
-        Recursively converts the nested StructuredPrompt with updated context
-        and applies render hints (xml, header).
-
-        Parameters
-        ----------
-        ctx : RenderContext | None, optional
-            Rendering context. If None, uses default context.
-
-        Returns
-        -------
-        IntermediateRepresentation
-            IR with chunks including any wrappers.
-        """
-        from .ir import RenderContext
-        from .parsing import parse_render_hints
-
-        if ctx is None:
-            ctx = RenderContext(path=(), header_level=1, max_header_level=4)
-
-        # Parse render hints
-        hints = parse_render_hints(self.render_hints, str(self.key))
-
-        # Nested prompt - convert recursively with updated context
-        next_level = ctx.header_level + 1 if "header" in hints else ctx.header_level
-        nested_ctx_args = {
-            "_path": ctx.path + (self.key,),
-            "_header_level": next_level,
-            "max_header_level": ctx.max_header_level,
-        }
-        result_ir = self.value.ir(**nested_ctx_args)
-
-        # Apply render hints using chunk-based operations
-        result_ir = apply_render_hints(result_ir, hints, ctx.header_level, ctx.max_header_level, self.id)
-
-        return result_ir
-
-    def __repr__(self) -> str:
-        """Return a helpful debug representation."""
-        return (
-            f"NestedPromptInterpolation(key={self.key!r}, expression={self.expression!r}, "
-            f"conversion={self.conversion!r}, format_spec={self.format_spec!r}, "
-            f"render_hints={self.render_hints!r}, value=StructuredPrompt(...), index={self.index})"
-        )
-
-    def toJSON(self) -> dict[str, Any]:
-        """
-        Convert NestedPromptInterpolation to JSON-serializable dictionary.
-
-        The nested StructuredPrompt value is serialized as just its ID string.
-        The full StructuredPrompt object will be stored elsewhere in the JSON structure.
-
-        Returns
-        -------
-        dict[str, Any]
-            Dictionary with type, key, index, source_location, id, expression,
-            conversion, format_spec, render_hints, value_id, parent_id, metadata.
-        """
-        return {
-            "type": "NestedPromptInterpolation",
-            **self._base_json_dict(),
-            **self._interpolation_json_dict(self.expression, self.conversion, self.format_spec, self.render_hints),
-            "value_id": self.value.id,
-        }
-
-
-@dataclass(slots=True)
 class ListInterpolation(Element):
     """
     Immutable record of a list interpolation in a StructuredPrompt.
@@ -563,19 +439,19 @@ class ListInterpolation(Element):
         Rendering hints parsed from format_spec (everything after first colon in format spec).
     separator : str
         The separator to use when joining items (parsed from render_hints, default "\n").
-    item_elements : list[NestedPromptInterpolation]
-        Wrapper elements for each item (created in __post_init__).
-        Each wrapper enables hierarchical expansion/collapse in the UI.
-        Iterate over this to access wrapper elements, or use indexing to access prompts.
+    item_elements : list[StructuredPrompt]
+        The list items stored directly (attached in __post_init__).
+        Each item is attached to the parent StructuredPrompt with an integer key.
+        Iterate over this to access items directly.
     """
 
     # Inherited from Element: expression, conversion, format_spec, render_hints
     items: list["StructuredPrompt"] = field(default=None, repr=False)  # type: ignore  # Temporary, used only in __post_init__
     separator: str = "\n"
-    item_elements: list["NestedPromptInterpolation"] = field(default_factory=list)
+    item_elements: list["StructuredPrompt"] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        """Create NestedPromptInterpolation wrappers for each list item."""
+        """Attach list items directly without wrappers."""
         from .exceptions import PromptReuseError
 
         # Get items from temporary field
@@ -593,34 +469,36 @@ class ListInterpolation(Element):
                 )
             seen_ids.add(item.id)
 
-        # Create wrapper elements normally (one per item) for hierarchical expansion/collapse
-        wrapped_items = []
+        # Attach items directly - no wrappers needed
+        attached_items = []
         for idx, item in enumerate(items):
-            # Create wrapper using normal constructor
-            # The wrapper's __post_init__ will set item.parent_element = wrapper
-            # But we'll override it below to point to this ListInterpolation instead
-            wrapper = NestedPromptInterpolation(
-                key=idx,
-                expression=f"[{idx}]",
-                conversion=None,
-                format_spec="",
-                render_hints="",
-                value=item,
-                parent=self.parent,
-                index=self.index,
-                source_location=self.source_location,
-            )
-            wrapped_items.append(wrapper)
+            # Check for reuse (item already attached elsewhere)
+            if item.parent is not None:
+                # Create temp wrapper-like object for error message
+                class _TempWrapper:
+                    def __init__(self, parent, key):
+                        self.parent = parent
+                        self.key = key
+                old_parent_element = item.parent[item.key] if item.key in item.parent else None
+                new_wrapper = _TempWrapper(self.parent, self.key)
+                raise PromptReuseError(item, old_parent_element, new_wrapper)
 
-        # Store in item_elements (use object.__setattr__ since frozen dataclass)
-        object.__setattr__(self, 'item_elements', wrapped_items)
+            # Attach the item directly to the parent StructuredPrompt
+            item.key = idx  # List items use integer keys
+            item.expression = f"[{idx}]"
+            item.conversion = None
+            item.format_spec = ""
+            item.render_hints = ""
+            item.parent = self.parent  # Parent is the StructuredPrompt containing this ListInterpolation
+            item.index = self.index  # Items share the list's index in parent's children
+            # Set source_location to where the list was interpolated (parent's creation location)
+            # item._creation_location remains where the item was originally created
+            item.source_location = self.source_location
 
-        # Override parent_element to point to this ListInterpolation (not the wrappers)
-        # Wrappers are just for element tree organization
-        for item in items:
-            # Force set parent_element to this ListInterpolation
-            # This overrides what NestedPromptInterpolation.__post_init__ set
-            object.__setattr__(item, 'parent_element', self)
+            attached_items.append(item)
+
+        # Store items directly
+        object.__setattr__(self, 'item_elements', attached_items)
 
     def __getitem__(self, idx: int) -> "StructuredPrompt":
         """
@@ -641,14 +519,14 @@ class ListInterpolation(Element):
         IndexError
             If the index is out of bounds.
         """
-        return self.item_elements[idx].value
+        return self.item_elements[idx]
 
     def __len__(self) -> int:
         """Return the number of items in the list."""
         return len(self.item_elements)
 
     def __iter__(self):
-        """Iterate over wrapper elements."""
+        """Iterate over the list items directly."""
         return iter(self.item_elements)
 
     def ir(self, ctx: Optional["RenderContext"] = None, base_indent: str = "") -> "IntermediateRepresentation":
@@ -678,9 +556,8 @@ class ListInterpolation(Element):
         # Parse render hints
         hints = parse_render_hints(self.render_hints, str(self.key))
 
-        # Render each item through its wrapper element (NestedPromptInterpolation)
-        # This enables hierarchical expansion/collapse in the UI
-        item_irs = [wrapper.ir(ctx) for wrapper in self.item_elements]
+        # Render each item directly (items are now StructuredPrompts, not wrappers)
+        item_irs = [item.ir(ctx) for item in self.item_elements]
 
         # Merge items with separator using chunk-based merge operation
         # The separator chunks will have element_id = self.id (the ListInterpolation)
@@ -715,7 +592,7 @@ class ListInterpolation(Element):
             "type": "ListInterpolation",
             **self._base_json_dict(),
             **self._interpolation_json_dict(self.expression, self.conversion, self.format_spec, self.render_hints),
-            "item_ids": [wrapper.value.id for wrapper in self.item_elements],
+            "item_ids": [item.id for item in self.item_elements],
             "separator": self.separator,
         }
 

@@ -75,41 +75,42 @@ def test_nested_parent_reference():
     assert inner_node.parent is p_inner
 
 
-def test_parent_element_initially_none():
-    """Test that parent_element is initially None."""
+def test_parent_initially_none():
+    """Test that parent is initially None for root prompts."""
     p = t_prompts.prompt(t"simple prompt")
-    assert p.parent_element is None
+    assert p.parent is None
 
 
-def test_parent_element_set_by_nested_interpolation():
-    """Test that NestedPromptInterpolation sets parent_element."""
+def test_parent_set_by_nested_interpolation():
+    """Test that nesting sets parent correctly."""
     inner = "inner"
     p_inner = t_prompts.prompt(t"{inner:i}")
     p_outer = t_prompts.prompt(t"{p_inner:nested}")
 
-    # p_inner should have parent_element pointing to the NestedPromptInterpolation
-    assert p_inner.parent_element is not None
-    assert p_inner.parent_element is p_outer["nested"]
-    assert p_inner.parent_element.key == "nested"
+    # p_inner should have parent pointing to p_outer
+    assert p_inner.parent is not None
+    assert p_inner.parent is p_outer
+    assert p_inner.key == "nested"
+    # Can access the wrapper element via parent[key]
+    assert p_inner.parent[p_inner.key] is p_outer["nested"]
 
 
-def test_parent_element_set_by_list_interpolation():
-    """Test that ListInterpolation sets parent_element for all items."""
+def test_parent_set_by_list_interpolation():
+    """Test that ListInterpolation sets parent for all items."""
     item1 = t_prompts.prompt(t"Item 1")
     item2 = t_prompts.prompt(t"Item 2")
     items = [item1, item2]
     p = t_prompts.prompt(t"{items:items}")
 
-    # Both items should have parent_element pointing to the ListInterpolation
-    list_element = p["items"]
-    assert item1.parent_element is list_element
-    assert item2.parent_element is list_element
-    assert item1.parent_element.key == "items"
-    assert item2.parent_element.key == "items"
+    # Both items should have parent pointing to p
+    assert item1.parent is p
+    assert item2.parent is p
+    assert item1.key == 0  # List items use integer keys
+    assert item2.key == 1
 
 
 def test_prompt_reuse_error_nested():
-    """Test that reusing a prompt in multiple NestedPromptInterpolations raises error."""
+    """Test that reusing a prompt in multiple locations raises error."""
     import pytest
 
     from t_prompts import PromptReuseError
@@ -150,21 +151,6 @@ def test_prompt_reuse_error_list_and_nested():
     assert "multiple locations" in str(exc_info.value)
 
 
-def test_set_parent_element_idempotent():
-    """Test that setting the same parent multiple times is idempotent."""
-    inner = "inner"
-    p_inner = t_prompts.prompt(t"{inner:i}")
-    p_outer = t_prompts.prompt(t"{p_inner:nested}")
-
-    nested_element = p_outer["nested"]
-
-    # Should not raise error when calling multiple times with same parent
-    p_inner._set_parent_element(nested_element)
-    p_inner._set_parent_element(nested_element)
-
-    assert p_inner.parent_element is nested_element
-
-
 def test_upward_traversal_from_leaf_to_root():
     """Test that we can traverse upward from a leaf element to the root."""
     inner_val = "inner"
@@ -179,18 +165,18 @@ def test_upward_traversal_from_leaf_to_root():
     leaf_node = p_inner["i"]
     assert leaf_node.parent is p_inner
 
-    # p_inner.parent_element should be the NestedPromptInterpolation in p_middle
-    assert p_inner.parent_element is not None
-    assert p_inner.parent_element.key == "nested_inner"
-    assert p_inner.parent_element.parent is p_middle
+    # p_inner.parent should point to p_middle
+    assert p_inner.parent is not None
+    assert p_inner.parent is p_middle
+    assert p_inner.key == "nested_inner"
 
-    # p_middle.parent_element should be the NestedPromptInterpolation in p_root
-    assert p_middle.parent_element is not None
-    assert p_middle.parent_element.key == "nested_middle"
-    assert p_middle.parent_element.parent is p_root
+    # p_middle.parent should point to p_root
+    assert p_middle.parent is not None
+    assert p_middle.parent is p_root
+    assert p_middle.key == "nested_middle"
 
-    # p_root should have no parent_element (it's the root)
-    assert p_root.parent_element is None
+    # p_root should have no parent (it's the root)
+    assert p_root.parent is None
 
 
 def test_upward_traversal_from_list_item():
@@ -204,33 +190,32 @@ def test_upward_traversal_from_list_item():
     leaf_node = p_item["v"]
     assert leaf_node.parent is p_item
 
-    # p_item.parent_element should be the ListInterpolation
-    assert p_item.parent_element is not None
-    assert p_item.parent_element.key == "items"
-    assert isinstance(p_item.parent_element, t_prompts.ListInterpolation)
-    assert p_item.parent_element.parent is p_root
+    # p_item.parent should point to p_root
+    assert p_item.parent is not None
+    assert p_item.parent is p_root
+    assert p_item.key == 0  # List items use integer keys
 
-    # p_root should have no parent_element
-    assert p_root.parent_element is None
+    # p_root should have no parent
+    assert p_root.parent is None
 
 
-def test_parent_element_with_deeply_nested_prompts():
-    """Test parent_element with multiple levels of nesting."""
+def test_parent_with_deeply_nested_prompts():
+    """Test parent with multiple levels of nesting."""
     a = "A"
     p1 = t_prompts.prompt(t"{a:a}")
     p2 = t_prompts.prompt(t"{p1:p1}")
     p3 = t_prompts.prompt(t"{p2:p2}")
 
-    # Check parent_element chain
-    assert p1.parent_element is not None
-    assert p1.parent_element.key == "p1"
-    assert p1.parent_element.parent is p2
+    # Check parent chain
+    assert p1.parent is not None
+    assert p1.parent is p2
+    assert p1.key == "p1"
 
-    assert p2.parent_element is not None
-    assert p2.parent_element.key == "p2"
-    assert p2.parent_element.parent is p3
+    assert p2.parent is not None
+    assert p2.parent is p3
+    assert p2.key == "p2"
 
-    assert p3.parent_element is None
+    assert p3.parent is None
 
 
 def test_parent_element_error_message_quality():

@@ -71,7 +71,8 @@ def test_compiled_ir_get_chunks_for_subtree_nested():
 
     # Get chunks for the inner prompt via its parent element (the wrapper)
     # StructuredPrompts aren't directly in subtree_map, but their parent elements are
-    inner_chunks = compiled.get_chunks_for_subtree(p_inner.parent_element.id)
+    # With new structure: parent[key] gets the wrapper element
+    inner_chunks = compiled.get_chunks_for_subtree(p_inner.parent[p_inner.key].id)
     assert len(inner_chunks) == 2
     assert inner_chunks[0].text == "inner "
     assert inner_chunks[1].text == "world"
@@ -109,8 +110,7 @@ def test_compiled_ir_get_chunks_for_subtree_list():
     assert "\n" in list_texts
     assert "Item 2" in list_texts
 
-    # Get chunks for first item prompt via its wrapper element
-    # Items are wrapped in NestedPromptInterpolation elements for hierarchical collapse
+    # Get chunks for first item prompt (stored directly, not wrapped)
     item1_wrapper = list_element.item_elements[0]
     item1_chunks = compiled.get_chunks_for_subtree(item1_wrapper.id)
     assert len(item1_chunks) == 1
@@ -137,14 +137,14 @@ def test_compiled_ir_get_chunks_for_subtree_deeply_nested():
     assert ">" in texts
 
     # Get chunks for p2 via its parent element
-    p2_chunks = compiled.get_chunks_for_subtree(p2.parent_element.id)
+    p2_chunks = compiled.get_chunks_for_subtree(p2.parent[p2.key].id)
     p2_texts = [chunk.text for chunk in p2_chunks]
     assert "[" in p2_texts
     assert "A" in p2_texts
     assert "]" in p2_texts
 
     # Get chunks for p1 via its parent element
-    p1_chunks = compiled.get_chunks_for_subtree(p1.parent_element.id)
+    p1_chunks = compiled.get_chunks_for_subtree(p1.parent[p1.key].id)
     assert len(p1_chunks) == 1
     assert p1_chunks[0].text == "A"
 
@@ -232,9 +232,9 @@ def test_compiled_ir_to_json_nested():
     assert len(outer_chunk_ids) == 2  # "Hello " and "world"
 
     # Inner prompt's wrapper element should have its chunks
-    # StructuredPrompts aren't directly in subtree_map, use parent_element
-    assert p_inner.parent_element.id in subtree_map
-    inner_chunk_ids = subtree_map[p_inner.parent_element.id]
+    # StructuredPrompts aren't directly in subtree_map, use parent[key]
+    assert p_inner.parent[p_inner.key].id in subtree_map
+    inner_chunk_ids = subtree_map[p_inner.parent[p_inner.key].id]
     assert len(inner_chunk_ids) == 1  # "world"
 
     # Verify chunk IDs are actual chunk IDs from the IR

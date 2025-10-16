@@ -92,7 +92,7 @@ def test_interpolation_render_with_conversion():
 
 
 def test_interpolation_render_nested():
-    """Test that NestedPromptInterpolation.ir() works with nested prompts."""
+    """Test that StructuredPrompt.ir() works with nested prompts."""
     inner = "inner"
     p_inner = t_prompts.prompt(t"{inner:i}")
     p_outer = t_prompts.prompt(t"{p_inner:p}")

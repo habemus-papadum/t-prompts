@@ -78,23 +78,34 @@ def test_source_location_on_static_elements():
 
 
 def test_source_location_on_nested_prompts():
-    """Test that nested prompts each have their own source location."""
+    """Test that nested prompts have both creation_location and source_location."""
     x = "value"
-    inner = prompt(t"Inner: {x}")
-    outer = prompt(t"Outer: {inner:i}")
+    inner = prompt(t"Inner: {x}")  # Line 83: inner created here
+    outer = prompt(t"Outer: {inner:i}")  # Line 84: inner interpolated here
 
-    # Both should have source locations
-    assert outer['i'].source_location is not None
-    assert outer['i'].source_location.is_available
-
-    # The nested prompt's elements should have their own source location
-    inner_prompt = outer['i'].value
+    # The nested prompt (now stored directly) should have both locations
+    inner_prompt = outer['i']  # StructuredPrompt is now stored directly
     assert isinstance(inner_prompt, StructuredPrompt)
+
+    # source_location = where it was interpolated (line 84)
+    assert inner_prompt.source_location is not None
+    assert inner_prompt.source_location.is_available
+    assert inner_prompt.source_location.line == 84
+
+    # creation_location = where it was created (line 83)
+    assert inner_prompt.creation_location is not None
+    assert inner_prompt.creation_location.is_available
+    assert inner_prompt.creation_location.line == 83
+
+    # Its children should have source_location = inner's creation_location
     assert inner_prompt['x'].source_location is not None
     assert inner_prompt['x'].source_location.is_available
+    assert inner_prompt['x'].source_location.line == 83
 
-    # They should be from different lines
-    assert outer['i'].source_location.line != inner_prompt['x'].source_location.line
+    # With the new architecture, outer['i'] IS the inner prompt object
+    assert outer['i'] is inner
+    # Children's source_location matches the prompt's creation_location
+    assert outer['i'].creation_location.line == inner_prompt['x'].source_location.line
 
 
 def test_source_location_with_multiple_interpolations():
