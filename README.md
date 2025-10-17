@@ -2,16 +2,24 @@
 
 [Full report](https://htmlpreview.github.io/?https://github.com/habemus-papadum/t-prompts/blob/python-coverage-comment-action-data/htmlcov/index.html)
 
-| Name                           |    Stmts |     Miss |   Cover |   Missing |
-|------------------------------- | -------: | -------: | ------: | --------: |
-| src/t\_prompts/\_\_init\_\_.py |        6 |        0 |    100% |           |
-| src/t\_prompts/core.py         |      494 |       35 |     93% |34, 42-44, 118, 146, 284, 307, 336, 341, 383, 404, 448, 450-451, 502-503, 678-679, 744, 748, 752, 843, 863-864, 1052, 1094, 1218, 1267-1269, 1550-1553 |
-| src/t\_prompts/exceptions.py   |       30 |        0 |    100% |           |
-| src/t\_prompts/parsing.py      |       33 |        0 |    100% |           |
-| src/t\_prompts/text.py         |       68 |        5 |     93% |48, 66, 110, 136, 145 |
-| src/t\_prompts/ui.py           |        0 |        0 |    100% |           |
-| src/t\_prompts/widgets.py      |        9 |        9 |      0% |      3-54 |
-|                      **TOTAL** |  **640** |   **49** | **92%** |           |
+| Name                                   |    Stmts |     Miss |   Cover |   Missing |
+|--------------------------------------- | -------: | -------: | ------: | --------: |
+| src/t\_prompts/\_\_init\_\_.py         |       10 |        0 |    100% |           |
+| src/t\_prompts/element.py              |      168 |       32 |     81% |34, 86-88, 141, 162, 176, 214, 235, 278, 296, 390, 406, 464, 478-484, 522, 526, 530, 554, 573, 591, 650, 675, 698, 718-719 |
+| src/t\_prompts/exceptions.py           |       46 |        2 |     96% |   73, 109 |
+| src/t\_prompts/ir.py                   |      181 |       12 |     93% |98-99, 113-115, 274-276, 323, 359, 410, 490, 787 |
+| src/t\_prompts/parsing.py              |       33 |        0 |    100% |           |
+| src/t\_prompts/source\_location.py     |       41 |        3 |     93% |72, 95, 123 |
+| src/t\_prompts/structured\_prompt.py   |      192 |        6 |     97% |272, 314, 549-552 |
+| src/t\_prompts/text.py                 |       68 |        5 |     93% |48, 66, 110, 136, 145 |
+| src/t\_prompts/widgets/\_\_init\_\_.py |        7 |        0 |    100% |           |
+| src/t\_prompts/widgets/config.py       |       17 |        1 |     94% |        72 |
+| src/t\_prompts/widgets/export.py       |       26 |        0 |    100% |           |
+| src/t\_prompts/widgets/preview.py      |      247 |      219 |     11% |28-29, 36-38, 42-103, 107-118, 123-127, 134-137, 141-156, 181-294, 310, 370-377, 417-542, 550-585, 595 |
+| src/t\_prompts/widgets/renderer.py     |       31 |       10 |     68% |30-46, 116-117, 135-136 |
+| src/t\_prompts/widgets/utils.py        |        9 |        4 |     56% |     48-54 |
+| src/t\_prompts/widgets/widget.py       |        5 |        0 |    100% |           |
+|                              **TOTAL** | **1081** |  **294** | **73%** |           |
 
 
 ## Setup coverage badge
