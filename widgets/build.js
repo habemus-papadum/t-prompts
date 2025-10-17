@@ -16,11 +16,11 @@ function copyDistToPython() {
     fs.mkdirSync(pythonWidgetsDir, { recursive: true });
   }
 
-  // Copy .js files from dist/ to Python package (exclude .map files)
+  // Copy .js and .css files from dist/ to Python package (exclude .map files)
   const files = fs.readdirSync(distDir);
   for (const file of files) {
     const ext = path.extname(file);
-    if (ext === '.js') {
+    if (ext === '.js' || ext === '.css') {
       const srcPath = path.join(distDir, file);
       const destPath = path.join(pythonWidgetsDir, file);
       fs.copyFileSync(srcPath, destPath);
@@ -30,8 +30,8 @@ function copyDistToPython() {
 }
 
 function generateStylesHash() {
-  // Read styles.css and generate a hash
-  const stylesPath = path.join(__dirname, 'src', 'styles.css');
+  // Read final bundled styles.css and generate a hash
+  const stylesPath = path.join(__dirname, 'dist', 'styles.css');
   const stylesContent = fs.readFileSync(stylesPath, 'utf8');
   const hash = crypto.createHash('sha256').update(stylesContent).digest('hex').substring(0, 8);
 
@@ -48,17 +48,42 @@ export const STYLES_HASH = '${hash}';
 
 async function build() {
   const outdir = path.join(__dirname, 'dist');
+  const srcdir = path.join(__dirname, 'src');
 
   // Ensure output directory exists
   if (!fs.existsSync(outdir)) {
     fs.mkdirSync(outdir, { recursive: true });
   }
 
-  // Generate styles hash before building
-  generateStylesHash();
-
   try {
-    // Build JavaScript
+    // Step 1: Bundle KaTeX CSS (resolves @import and bundles fonts)
+    console.log('Building KaTeX bundle...');
+    await esbuild.build({
+      entryPoints: [path.join(srcdir, 'katex-bundle.css')],
+      bundle: true,
+      minify: true,
+      outfile: path.join(outdir, 'katex-bundle.css'),
+      loader: {
+        '.woff': 'dataurl',
+        '.woff2': 'dataurl',
+        '.ttf': 'dataurl',
+        '.eot': 'dataurl',
+      },
+    });
+    console.log('✓ KaTeX bundle built');
+
+    // Step 2: Concatenate widget styles + bundled KaTeX
+    const widgetStyles = fs.readFileSync(path.join(srcdir, 'styles.css'), 'utf8');
+    const katexBundle = fs.readFileSync(path.join(outdir, 'katex-bundle.css'), 'utf8');
+    const finalStyles = widgetStyles + '\n\n' + katexBundle;
+    fs.writeFileSync(path.join(outdir, 'styles.css'), finalStyles);
+    console.log('✓ Concatenated styles.css');
+
+    // Step 3: Generate styles hash (after styles are created)
+    generateStylesHash();
+
+    // Step 4: Build JavaScript (uses loader for CSS text import)
+    console.log('Building JavaScript bundle...');
     await esbuild.build({
       entryPoints: ['src/index.ts'],
       bundle: true,
@@ -76,12 +101,13 @@ async function build() {
         '.css': 'text',  // Import CSS as text string in JS
       },
     });
+    console.log('✓ JavaScript bundle built');
 
-    console.log('✓ Build completed successfully');
-
-    // Copy dist to Python package
+    // Step 5: Copy artifacts to Python package
     copyDistToPython();
     console.log('✓ Copied to Python package');
+
+    console.log('\n✅ Build completed successfully');
   } catch (error) {
     console.error('✗ Build failed:', error);
     process.exit(1);

@@ -87,4 +87,5 @@ relative_files = true
 omit = [
     "*/tests/*",
     "*/testing.py",
+    "*/demos/*",
 ]

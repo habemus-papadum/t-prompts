@@ -1,6 +1,7 @@
 """Widget renderer for Jupyter notebook visualization."""
 
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -26,10 +27,24 @@ def _get_widget_bundle() -> str:
     js_path = utils.get_widget_path() / "index.js"
 
     if not js_path.exists():
-        raise FileNotFoundError(
-            f"Widget bundle not found at {js_path}. "
-            "Run 'pnpm build' from the repository root to build the widgets."
-        )
+        # Detect dev mode by checking for .git directory
+        repo_root = js_path.parent.parent.parent.parent  # Go up to repo root
+        is_dev_mode = (repo_root / ".git").exists()
+
+        if is_dev_mode:
+            error_msg = (
+                f"Widget bundle not found at {js_path}.\n"
+                "Development mode detected. Please build the widgets first:\n"
+                "  pnpm --filter @t-prompts/widgets build"
+            )
+        else:
+            error_msg = (
+                f"Widget bundle not found at {js_path}.\n"
+                "Missing widget assets. This appears to be an installation issue.\n"
+                "Please report this at: https://github.com/habemus-papadum/t-prompts/issues"
+            )
+
+        raise FileNotFoundError(error_msg)
 
     js_bundle = js_path.read_text()
 
@@ -64,7 +79,7 @@ def _render_widget_html(data: dict[str, Any], *, force_inject: bool = False) -> 
         # Get JavaScript bundle
         js_bundle = _get_widget_bundle()
 
-        # Inject JavaScript bundle (includes widget styles with KaTeX from CDN)
+        # Inject JavaScript bundle (includes widget styles with bundled KaTeX)
         html_parts.append(f'<script id="tp-widget-bundle">{js_bundle}</script>')
 
         # Mark as injected

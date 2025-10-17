@@ -212,15 +212,16 @@ node_modules/
 .pnpm-store/
 pnpm-debug.log*
 
-# Widget build artifacts (KEEP widgets/dist - it's committed)
+# Widget build artifacts (not committed to git, only in wheel)
 widgets/.turbo/
 widgets/coverage/
+widgets/dist/
 *.tsbuildinfo
-
-# Don't ignore widgets/dist - it's bundled with Python package
-!widgets/dist/
-# Exclude source maps (only needed for local development)
 *.js.map
+
+# Python package widget artifacts (built by TypeScript, not committed)
+src/t_prompts/widgets/index.js
+src/t_prompts/widgets/styles.css
 
 # Scratchpad directory for temporary test/development code
 scratchpad/
