@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { applyTransform_LineWrap } from './lineWrap';
+import { applyTransform_LineWrap, unwrapLineWrapping } from './lineWrap';
 import type { TransformState } from './base';
 import type { WidgetData, WidgetMetadata } from '../types';
 
@@ -352,5 +352,49 @@ describe('lineWrap transform', () => {
     expect(wrapContainer?.classList.contains('tp-chunk-static')).toBe(true);
     expect(wrapContainer?.classList.contains('tp-first-static')).toBe(true);
     expect(wrapContainer?.classList.contains('custom-class')).toBe(true);
+  });
+
+  it('should preserve inline styles across wrap cycles', () => {
+    const longText = 'a'.repeat(150);
+    const span = document.createElement('span');
+    span.setAttribute('data-chunk-id', 'chunk1');
+    span.className = 'tp-chunk-static';
+    span.textContent = longText;
+    span.style.display = 'none';
+    span.style.color = 'rgb(10, 20, 30)';
+    container.appendChild(span);
+    chunks.set('chunk1', [span]);
+
+    const state: TransformState = {
+      element: container,
+      chunks,
+      data: mockData,
+      metadata: mockMetadata,
+    };
+
+    applyTransform_LineWrap(state, 100);
+
+    let tracked = chunks.get('chunk1');
+    expect(tracked).toBeTruthy();
+    const wrapContainer = tracked?.[0] as HTMLElement;
+    expect(wrapContainer?.classList.contains('tp-wrap-container')).toBe(true);
+    expect(wrapContainer?.style.display).toBe('none');
+    expect(wrapContainer?.style.color).toBe('rgb(10, 20, 30)');
+
+    unwrapLineWrapping(container, chunks);
+
+    tracked = chunks.get('chunk1');
+    const unwrapped = tracked?.[0] as HTMLElement;
+    expect(unwrapped?.classList.contains('tp-wrap-container')).toBe(false);
+    expect(unwrapped?.style.display).toBe('none');
+    expect(unwrapped?.style.color).toBe('rgb(10, 20, 30)');
+
+    applyTransform_LineWrap(state, 100);
+
+    tracked = chunks.get('chunk1');
+    const rewrapped = tracked?.[0] as HTMLElement;
+    expect(rewrapped?.classList.contains('tp-wrap-container')).toBe(true);
+    expect(rewrapped?.style.display).toBe('none');
+    expect(rewrapped?.style.color).toBe('rgb(10, 20, 30)');
   });
 });
