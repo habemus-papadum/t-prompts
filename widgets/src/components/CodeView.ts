@@ -11,7 +11,7 @@ import type { TransformState } from '../transforms/base';
 import { applyTransform_CreateChunks } from '../transforms/createChunks';
 import { applyTransform_AddTyping } from '../transforms/typing';
 import { applyTransform_ImageTruncate } from '../transforms/imageTruncate';
-import { applyTransform_LineWrap,} from '../transforms/lineWrap';
+import { applyTransform_LineWrap, unwrapLineWrapping } from '../transforms/lineWrap';
 import { applyTransform_ImageHoverPreview } from '../transforms/imageHoverPreview';
 import { applyTransform_MarkBoundaries } from '../transforms/boundaries';
 import type { FoldingController } from '../folding/controller';
@@ -155,7 +155,17 @@ export function buildCodeView(
     },
   };
 
+  function recomputeWrapping(): void {
+    state = applyTransform_LineWrap({
+      element,
+      chunks: chunkIdToTopElements,
+      data,
+      metadata,
+    });
+  }
+
   function handleChunksCollapsed(collapsedIds: string[]): void {
+    unwrapLineWrapping(element, chunkIdToTopElements);
 
     // 2. Process each collapsed chunk
     for (let i = 0; i < collapsedIds.length; i++) {
@@ -201,9 +211,12 @@ export function buildCodeView(
       chunkIdToTopElements.set(collapsedId, [collapsedSpan]);
     }
 
+    recomputeWrapping();
+
   }
 
   function handleChunkExpanded(expandedId: string): void {
+    unwrapLineWrapping(element, chunkIdToTopElements);
 
     const collapsed = foldingController.getCollapsedChunk(expandedId);
     if (!collapsed) return;
@@ -227,6 +240,8 @@ export function buildCodeView(
     // Remove collapsed span from DOM and map
     collapsedSpan.remove();
     chunkIdToTopElements.delete(expandedId);
+
+    recomputeWrapping();
 
   }
 

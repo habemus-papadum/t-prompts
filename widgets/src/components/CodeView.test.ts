@@ -237,6 +237,121 @@ describe('CodeView collapse/expand cycle', () => {
     console.log('Second collapsed pill text:', collapsedPill2.textContent);
   });
 
+  it('rewraps chunk containers around collapse and expand', () => {
+    const chunkIds = ['chunk-1', 'chunk-2'];
+    const elementIds = ['element-1', 'element-2'];
+
+    const longText = 'L'.repeat(140);
+
+    const widgetData = {
+      compiled_ir: {
+        ir_id: 'ir-1',
+        subtree_map: {
+          [elementIds[0]]: [chunkIds[0]],
+          [elementIds[1]]: [chunkIds[1]],
+        },
+        num_elements: 2,
+      },
+      ir: {
+        chunks: [
+          {
+            type: 'TextChunk',
+            text: longText,
+            element_id: elementIds[0],
+            id: chunkIds[0],
+            metadata: {},
+          },
+          {
+            type: 'TextChunk',
+            text: 'short',
+            element_id: elementIds[1],
+            id: chunkIds[1],
+            metadata: {},
+          },
+        ],
+        source_prompt_id: 'prompt-1',
+        id: 'ir-1',
+        metadata: {},
+      },
+      source_prompt: {
+        prompt_id: 'prompt-1',
+        children: [
+          {
+            type: 'static',
+            id: elementIds[0],
+            parent_id: 'prompt-1',
+            key: 0,
+            index: 0,
+            source_location: null,
+            value: longText,
+          },
+          {
+            type: 'static',
+            id: elementIds[1],
+            parent_id: 'prompt-1',
+            key: 1,
+            index: 1,
+            source_location: null,
+            value: 'short',
+          },
+        ],
+      },
+    };
+
+    const scriptTag = document.createElement('script');
+    scriptTag.setAttribute('data-role', 'tp-widget-data');
+    scriptTag.setAttribute('type', 'application/json');
+    scriptTag.textContent = JSON.stringify(widgetData);
+    container.appendChild(scriptTag);
+
+    const mountPoint = document.createElement('div');
+    mountPoint.className = 'tp-widget-mount';
+    container.appendChild(mountPoint);
+
+    initWidget(container);
+
+    const widget = (container as any)._widgetComponent;
+    expect(widget).toBeTruthy();
+
+    const outputContainer = container.querySelector('.tp-output-container') as HTMLElement;
+    expect(outputContainer).toBeTruthy();
+
+    function findTopLevelChunkElement(chunkId: string): HTMLElement | undefined {
+      return Array.from(outputContainer.children).find((child) => {
+        return child instanceof HTMLElement && child.getAttribute('data-chunk-id') === chunkId;
+      }) as HTMLElement | undefined;
+    }
+
+    const initialTop = findTopLevelChunkElement(chunkIds[0]);
+    expect(initialTop).toBeTruthy();
+    expect(initialTop?.classList.contains('tp-wrap-container')).toBe(true);
+
+    const foldingController = (widget as any).foldingController;
+    expect(foldingController).toBeTruthy();
+
+    foldingController.selectByIds([chunkIds[0]]);
+    const [collapsedId] = foldingController.commitSelections();
+    expect(collapsedId).toBeTruthy();
+
+    const afterCollapse = findTopLevelChunkElement(chunkIds[0]);
+    expect(afterCollapse).toBeTruthy();
+    expect(afterCollapse?.classList.contains('tp-wrap-container')).toBe(true);
+    expect(afterCollapse?.style.display).toBe('none');
+
+    const collapsedPill = outputContainer.querySelector(`[data-chunk-id="${collapsedId}"]`);
+    expect(collapsedPill).toBeTruthy();
+
+    foldingController.expandChunk(collapsedId);
+
+    const afterExpand = findTopLevelChunkElement(chunkIds[0]);
+    expect(afterExpand).toBeTruthy();
+    expect(afterExpand?.classList.contains('tp-wrap-container')).toBe(true);
+    expect(afterExpand?.style.display).not.toBe('none');
+
+    const pillAfterExpand = outputContainer.querySelector(`[data-chunk-id="${collapsedId}"]`);
+    expect(pillAfterExpand).toBeFalsy();
+  });
+
   // NOTE: This test is skipped because JSDOM doesn't persist Selection objects
   // across async boundaries (the 150ms debounce timeout). The selection gets
   // cleared before handleSelectionChange fires. This bug can only be tested

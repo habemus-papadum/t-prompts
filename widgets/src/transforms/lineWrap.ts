@@ -21,6 +21,17 @@ function copyDataAttributes(fromElement: HTMLElement, toElement: HTMLElement): v
 }
 
 /**
+ * Copy inline styles from one element to another.
+ */
+function copyInlineStyles(fromElement: HTMLElement, toElement: HTMLElement): void {
+  if (fromElement.style.cssText) {
+    toElement.style.cssText = fromElement.style.cssText;
+  } else {
+    toElement.removeAttribute('style');
+  }
+}
+
+/**
  * Copy classes from one element to another
  */
 function copyClasses(fromElement: HTMLElement, toElement: HTMLElement): void {
@@ -56,6 +67,7 @@ function wrapElement(
   const container = document.createElement('span');
   copyDataAttributes(element, container);
   copyClasses(element, container);
+  copyInlineStyles(element, container);
   container.classList.add('tp-wrap-container');
 
   // Create span for first part (no special classes, just copy originals)
@@ -63,6 +75,7 @@ function wrapElement(
     const firstSpan = document.createElement('span');
     copyDataAttributes(element, firstSpan);
     copyClasses(element, firstSpan);
+    copyInlineStyles(element, firstSpan);
     firstSpan.textContent = firstPart;
     container.appendChild(firstSpan);
   }
@@ -75,6 +88,7 @@ function wrapElement(
   const remainderSpan = document.createElement('span');
   copyDataAttributes(element, remainderSpan);
   copyClasses(element, remainderSpan);
+  copyInlineStyles(element, remainderSpan);
   remainderSpan.textContent = remainder;
 
   // Check if remainder needs further wrapping
@@ -259,6 +273,13 @@ export function unwrapLineWrapping(element: HTMLElement, chunks: Map<string, HTM
       .split(' ')
       .filter(c => c !== 'tp-wrap-container' && c !== 'tp-wrap-continuation');
     replacement.className = classesToCopy.join(' ');
+
+    // Copy inline styles
+    if (container.style.cssText) {
+      replacement.style.cssText = container.style.cssText;
+    } else {
+      replacement.removeAttribute('style');
+    }
 
     // Set the text content
     replacement.textContent = fullText;

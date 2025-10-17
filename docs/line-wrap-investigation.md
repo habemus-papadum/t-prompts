@@ -40,6 +40,26 @@ attributes) remains an attractive simplification while iterating on the DOM
 structure. If future refactors require more flexibility we can introduce such a
 helper alongside or instead of the map.
 
+## Folding Integration Follow-up
+
+While integrating the fix with the folding controller we discovered an adjacent
+problem: the collapse/expand handlers assume the DOM already matches the
+pre-wrap structure. When we previously wrapped a span, collapsing it would hide
+the container but the controller then inserted or removed additional siblings
+without re-running the wrapping pass. This left the DOM partially unwrapped and
+the chunks map pointing at stale nodes.
+
+We now explicitly unwrap the affected subtree before mutating it, run the
+collapse/expand logic, and then reapply the wrapping transform. This guarantees
+that subsequent operations always observe the canonical structure.
+
+The unwrapping helper also needed to mirror the wrapping pass more faithfully.
+Wrap containers clone inline styles onto the replacement spans; without doing
+the same in the reverse direction, `display: none` or colouring applied by the
+folding UI would be lost during an unwrap→wrap cycle. The transform now copies
+`style.cssText` both when wrapping and when unwrapping so hidden chunks stay
+hidden and any inline formatting survives round-trips.
+
 ## Next Steps
 
 No additional changes are required to stabilise the current behaviour, but
