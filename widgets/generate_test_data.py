@@ -14,7 +14,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from t_prompts import prompt
-from t_prompts.widgets import Widget
 
 
 def generate_long_text_test():
@@ -80,7 +79,7 @@ def main():
     print(f"Generated test fixture: {output_file}")
     print(f"Text length: {len('a' * 240)} characters")
     print(f"Expected line breaks at 90 chars: {240 // 90} breaks ({240 / 90:.2f} lines)")
-    print(f"\nTop-level keys in data:")
+    print("\nTop-level keys in data:")
     for key in long_text_data.keys():
         print(f"  - {key}")
 
@@ -97,7 +96,10 @@ def main():
     print(f"Number of IR chunks: {len(complex_data['ir']['chunks'])}")
     for i, chunk in enumerate(complex_data['ir']['chunks']):
         text = chunk['text']
-        print(f"  Chunk {i}: {len(text)} chars - \"{text[:50]}...\"" if len(text) > 50 else f"  Chunk {i}: {len(text)} chars - \"{text}\"")
+        if len(text) > 50:
+            print(f"  Chunk {i}: {len(text)} chars - \"{text[:50]}...\"")
+        else:
+            print(f"  Chunk {i}: {len(text)} chars - \"{text}\"")
 
 
 if __name__ == "__main__":

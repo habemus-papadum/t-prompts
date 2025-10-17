@@ -873,6 +873,11 @@ l0,-`+(r+144)+`c-2,-159.3,-10,-310.7,-24,-454c-53.3,-528,-210,-949.7,
   display: inline;
 }
 
+/* Line breaks for wrapping - exclude from copy/paste */
+.tp-wrap-newline {
+  user-select: none;
+}
+
 /* Continuation lines (after a wrap) - need relative positioning for ::before gutter icon */
 .tp-wrap-continuation {
   position: relative;
@@ -957,7 +962,7 @@ l0,-`+(r+144)+`c-2,-159.3,-10,-310.7,-24,-454c-53.3,-528,-210,-949.7,
     background-color: var(--tp-color-muted-bg-hover, #40464d);
   }
 }
-`;var t1="e265c954";var u1="0.9.0-alpha";function Wt(){let e=`tp-widget-styles-${t1}`;if(document.querySelector(`#${e}`))return;document.querySelectorAll('[id^="tp-widget-styles"]').forEach(u=>u.remove());let r=document.createElement("style");r.id=e,r.textContent=e1,document.head.appendChild(r),window.__TPWidget&&(window.__TPWidget.stylesInjected=!0)}function jt(){window.__TPWidget||(window.__TPWidget={version:u1,initWidget:Fe,stylesInjected:!1})}function r1(){jt(),Wt(),document.querySelectorAll("[data-tp-widget]").forEach(t=>{t instanceof HTMLElement&&!t.dataset.tpInitialized&&(Fe(t),t.dataset.tpInitialized="true")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",r1):r1();typeof MutationObserver<"u"&&new MutationObserver(t=>{t.forEach(r=>{r.addedNodes.forEach(u=>{u instanceof HTMLElement&&(u.matches("[data-tp-widget]")&&!u.dataset.tpInitialized&&(jt(),Wt(),Fe(u),u.dataset.tpInitialized="true"),u.querySelectorAll("[data-tp-widget]").forEach(n=>{n instanceof HTMLElement&&!n.dataset.tpInitialized&&(jt(),Wt(),Fe(n),n.dataset.tpInitialized="true")}))})})}).observe(document.body,{childList:!0,subtree:!0});return h1(xc);})();
+`;var t1="7c5f669c";var u1="0.9.0-alpha";function Wt(){let e=`tp-widget-styles-${t1}`;if(document.querySelector(`#${e}`))return;document.querySelectorAll('[id^="tp-widget-styles"]').forEach(u=>u.remove());let r=document.createElement("style");r.id=e,r.textContent=e1,document.head.appendChild(r),window.__TPWidget&&(window.__TPWidget.stylesInjected=!0)}function jt(){window.__TPWidget||(window.__TPWidget={version:u1,initWidget:Fe,stylesInjected:!1})}function r1(){jt(),Wt(),document.querySelectorAll("[data-tp-widget]").forEach(t=>{t instanceof HTMLElement&&!t.dataset.tpInitialized&&(Fe(t),t.dataset.tpInitialized="true")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",r1):r1();typeof MutationObserver<"u"&&new MutationObserver(t=>{t.forEach(r=>{r.addedNodes.forEach(u=>{u instanceof HTMLElement&&(u.matches("[data-tp-widget]")&&!u.dataset.tpInitialized&&(jt(),Wt(),Fe(u),u.dataset.tpInitialized="true"),u.querySelectorAll("[data-tp-widget]").forEach(n=>{n instanceof HTMLElement&&!n.dataset.tpInitialized&&(jt(),Wt(),Fe(n),n.dataset.tpInitialized="true")}))})})}).observe(document.body,{childList:!0,subtree:!0});return h1(xc);})();
 /*! Bundled license information:
 
 @mdit/plugin-katex/lib/index.js:

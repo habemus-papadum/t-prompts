@@ -71,8 +71,16 @@ class WidgetPreviewHandler(SimpleHTTPRequestHandler):
         elif self.path in ("/index.js", "/index.js.map"):
             # Serve widget JavaScript files from the widgets directory
             try:
+                # Try the Python package location first (for .js files)
                 widgets_dir = Path(__file__).parent
                 file_path = widgets_dir / self.path.lstrip("/")
+
+                # For .map files, use the original widgets/dist directory (not copied to package)
+                if not file_path.exists() and self.path.endswith(".map"):
+                    # Navigate from src/t_prompts/widgets to widgets/dist
+                    widgets_dist = widgets_dir.parent.parent.parent / "widgets" / "dist" / self.path.lstrip("/")
+                    if widgets_dist.exists():
+                        file_path = widgets_dist
 
                 if file_path.exists():
                     self.send_response(200)

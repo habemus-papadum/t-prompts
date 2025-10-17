@@ -191,7 +191,6 @@ describe('WidgetContainer', () => {
       const text = chunk.textContent || '';
       const classes = chunk.className;
       const isWrapContainer = classes.includes('tp-wrap-container');
-      const isContinuation = classes.includes('tp-wrap-continuation');
 
       if (!isWrapContainer) {
         chunkTexts.push(text);

@@ -588,6 +588,11 @@
   display: inline;
 }
 
+/* Line breaks for wrapping - exclude from copy/paste */
+.tp-wrap-newline {
+  user-select: none;
+}
+
 /* Continuation lines (after a wrap) - need relative positioning for ::before gutter icon */
 .tp-wrap-continuation {
   position: relative;

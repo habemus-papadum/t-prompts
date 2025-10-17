@@ -7,36 +7,6 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function filterSourceMap(sourceMapPath) {
-  // Read the source map
-  const sourceMap = JSON.parse(fs.readFileSync(sourceMapPath, 'utf8'));
-
-  // Filter out node_modules from sources and sourcesContent
-  const filteredIndices = [];
-  const filteredSources = [];
-  const filteredSourcesContent = [];
-
-  sourceMap.sources.forEach((source, index) => {
-    if (!source.includes('node_modules')) {
-      filteredIndices.push(index);
-      filteredSources.push(source);
-      if (sourceMap.sourcesContent && sourceMap.sourcesContent[index]) {
-        filteredSourcesContent.push(sourceMap.sourcesContent[index]);
-      }
-    }
-  });
-
-  // Update the source map
-  sourceMap.sources = filteredSources;
-  if (sourceMap.sourcesContent && sourceMap.sourcesContent.length > 0) {
-    sourceMap.sourcesContent = filteredSourcesContent;
-  }
-
-  // Write the filtered source map back
-  fs.writeFileSync(sourceMapPath, JSON.stringify(sourceMap));
-  console.log(`  Filtered source map: removed ${sourceMap.sources.length - filteredSources.length} node_modules entries`);
-}
-
 function copyDistToPython() {
   const distDir = path.join(__dirname, 'dist');
   const pythonWidgetsDir = path.join(__dirname, '..', 'src', 't_prompts', 'widgets');
@@ -46,11 +16,11 @@ function copyDistToPython() {
     fs.mkdirSync(pythonWidgetsDir, { recursive: true });
   }
 
-  // Copy .js and .map files from dist/ to Python package
+  // Copy .js files from dist/ to Python package (exclude .map files)
   const files = fs.readdirSync(distDir);
   for (const file of files) {
     const ext = path.extname(file);
-    if (ext === '.js' || ext === '.map') {
+    if (ext === '.js') {
       const srcPath = path.join(distDir, file);
       const destPath = path.join(pythonWidgetsDir, file);
       fs.copyFileSync(srcPath, destPath);
@@ -94,6 +64,7 @@ async function build() {
       bundle: true,
       minify: true,
       sourcemap: true,
+      sourcesContent: false,  // Exclude source content from source map
       target: ['es2020'],
       format: 'iife',
       globalName: 'TPromptsWidgets',
@@ -107,13 +78,6 @@ async function build() {
     });
 
     console.log('✓ Build completed successfully');
-
-    // Filter source map to exclude node_modules
-    const sourceMapPath = path.join(outdir, 'index.js.map');
-    if (fs.existsSync(sourceMapPath)) {
-      filterSourceMap(sourceMapPath);
-      console.log('✓ Source map filtered');
-    }
 
     // Copy dist to Python package
     copyDistToPython();

@@ -219,6 +219,8 @@ widgets/coverage/
 
 # Don't ignore widgets/dist - it's bundled with Python package
 !widgets/dist/
+# Exclude source maps (only needed for local development)
+*.js.map
 
 # Scratchpad directory for temporary test/development code
 scratchpad/

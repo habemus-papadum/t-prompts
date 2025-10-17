@@ -5,7 +5,6 @@
       "Bash(python:*)",
       "Bash(git checkout:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nAdd UUID4 id fields to Element and StructuredPrompt classes\n\nThis commit adds unique identifier fields to both Element and \nStructuredPrompt classes to simplify JSON serialization and enable\neasier tracking of parent/child relationships.\n\nChanges:\n- Added uuid import and field to dataclasses imports\n- Added id field to Element dataclass with UUID4 default factory\n- Added _id field to StructuredPrompt.__init__ with UUID4 generation\n- Added id property to StructuredPrompt for public access\n\nAll elements (Static, StructuredInterpolation, ListInterpolation,\nImageInterpolation) now receive unique UUIDs upon construction.\nEach StructuredPrompt instance also gets its own unique UUID.\n\nThis change is backward compatible and doesn''t affect existing\nfunctionality.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git push:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr merge:*)",
@@ -54,7 +53,10 @@
       "Bash(./release.sh:*)",
       "Bash(uv sync:*)",
       "Bash(ls:*)",
-      "WebFetch(domain:mdit-plugins.github.io)"
+      "WebFetch(domain:mdit-plugins.github.io)",
+      "Bash(git rm:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(pnpm test:coverage:*)"
     ],
     "deny": [],
     "ask": []

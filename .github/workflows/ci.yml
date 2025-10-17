@@ -45,8 +45,52 @@ jobs:
       - name: Run linting
         run: pnpm lint
 
-      - name: Run tests
-        run: pnpm test
+      - name: Run tests with coverage
+        run: pnpm test:coverage
+
+      - name: Generate TypeScript Coverage Badge
+        if: github.ref == 'refs/heads/main'
+        working-directory: widgets
+        run: |
+          # Extract coverage percentage from coverage-summary.json
+          COVERAGE=$(node -p "
+            const summary = require('./coverage/coverage-summary.json');
+            const total = summary.total;
+            const statements = total.statements.pct;
+            const branches = total.branches.pct;
+            const functions = total.functions.pct;
+            const lines = total.lines.pct;
+            Math.round((statements + branches + functions + lines) / 4);
+          ")
+
+          echo "TypeScript Coverage: ${COVERAGE}%"
+
+          # Determine badge color
+          if [ "$COVERAGE" -ge 80 ]; then
+            COLOR="brightgreen"
+          elif [ "$COVERAGE" -ge 70 ]; then
+            COLOR="orange"
+          else
+            COLOR="red"
+          fi
+
+          # Create badge directory
+          mkdir -p ../badges
+
+          # Generate badge SVG using shields.io
+          curl -o ../badges/typescript-coverage.svg \
+            "https://img.shields.io/badge/TypeScript_Coverage-${COVERAGE}%25-${COLOR}"
+
+          echo "Generated badge with coverage ${COVERAGE}% and color ${COLOR}"
+
+      - name: Deploy TypeScript Coverage Badge
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./badges
+          publish_branch: typescript-coverage-badge
+          keep_files: false
 
   test:
     needs: build-widgets
