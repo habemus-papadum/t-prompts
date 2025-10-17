@@ -59,10 +59,13 @@ function wrapElement(
   container.classList.add('tp-wrap-container');
 
   // Create span for first part (no special classes, just copy originals)
-  const firstSpan = document.createElement('span');
-  copyDataAttributes(element, firstSpan);
-  copyClasses(element, firstSpan);
-  firstSpan.textContent = firstPart;
+  if (firstPart.length > 0) {
+    const firstSpan = document.createElement('span');
+    copyDataAttributes(element, firstSpan);
+    copyClasses(element, firstSpan);
+    firstSpan.textContent = firstPart;
+    container.appendChild(firstSpan);
+  }
 
   // Create line break
   const lineBreak = document.createElement('br');
@@ -80,13 +83,11 @@ function wrapElement(
     const wrappedRemainder = wrapElement(remainderSpan, columnLimit, columnLimit, chunks);
     // Mark the wrapped remainder as continuation (not the leaf spans)
     wrappedRemainder.classList.add('tp-wrap-continuation');
-    container.appendChild(firstSpan);
     container.appendChild(lineBreak);
     container.appendChild(wrappedRemainder);
   } else {
     // No further wrapping needed - mark this leaf span as continuation
     remainderSpan.classList.add('tp-wrap-continuation');
-    container.appendChild(firstSpan);
     container.appendChild(lineBreak);
     container.appendChild(remainderSpan);
   }
@@ -117,7 +118,7 @@ function processElement(
   if (currentColumn + textLength > columnLimit) {
     // Need to wrap
     const availableColumns = columnLimit - currentColumn;
-    const splitIndex = availableColumns > 0 ? availableColumns : columnLimit;
+    const splitIndex = availableColumns > 0 ? Math.min(availableColumns, textLength) : 0;
 
     // Create wrapped structure
     const container = wrapElement(element, splitIndex, columnLimit, chunks);
@@ -149,7 +150,10 @@ function processElement(
 
     // The rightmost element determines our new column position
     const rightmostText = rightmost.textContent || '';
-    return { nextElement: rightmost.nextElementSibling as HTMLElement | null, newColumn: rightmostText.length };
+    return {
+      nextElement: container.nextElementSibling as HTMLElement | null,
+      newColumn: rightmostText.length,
+    };
   }
 
   // No wrapping needed, advance column counter
