@@ -17,7 +17,7 @@ p6 = dedent(t"""
     Examples:
     {examples:examples}
 
-    Image reference: 
+    Image reference:
     {img2:img}
 
     Latex:
