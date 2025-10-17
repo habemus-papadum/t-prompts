@@ -46,7 +46,7 @@ jobs:
         run: pnpm lint
 
       - name: Run tests with coverage
-        run: pnpm test:coverage
+        run: pnpm --filter @t-prompts/widgets test:coverage
 
       - name: Generate TypeScript Coverage Badge
         if: github.ref == 'refs/heads/main'

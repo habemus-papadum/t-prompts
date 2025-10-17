@@ -6,8 +6,13 @@ repo_name: t-prompts
 
 theme:
   name: "material"
+  custom_dir: docs/overrides
   palette:
     primary: blue grey
+  features:
+    - navigation.instant
+    - navigation.tracking
+
 
 
 nav:
@@ -59,3 +64,7 @@ plugins:
           options:
             docstring_style: numpy
             show_submodules: true
+
+# Hooks to inject version from pyproject.toml
+hooks:
+  - docs/hooks.py
