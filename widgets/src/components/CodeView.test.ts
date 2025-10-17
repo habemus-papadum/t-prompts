@@ -1,6 +1,128 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { initWidget } from '../index';
 
+describe('CodeView image truncation', () => {
+  let container: HTMLDivElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    container.setAttribute('data-tp-widget', 'true');
+  });
+
+  it('truncates image chunks before and after a collapse cycle', () => {
+    const imageChunkId = 'chunk-image';
+    const textChunkId = 'chunk-text';
+    const elementIds = ['element-image', 'element-text'];
+
+    const widgetData = {
+      compiled_ir: {
+        ir_id: 'ir-image',
+        subtree_map: {
+          [elementIds[0]]: [imageChunkId],
+          [elementIds[1]]: [textChunkId],
+        },
+        num_elements: 2,
+      },
+      ir: {
+        chunks: [
+          {
+            type: 'ImageChunk',
+            image: {
+              base64_data: 'abc123',
+              format: 'PNG',
+              width: 50,
+              height: 50,
+            },
+            element_id: elementIds[0],
+            id: imageChunkId,
+            metadata: {},
+          },
+          {
+            type: 'TextChunk',
+            text: 'visible text',
+            element_id: elementIds[1],
+            id: textChunkId,
+            metadata: {},
+          },
+        ],
+        source_prompt_id: 'prompt-1',
+        id: 'ir-image',
+        metadata: {},
+      },
+      source_prompt: {
+        prompt_id: 'prompt-1',
+        children: [
+          {
+            type: 'static',
+            id: elementIds[0],
+            parent_id: 'prompt-1',
+            key: 0,
+            index: 0,
+            source_location: null,
+            value: '![PNG 50x50](...)',
+          },
+          {
+            type: 'static',
+            id: elementIds[1],
+            parent_id: 'prompt-1',
+            key: 1,
+            index: 1,
+            source_location: null,
+            value: 'visible text',
+          },
+        ],
+      },
+    };
+
+    const scriptTag = document.createElement('script');
+    scriptTag.setAttribute('data-role', 'tp-widget-data');
+    scriptTag.setAttribute('type', 'application/json');
+    scriptTag.textContent = JSON.stringify(widgetData);
+    container.appendChild(scriptTag);
+
+    const mountPoint = document.createElement('div');
+    mountPoint.className = 'tp-widget-mount';
+    container.appendChild(mountPoint);
+
+    initWidget(container);
+
+    const outputContainer = container.querySelector('.tp-output-container') as HTMLElement;
+    expect(outputContainer).toBeTruthy();
+
+    const foldingController = (container as any)._widgetComponent.foldingController;
+    expect(foldingController).toBeTruthy();
+
+    const getImageSpan = () =>
+      container.querySelector(`[data-chunk-id="${imageChunkId}"]`) as HTMLElement;
+
+    let imageSpan = getImageSpan();
+    expect(imageSpan).toBeTruthy();
+    expect(imageSpan.textContent).toBe('![PNG 50x50](...)');
+    expect(imageSpan.hasAttribute('title')).toBe(false);
+
+    foldingController.selectByIds([imageChunkId]);
+
+    const keydownEvent = new KeyboardEvent('keydown', {
+      key: ' ',
+      bubbles: true,
+    });
+    outputContainer.dispatchEvent(keydownEvent);
+
+    const collapsedPill = container.querySelector('.tp-chunk-collapsed') as HTMLElement;
+    expect(collapsedPill).toBeTruthy();
+
+    const dblclickEvent = new MouseEvent('dblclick', {
+      bubbles: true,
+    });
+    collapsedPill.dispatchEvent(dblclickEvent);
+
+    imageSpan = getImageSpan();
+    expect(imageSpan).toBeTruthy();
+    expect(imageSpan.textContent).toBe('![PNG 50x50](...)');
+    expect(imageSpan.hasAttribute('title')).toBe(false);
+  });
+});
+
 describe('CodeView collapse/expand cycle', () => {
   let container: HTMLDivElement;
 
