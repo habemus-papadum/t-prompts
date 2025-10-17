@@ -1,5 +1,19 @@
 """Structured prompts using template strings"""
 
+from .diff import (
+    ChunkDelta,
+    DiffStats,
+    ElementRenderDelta,
+    Movement,
+    NodeChange,
+    NodeDelta,
+    PromptDiff,
+    RenderDiff,
+    SequenceDiff,
+    SequenceDiffOp,
+    diff_rendered_prompts,
+    diff_structured_prompts,
+)
 from .element import (
     Element,
     ImageInterpolation,
@@ -41,6 +55,18 @@ __all__ = [
     "SourceLocation",
     "TextChunk",
     "ImageChunk",
+    "PromptDiff",
+    "RenderDiff",
+    "NodeDelta",
+    "NodeChange",
+    "Movement",
+    "SequenceDiff",
+    "SequenceDiffOp",
+    "DiffStats",
+    "ChunkDelta",
+    "ElementRenderDelta",
+    "diff_structured_prompts",
+    "diff_rendered_prompts",
     "Widget",
     "WidgetConfig",
     "prompt",
