@@ -15,20 +15,17 @@ import type { ImageData } from '../types';
 export function applyTransform_ImageTruncate(state: TransformState): TransformState {
   const { chunks } = state;
 
-  // Process all chunks
-  for (const [, chunkElement] of chunks) {
-    // Check if this chunk has image data stored
-    const imageData = (chunkElement as HTMLElement & { _imageData?: ImageData })._imageData;
-    if (!imageData) continue;
+  for (const [, elements] of chunks) {
+    for (const element of elements) {
+      const imageElement = element as HTMLElement & { _imageData?: ImageData };
+      const imageData = imageElement._imageData;
+      if (!imageData) continue;
 
-    // Truncate the text to remove the long base64 data URL
-    const format = imageData.format || 'PNG';
-    const truncatedText = `![${format} ${imageData.width}x${imageData.height}](...)`;
-    chunkElement.textContent = truncatedText;
-
-    // Remove title attribute - we don't want source location tooltip on images
-    // since they'll have hover preview instead
-    chunkElement.removeAttribute('title');
+      const format = imageData.format || 'PNG';
+      const truncatedText = `![${format} ${imageData.width}x${imageData.height}](...)`;
+      imageElement.textContent = truncatedText;
+      imageElement.removeAttribute('title');
+    }
   }
 
   return state;

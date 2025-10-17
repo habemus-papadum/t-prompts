@@ -65,3 +65,15 @@ hidden and any inline formatting survives round-trips.
 No additional changes are required to stabilise the current behaviour, but
 experimenting with a dynamic chunk lookup would make it easier to prototype more
 invasive transforms without worrying about metadata bookkeeping.
+
+## Additional Follow-up: Image Chunk Truncation
+
+Re-running the folding workflows surfaced an unrelated but long-standing bug in
+the `imageTruncate` transform. The transform iterated the `chunks` map as if
+each entry held a single `HTMLElement`, but the map actually stores arrays of
+top-level nodes. As a result the code wrote the truncated string to an array
+object instead of the DOM node, leaving the original `data:` URL visible in the
+CodeView. The transform now loops over every tracked element in the array and
+updates their text content and attributes directly. New unit and integration
+tests cover both the transform and the folding round-trip to ensure image chunks
+remain truncated before and after a collapse/expand cycle.
