@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { applyTransform_LineWrap } from './lineWrap';
+import { applyTransform_LineWrap, unwrapLineWrapping } from './lineWrap';
 import type { TransformState } from './base';
 import type { WidgetData, WidgetMetadata } from '../types';
 
@@ -276,5 +276,92 @@ describe('lineWrap transform', () => {
     expect(wrapContainer?.classList.contains('tp-chunk-static')).toBe(true);
     expect(wrapContainer?.classList.contains('tp-first-static')).toBe(true);
     expect(wrapContainer?.classList.contains('custom-class')).toBe(true);
+  });
+
+  it('should continue wrapping subsequent siblings and refresh chunk map', () => {
+    const span1 = document.createElement('span');
+    span1.setAttribute('data-chunk-id', 'chunk1');
+    span1.className = 'tp-chunk-static';
+    span1.textContent = 'a'.repeat(40);
+    container.appendChild(span1);
+    chunks.set('chunk1', [span1]);
+
+    const span2 = document.createElement('span');
+    span2.setAttribute('data-chunk-id', 'chunk2');
+    span2.className = 'tp-chunk-interpolation';
+    span2.textContent = 'b'.repeat(140);
+    container.appendChild(span2);
+    chunks.set('chunk2', [span2]);
+
+    const span3 = document.createElement('span');
+    span3.setAttribute('data-chunk-id', 'chunk3');
+    span3.className = 'tp-chunk-static';
+    span3.textContent = 'c'.repeat(140);
+    container.appendChild(span3);
+    chunks.set('chunk3', [span3]);
+
+    const state: TransformState = {
+      element: container,
+      chunks,
+      data: mockData,
+      metadata: mockMetadata,
+    };
+
+    applyTransform_LineWrap(state, 80);
+
+    expect(container.children.length).toBe(3);
+    const secondChild = container.children[1] as HTMLElement;
+    const thirdChild = container.children[2] as HTMLElement;
+
+    const chunk1Elements = chunks.get('chunk1');
+    expect(chunk1Elements).toBeDefined();
+    expect(chunk1Elements?.length).toBe(1);
+    expect(chunk1Elements?.[0]).toBe(span1);
+    expect(chunk1Elements?.[0].parentElement).toBe(container);
+
+    expect(secondChild.classList.contains('tp-wrap-container')).toBe(true);
+    expect(thirdChild.classList.contains('tp-wrap-container')).toBe(true);
+
+    const chunk2Elements = chunks.get('chunk2');
+    expect(chunk2Elements).toBeDefined();
+    expect(chunk2Elements?.length).toBe(1);
+    expect(chunk2Elements?.[0]).toBe(secondChild);
+    expect(chunk2Elements?.[0].parentElement).toBe(container);
+
+    const chunk3Elements = chunks.get('chunk3');
+    expect(chunk3Elements).toBeDefined();
+    expect(chunk3Elements?.length).toBe(1);
+    expect(chunk3Elements?.[0]).toBe(thirdChild);
+    expect(chunk3Elements?.[0].parentElement).toBe(container);
+  });
+
+  it('should rebuild chunk map when unwrapping line wrapping containers', () => {
+    const longText = 'a'.repeat(150);
+    const span = document.createElement('span');
+    span.setAttribute('data-chunk-id', 'chunk1');
+    span.className = 'tp-chunk-static';
+    span.textContent = longText;
+    container.appendChild(span);
+    chunks.set('chunk1', [span]);
+
+    const state: TransformState = {
+      element: container,
+      chunks,
+      data: mockData,
+      metadata: mockMetadata,
+    };
+
+    applyTransform_LineWrap(state, 80);
+
+    // unwrap and ensure the map now points back to the flat span
+    unwrapLineWrapping(container, chunks);
+
+    const chunkElements = chunks.get('chunk1');
+    expect(chunkElements).toBeDefined();
+    expect(chunkElements?.length).toBe(1);
+    const [chunkElement] = chunkElements!;
+    expect(chunkElement.classList.contains('tp-wrap-container')).toBe(false);
+    expect(chunkElement.parentElement).toBe(container);
+    expect(chunkElement.textContent).toBe(longText);
   });
 });

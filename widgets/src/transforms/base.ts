@@ -120,3 +120,54 @@ export function replaceInChunksMap(
   // Old element not found in map - do NOT add the new element.
   // This prevents nested containers from being added to the map during recursive wrapping.
 }
+
+/**
+ * Rebuild the chunks map from the current DOM tree.
+ *
+ * This scans the DOM for elements with data-chunk-id attributes and records
+ * only the highest-level element for each chunk. Any nested spans created by
+ * transforms (such as line wrapping) are ignored so that the map contains
+ * stable top-level containers for each chunk ID.
+ */
+export function rebuildChunksMap(
+  root: HTMLElement,
+  map: Map<string, HTMLElement[]>
+): void {
+  const newEntries = new Map<string, HTMLElement[]>();
+
+  const chunkElements = root.querySelectorAll<HTMLElement>('[data-chunk-id]');
+
+  for (const element of chunkElements) {
+    const chunkId = element.dataset.chunkId;
+    if (!chunkId) {
+      continue;
+    }
+
+    // Skip elements that are nested inside another element with the same chunk ID.
+    let ancestor = element.parentElement;
+    let hasSameChunkAncestor = false;
+    while (ancestor && ancestor !== root) {
+      if (ancestor instanceof HTMLElement && ancestor.dataset.chunkId === chunkId) {
+        hasSameChunkAncestor = true;
+        break;
+      }
+      ancestor = ancestor.parentElement;
+    }
+
+    if (hasSameChunkAncestor) {
+      continue;
+    }
+
+    const existing = newEntries.get(chunkId);
+    if (existing) {
+      existing.push(element);
+    } else {
+      newEntries.set(chunkId, [element]);
+    }
+  }
+
+  map.clear();
+  for (const [chunkId, elements] of newEntries.entries()) {
+    map.set(chunkId, elements);
+  }
+}

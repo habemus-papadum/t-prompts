@@ -7,7 +7,7 @@
  */
 
 import type { TransformState } from './base';
-import { replaceInChunksMap } from './base';
+import { replaceInChunksMap, rebuildChunksMap } from './base';
 
 const DEFAULT_COLUMN_LIMIT = 90;
 
@@ -43,8 +43,7 @@ function copyClasses(fromElement: HTMLElement, toElement: HTMLElement): void {
 function wrapElement(
   element: HTMLElement,
   splitIndex: number,
-  columnLimit: number,
-  chunks: Map<string, HTMLElement[]>
+  columnLimit: number
 ): HTMLElement {
   const text = element.textContent || '';
 
@@ -77,7 +76,7 @@ function wrapElement(
   // Check if remainder needs further wrapping
   if (remainder.length > columnLimit) {
     // Recursively wrap the remainder
-    const wrappedRemainder = wrapElement(remainderSpan, columnLimit, columnLimit, chunks);
+    const wrappedRemainder = wrapElement(remainderSpan, columnLimit, columnLimit);
     // Mark the wrapped remainder as continuation (not the leaf spans)
     wrappedRemainder.classList.add('tp-wrap-continuation');
     container.appendChild(firstSpan);
@@ -120,7 +119,7 @@ function processElement(
     const splitIndex = availableColumns > 0 ? availableColumns : columnLimit;
 
     // Create wrapped structure
-    const container = wrapElement(element, splitIndex, columnLimit, chunks);
+    const container = wrapElement(element, splitIndex, columnLimit);
 
     // Replace in DOM
     if (element.parentNode) {
@@ -149,7 +148,10 @@ function processElement(
 
     // The rightmost element determines our new column position
     const rightmostText = rightmost.textContent || '';
-    return { nextElement: rightmost.nextElementSibling as HTMLElement | null, newColumn: rightmostText.length };
+    return {
+      nextElement: container.nextElementSibling as HTMLElement | null,
+      newColumn: rightmostText.length,
+    };
   }
 
   // No wrapping needed, advance column counter
@@ -205,6 +207,8 @@ export function applyTransform_LineWrap(
     currentColumn = result.newColumn;
     currentElement = result.nextElement;
   }
+
+  rebuildChunksMap(element, chunks);
 
   return state;
 }
@@ -284,4 +288,6 @@ export function unwrapLineWrapping(element: HTMLElement, chunks: Map<string, HTM
   for (const br of lineBreaks) {
     br.remove();
   }
+
+  rebuildChunksMap(element, chunks);
 }
