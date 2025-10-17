@@ -254,6 +254,82 @@ describe('lineWrap transform', () => {
     });
   });
 
+  it('should continue processing siblings after wrapping an element', () => {
+    const span1 = document.createElement('span');
+    span1.setAttribute('data-chunk-id', 'chunk1');
+    span1.className = 'tp-chunk-static';
+    span1.textContent = 'a'.repeat(80);
+    container.appendChild(span1);
+    chunks.set('chunk1', [span1]);
+
+    const span2 = document.createElement('span');
+    span2.setAttribute('data-chunk-id', 'chunk2');
+    span2.className = 'tp-chunk-static';
+    span2.textContent = 'b'.repeat(150);
+    container.appendChild(span2);
+    chunks.set('chunk2', [span2]);
+
+    const span3 = document.createElement('span');
+    span3.setAttribute('data-chunk-id', 'chunk3');
+    span3.className = 'tp-chunk-static';
+    span3.textContent = 'c'.repeat(150);
+    container.appendChild(span3);
+    chunks.set('chunk3', [span3]);
+
+    const state: TransformState = {
+      element: container,
+      chunks,
+      data: mockData,
+      metadata: mockMetadata,
+    };
+
+    applyTransform_LineWrap(state, 100);
+
+    const secondChild = container.children[1] as HTMLElement;
+    expect(secondChild.classList.contains('tp-wrap-container')).toBe(true);
+
+    const thirdChild = container.children[2] as HTMLElement;
+    expect(thirdChild.classList.contains('tp-wrap-container')).toBe(true);
+
+    const trackedThird = chunks.get('chunk3');
+    expect(trackedThird?.[0]).toBe(thirdChild);
+  });
+
+  it('should wrap to a new line when no columns remain', () => {
+    const span1 = document.createElement('span');
+    span1.setAttribute('data-chunk-id', 'chunk1');
+    span1.className = 'tp-chunk-static';
+    span1.textContent = 'a'.repeat(100);
+    container.appendChild(span1);
+    chunks.set('chunk1', [span1]);
+
+    const span2 = document.createElement('span');
+    span2.setAttribute('data-chunk-id', 'chunk2');
+    span2.className = 'tp-chunk-static';
+    span2.textContent = 'b'.repeat(5);
+    container.appendChild(span2);
+    chunks.set('chunk2', [span2]);
+
+    const state: TransformState = {
+      element: container,
+      chunks,
+      data: mockData,
+      metadata: mockMetadata,
+    };
+
+    applyTransform_LineWrap(state, 100);
+
+    const secondChild = container.children[1] as HTMLElement;
+    expect(secondChild.classList.contains('tp-wrap-container')).toBe(true);
+
+    const firstNode = secondChild.firstChild as HTMLElement;
+    expect(firstNode?.nodeName).toBe('BR');
+
+    const remainderSpan = secondChild.querySelector('span.tp-wrap-continuation');
+    expect(remainderSpan).not.toBeNull();
+    expect(remainderSpan?.textContent).toBe('b'.repeat(5));
+  });
+
   it('should preserve CSS classes from original element', () => {
     const longText = 'a'.repeat(150);
     const span = document.createElement('span');
