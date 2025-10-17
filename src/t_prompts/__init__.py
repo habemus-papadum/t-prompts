@@ -29,7 +29,7 @@ from .structured_prompt import StructuredPrompt, dedent, prompt
 from .text import process_dedent
 from .widgets import Widget, WidgetConfig, get_default_widget_config, set_default_widget_config
 
-__version__ = "0.12.0-alpha"
+__version__ = "0.12.0"
 __all__ = [
     "StructuredPrompt",
     "TextInterpolation",
