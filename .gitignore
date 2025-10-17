@@ -222,6 +222,7 @@ widgets/dist/
 # Python package widget artifacts (built by TypeScript, not committed)
 src/t_prompts/widgets/index.js
 src/t_prompts/widgets/styles.css
+src/t_prompts/widgets/katex-bundle.css
 
 # Scratchpad directory for temporary test/development code
 scratchpad/

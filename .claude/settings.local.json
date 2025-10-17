@@ -56,7 +56,9 @@
       "WebFetch(domain:mdit-plugins.github.io)",
       "Bash(git rm:*)",
       "Bash(git check-ignore:*)",
-      "Bash(pnpm test:coverage:*)"
+      "Bash(pnpm test:coverage:*)",
+      "Bash(pnpm --filter @t-prompts/widgets test WidgetContainer)",
+      "Bash(pnpm --filter @t-prompts/widgets vitest run:*)"
     ],
     "deny": [],
     "ask": []
