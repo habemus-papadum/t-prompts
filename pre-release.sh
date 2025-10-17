@@ -30,8 +30,8 @@ echo "5. Python Lint..."
 uv run ruff check .
 
 echo ""
-echo "6. Update Notebooks (with --inplace)..."
-./test_notebooks.sh --inplace
+echo "6. Update Notebooks (in-place)..."
+./test_notebooks.sh
 
 echo ""
 echo "7. Commit Updated Notebooks..."
