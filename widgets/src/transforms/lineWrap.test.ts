@@ -222,6 +222,47 @@ describe('lineWrap transform', () => {
     expect(firstPart.textContent).toBe('b'.repeat(40));
   });
 
+  it('should continue processing siblings after wrapping an element', () => {
+    const longFirst = document.createElement('span');
+    longFirst.setAttribute('data-chunk-id', 'chunk1');
+    longFirst.className = 'tp-chunk-static';
+    longFirst.textContent = 'a'.repeat(120);
+    container.appendChild(longFirst);
+    chunks.set('chunk1', [longFirst]);
+
+    const longSecond = document.createElement('span');
+    longSecond.setAttribute('data-chunk-id', 'chunk2');
+    longSecond.className = 'tp-chunk-static';
+    longSecond.textContent = 'b'.repeat(80);
+    container.appendChild(longSecond);
+    chunks.set('chunk2', [longSecond]);
+
+    const shortThird = document.createElement('span');
+    shortThird.setAttribute('data-chunk-id', 'chunk3');
+    shortThird.className = 'tp-chunk-static';
+    shortThird.textContent = 'c'.repeat(10);
+    container.appendChild(shortThird);
+    chunks.set('chunk3', [shortThird]);
+
+    const state: TransformState = {
+      element: container,
+      chunks,
+      data: mockData,
+      metadata: mockMetadata,
+    };
+
+    applyTransform_LineWrap(state, 50);
+
+    const wrappedElements = container.querySelectorAll('.tp-wrap-container');
+    expect(wrappedElements.length).toBeGreaterThanOrEqual(2);
+
+    const secondEntry = chunks.get('chunk2');
+    expect(secondEntry?.[0].classList.contains('tp-wrap-container')).toBe(true);
+
+    const third = chunks.get('chunk3');
+    expect(third?.[0].textContent).toBe('c'.repeat(10));
+  });
+
   it('should only apply continuation class to direct children, not nested containers', () => {
     // Text that needs multiple wraps
     const longText = 'a'.repeat(250);

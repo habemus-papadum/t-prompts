@@ -149,7 +149,7 @@ function processElement(
 
     // The rightmost element determines our new column position
     const rightmostText = rightmost.textContent || '';
-    return { nextElement: rightmost.nextElementSibling as HTMLElement | null, newColumn: rightmostText.length };
+    return { nextElement: container.nextElementSibling as HTMLElement | null, newColumn: rightmostText.length };
   }
 
   // No wrapping needed, advance column counter
