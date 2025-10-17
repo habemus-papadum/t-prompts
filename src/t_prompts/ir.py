@@ -698,6 +698,48 @@ class CompiledIR:
         """Return a helpful debug representation."""
         return f"CompiledIR(chunks={len(self._chunks)}, elements={len(self._subtree_chunks)})"
 
+    def widget_data(self, config: Optional["WidgetConfig"] = None) -> dict[str, Any]:
+        """
+        Get the widget data dictionary (JSON) without rendering HTML.
+
+        This is useful for testing or when you need the raw data that would
+        be embedded in the widget HTML.
+
+        Parameters
+        ----------
+        config : WidgetConfig | None, optional
+            Widget configuration. If None, uses the package default config.
+
+        Returns
+        -------
+        dict[str, Any]
+            Dictionary with compiled_ir, ir, source_prompt, and config.
+
+        Examples
+        --------
+        >>> p = prompt(t"Hello {name}")
+        >>> compiled = p.ir().compile()
+        >>> data = compiled.widget_data()
+        >>> data.keys()
+        dict_keys(['compiled_ir', 'ir', 'source_prompt', 'config'])
+        """
+        from .widgets import get_default_widget_config
+
+        # Use provided config or fall back to package default
+        if config is None:
+            config = get_default_widget_config()
+
+        # Create combined JSON data with compiled IR, IR, source prompt, and config
+        return {
+            "compiled_ir": self.toJSON(),
+            "ir": self._ir.toJSON(),
+            "source_prompt": self._ir.source_prompt.toJSON(),
+            "config": {
+                "wrapping": config.wrapping,
+                "sourcePrefix": config.sourcePrefix,
+            },
+        }
+
     def widget(self, config: Optional["WidgetConfig"] = None) -> "Widget":
         """
         Create a Widget for Jupyter notebook display.
@@ -721,23 +763,12 @@ class CompiledIR:
         >>> from t_prompts import WidgetConfig
         >>> widget = compiled.widget(WidgetConfig(wrapping=False))
         """
-        from .widgets import Widget, _render_widget_html, get_default_widget_config
+        from .widgets import Widget, _render_widget_html
 
-        # Use provided config or fall back to package default
-        if config is None:
-            config = get_default_widget_config()
+        # Get the widget data
+        data = self.widget_data(config)
 
-        # Create combined JSON data with compiled IR, IR, source prompt, and config
-        data = {
-            "compiled_ir": self.toJSON(),
-            "ir": self._ir.toJSON(),
-            "source_prompt": self._ir.source_prompt.toJSON(),
-            "config": {
-                "wrapping": config.wrapping,
-                "sourcePrefix": config.sourcePrefix,
-            },
-        }
-
+        # Render to HTML
         html = _render_widget_html(data)
         return Widget(html)
 

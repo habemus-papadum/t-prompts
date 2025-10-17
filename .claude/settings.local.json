@@ -48,7 +48,13 @@
       "Bash(pnpm --filter @t-prompts/widgets build)",
       "Bash(node:*)",
       "Bash(pnpm --filter @t-prompts/widgets test CodeView)",
-      "Read(//Users/nehal/src/**)"
+      "Read(//Users/nehal/src/**)",
+      "WebSearch",
+      "Bash(chmod:*)",
+      "Bash(./release.sh:*)",
+      "Bash(uv sync:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:mdit-plugins.github.io)"
     ],
     "deny": [],
     "ask": []

@@ -2,6 +2,11 @@
  * Shared type definitions for widget components
  */
 
+/**
+ * View mode for the widget display
+ */
+export type ViewMode = 'code' | 'markdown' | 'split';
+
 // Widget data structures
 export interface WidgetData {
   compiled_ir?: CompiledIRData;

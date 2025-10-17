@@ -11,7 +11,7 @@ import type { TransformState } from '../transforms/base';
 import { applyTransform_CreateChunks } from '../transforms/createChunks';
 import { applyTransform_AddTyping } from '../transforms/typing';
 import { applyTransform_ImageTruncate } from '../transforms/imageTruncate';
-import { applyTransform_LineWrap } from '../transforms/lineWrap';
+import { applyTransform_LineWrap,} from '../transforms/lineWrap';
 import { applyTransform_ImageHoverPreview } from '../transforms/imageHoverPreview';
 import { applyTransform_MarkBoundaries } from '../transforms/boundaries';
 import type { FoldingController } from '../folding/controller';
@@ -55,8 +55,6 @@ export function buildCodeView(
   state = applyTransform_ImageHoverPreview(state);
   state = applyTransform_MarkBoundaries(state);
 
-  // Future transforms can be added here:
-  // state = applyTransform_SyntaxHighlighting(state);
 
   // 4. Selection tracking with debouncing
   let selectionTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -158,9 +156,6 @@ export function buildCodeView(
   };
 
   function handleChunksCollapsed(collapsedIds: string[]): void {
-    // 1. Unwrap line wrapping before making changes
-    // TEMPORARILY COMMENTED OUT FOR TESTING
-    // unwrapLineWrapping(element, chunkIdToTopElements);
 
     // 2. Process each collapsed chunk
     for (let i = 0; i < collapsedIds.length; i++) {
@@ -206,17 +201,9 @@ export function buildCodeView(
       chunkIdToTopElements.set(collapsedId, [collapsedSpan]);
     }
 
-    // 3. Re-apply line wrapping
-    // TEMPORARILY COMMENTED OUT FOR TESTING
-    // applyTransform_LineWrap({ element, chunks: chunkIdToTopElements, data, metadata });
-
-    // NOTE: Don't cleanup here - hidden children need to stay in the map for expand
   }
 
   function handleChunkExpanded(expandedId: string): void {
-    // 1. Unwrap line wrapping before making changes
-    // TEMPORARILY COMMENTED OUT FOR TESTING
-    // unwrapLineWrapping(element, chunkIdToTopElements);
 
     const collapsed = foldingController.getCollapsedChunk(expandedId);
     if (!collapsed) return;
@@ -241,9 +228,6 @@ export function buildCodeView(
     collapsedSpan.remove();
     chunkIdToTopElements.delete(expandedId);
 
-    // 3. Re-apply line wrapping
-    // TEMPORARILY COMMENTED OUT FOR TESTING
-    // applyTransform_LineWrap({ element, chunks: chunkIdToTopElements, data, metadata });
   }
 
   function handleStateReset(): void {

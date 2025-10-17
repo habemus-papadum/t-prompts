@@ -11,20 +11,19 @@ if TYPE_CHECKING:
 _bundle_injected = False
 
 
-def _get_widget_bundle() -> tuple[str, str]:
+def _get_widget_bundle() -> str:
     """
-    Get the widget JavaScript bundle and CSS.
+    Get the widget JavaScript bundle.
 
     Returns
     -------
-    tuple[str, str]
-        JavaScript bundle and CSS content as strings.
+    str
+        JavaScript bundle content as string.
     """
     # Import from utils.py which has the path logic
     from . import utils
 
     js_path = utils.get_widget_path() / "index.js"
-    css_path = utils.get_widget_path() / "katex.css"
 
     if not js_path.exists():
         raise FileNotFoundError(
@@ -33,9 +32,8 @@ def _get_widget_bundle() -> tuple[str, str]:
         )
 
     js_bundle = js_path.read_text()
-    css_bundle = css_path.read_text() if css_path.exists() else ""
 
-    return js_bundle, css_bundle
+    return js_bundle
 
 
 def _render_widget_html(data: dict[str, Any], *, force_inject: bool = False) -> str:
@@ -63,14 +61,10 @@ def _render_widget_html(data: dict[str, Any], *, force_inject: bool = False) -> 
     html_parts = []
 
     if should_inject:
-        # Get JavaScript and CSS bundles
-        js_bundle, css_bundle = _get_widget_bundle()
+        # Get JavaScript bundle
+        js_bundle = _get_widget_bundle()
 
-        # Inject CSS
-        if css_bundle:
-            html_parts.append(f'<style id="tp-widget-katex-css">{css_bundle}</style>')
-
-        # Inject JavaScript bundle
+        # Inject JavaScript bundle (includes widget styles with KaTeX from CDN)
         html_parts.append(f'<script id="tp-widget-bundle">{js_bundle}</script>')
 
         # Mark as injected

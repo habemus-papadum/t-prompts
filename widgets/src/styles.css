@@ -1,5 +1,8 @@
 /* T-Prompts Widget Styles */
 
+/* Import KaTeX CSS and fonts from CDN */
+@import url('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css');
+
 /* =============================================================================
    CSS VARIABLES FOR THEMING
    ============================================================================= */
@@ -103,21 +106,118 @@
   }
 }
 
-/* Main widget container - three-pane grid layout */
-.tp-widget-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--tp-spacing);
+/* Main widget output container */
+.tp-widget-output {
+  display: flex;
+  flex-direction: column;
   font-family: var(--tp-font-family);
   font-size: 14px;
   color: var(--tp-color-fg);
   background: var(--tp-color-bg);
   border: 1px solid var(--tp-color-border);
   border-radius: 6px;
-  padding: var(--tp-spacing);
   margin: calc(var(--tp-spacing) * 2) 0;
   max-width: 100%;
   overflow: hidden;
+}
+
+/* =============================================================================
+   TOOLBAR STYLES
+   ============================================================================= */
+
+.tp-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 2lh;
+  padding: 0 calc(var(--tp-spacing) * 1.5);
+  background: var(--tp-color-bg);
+  border-bottom: 1px solid var(--tp-color-border);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tp-toolbar-title {
+  color: var(--tp-color-fg);
+  opacity: 0.8;
+}
+
+.tp-view-toggle {
+  display: flex;
+  gap: 0;
+}
+
+.tp-view-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tp-color-muted);
+  cursor: pointer;
+  transition: all 0.1s ease;
+  user-select: none;
+}
+
+.tp-view-toggle-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.tp-view-toggle-btn:hover {
+  background: hsla(var(--tp-hue-static), 10%, 50%, 0.1);
+  color: var(--tp-color-fg);
+}
+
+.tp-view-toggle-btn.active {
+  background: hsla(var(--tp-hue-interpolation), 60%, 50%, 0.15);
+  color: var(--tp-color-accent);
+}
+
+.tp-view-toggle-btn:active {
+  transform: scale(0.96);
+}
+
+/* Dark mode toolbar adjustments */
+@media (prefers-color-scheme: dark) {
+  .tp-view-toggle-btn:hover {
+    background: hsla(var(--tp-hue-static), 10%, 80%, 0.1);
+  }
+
+  .tp-view-toggle-btn.active {
+    background: hsla(var(--tp-hue-interpolation), 60%, 70%, 0.15);
+  }
+}
+
+/* =============================================================================
+   CONTENT AREA LAYOUT
+   ============================================================================= */
+
+.tp-content-area {
+  display: flex;
+  flex-direction: row;
+  max-height: 60lh; /* ~100 lines at line-height 1.6 = 100 * 1.6 = 160 / 2.67 ≈ 60lh */
+  overflow: hidden;
+}
+
+.tp-panel {
+  flex: 1;
+  overflow: auto;
+  padding: var(--tp-spacing);
+  min-width: 0; /* Allow flex shrinking */
+}
+
+.tp-panel:not(:last-child) {
+  border-right: 1px solid var(--tp-color-border);
+}
+
+.tp-panel.hidden {
+  display: none;
 }
 
 /* Output container for chunks */
@@ -127,14 +227,124 @@
   line-height: 1.6;
   color: var(--tp-color-fg);
   max-width: 110ch;
-  word-break: break-all;
   position: relative;
   outline: none; /* Remove focus outline for keyboard events */
+  padding-left: 2ch; /* Space for gutter wrap markers */
 }
 
-/* Wrapping mode (default) */
+/* Markdown container */
+.tp-markdown-container {
+  font-family: var(--tp-font-family);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--tp-color-fg);
+  max-width: 80ch;
+}
+
+/* Markdown typography */
+.tp-markdown-container h1,
+.tp-markdown-container h2,
+.tp-markdown-container h3,
+.tp-markdown-container h4,
+.tp-markdown-container h5,
+.tp-markdown-container h6 {
+  margin-top: 1.5lh;
+  margin-bottom: 0.75lh;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--tp-color-fg);
+}
+
+.tp-markdown-container h1 { font-size: 2em; }
+.tp-markdown-container h2 { font-size: 1.5em; }
+.tp-markdown-container h3 { font-size: 1.25em; }
+.tp-markdown-container h4 { font-size: 1em; }
+.tp-markdown-container h5 { font-size: 0.875em; }
+.tp-markdown-container h6 { font-size: 0.85em; }
+
+.tp-markdown-container p {
+  margin-top: 0;
+  margin-bottom: 1lh;
+}
+
+.tp-markdown-container ul,
+.tp-markdown-container ol {
+  margin-top: 0;
+  margin-bottom: 1lh;
+  padding-left: 2ch;
+}
+
+.tp-markdown-container li {
+  margin-bottom: 0.25lh;
+}
+
+.tp-markdown-container code {
+  padding: 0.2em 0.4em;
+  background: hsla(var(--tp-hue-static), 20%, 50%, 0.08);
+  border-radius: 3px;
+  font-family: var(--tp-font-mono);
+  font-size: 0.9em;
+}
+
+.tp-markdown-container pre {
+  padding: var(--tp-spacing);
+  background: hsla(var(--tp-hue-static), 20%, 50%, 0.08);
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-bottom: 1lh;
+}
+
+.tp-markdown-container pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.tp-markdown-container img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 1lh 0;
+}
+
+.tp-markdown-container strong {
+  font-weight: 600;
+}
+
+.tp-markdown-container em {
+  font-style: italic;
+}
+
+.tp-markdown-container blockquote {
+  margin: 1lh 0;
+  padding-left: 1ch;
+  border-left: 4px solid var(--tp-color-border);
+  color: var(--tp-color-muted);
+}
+
+.tp-markdown-container a {
+  color: var(--tp-color-accent);
+  text-decoration: none;
+}
+
+.tp-markdown-container a:hover {
+  text-decoration: underline;
+}
+
+/* Dark mode markdown adjustments */
+@media (prefers-color-scheme: dark) {
+  .tp-markdown-container code {
+    background: hsla(var(--tp-hue-static), 20%, 50%, 0.15);
+  }
+
+  .tp-markdown-container pre {
+    background: hsla(var(--tp-hue-static), 20%, 50%, 0.15);
+  }
+}
+
+/* Wrapping mode (default) - uses JavaScript line wrapping at 110ch */
 .tp-output-container.wrap {
-  white-space: pre-wrap;
+  white-space: pre;
+  overflow-x: auto;
 }
 
 /* Scrolling mode (horizontal scroll, no wrapping) */
@@ -150,7 +360,6 @@
 
 /* Static text - neutral baseline */
 .tp-chunk-static {
-  white-space: pre-wrap;
   color: hsl(
     var(--tp-hue-static),
     var(--tp-static-fg-s),
@@ -166,7 +375,6 @@
 
 /* Interpolations - blue for dynamic data */
 .tp-chunk-interpolation {
-  white-space: pre-wrap;
   color: hsl(
     var(--tp-hue-interpolation),
     var(--tp-interp-fg-s),
@@ -182,7 +390,6 @@
 
 /* Nested prompts - purple for composition */
 .tp-chunk-nested_prompt {
-  white-space: pre-wrap;
   color: hsl(
     var(--tp-hue-nested),
     var(--tp-nested-fg-s),
@@ -198,7 +405,6 @@
 
 /* Lists - teal for collections */
 .tp-chunk-list {
-  white-space: pre-wrap;
   color: hsl(
     var(--tp-hue-list),
     var(--tp-list-fg-s),
@@ -263,7 +469,6 @@
 
 /* Unknown types - red warning */
 .tp-chunk-unknown {
-  white-space: pre-wrap;
   color: hsl(
     var(--tp-hue-unknown),
     var(--tp-unknown-fg-s),
@@ -381,6 +586,11 @@
 /* Container created when an element is wrapped */
 .tp-wrap-container {
   display: inline;
+}
+
+/* Continuation lines (after a wrap) - need relative positioning for ::before gutter icon */
+.tp-wrap-continuation {
+  position: relative;
 }
 
 /* Continuation lines (after a wrap) - add gutter icon */

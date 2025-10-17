@@ -5,19 +5,36 @@ from t_prompts.widgets import run_preview
 
 # Combine everything
 intro = "This is a comprehensive test"
-examples = [prompt(t"Example {str(i):{i}}") for i in range(3)]
+examples = [prompt(t"- Example {str(i):{i}}") for i in range(3)]
 img2 = Image.new("RGB", (50, 50), color="red")
-long = "a" * 220
+long = ("a" * 240 )
+latex = r"""$$x^n + y^n = z^n $$"""  # Simple LaTeX expression
 p6 = dedent(t"""
     Introduction: {intro:intro}
+
     {long}
+
     Examples:
     {examples:examples}
 
-    Image reference: {img2:img}
+    Image reference: 
+    {img2:img}
+
+    Latex:
+    {latex:latex}
 
     Conclusion: This demonstrates all widget features working together.
     """)
+
+intro = "This is a comprehensive test"
+long = "a" * 240
+p6 = dedent(t"""
+
+    Introduction: {intro:intro}
+    {long}
+
+
+""")
 
 
 def my_prompt():

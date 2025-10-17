@@ -9,7 +9,7 @@
 import type { TransformState } from './base';
 import { replaceInChunksMap } from './base';
 
-const DEFAULT_COLUMN_LIMIT = 100;
+const DEFAULT_COLUMN_LIMIT = 90;
 
 /**
  * Copy all data-* attributes from one element to another
@@ -176,8 +176,26 @@ export function applyTransform_LineWrap(
       continue;
     }
 
+    const text = currentElement.textContent || '';
+
     // Skip non-text elements
-    if (!currentElement.textContent) {
+    if (!text) {
+      currentElement = currentElement.nextElementSibling as HTMLElement | null;
+      continue;
+    }
+
+    // Check if text contains newline characters - if so, reset column counter
+    // This handles cases like dedent(t"...\n...") where newlines are text content
+    if (text.includes('\n')) {
+      // For newline-only elements, just reset and continue
+      if (text === '\n') {
+        currentColumn = 0;
+        currentElement = currentElement.nextElementSibling as HTMLElement | null;
+        continue;
+      }
+      // For elements with embedded newlines, find the position after the last newline
+      const lastNewlineIndex = text.lastIndexOf('\n');
+      currentColumn = text.length - lastNewlineIndex - 1;
       currentElement = currentElement.nextElementSibling as HTMLElement | null;
       continue;
     }

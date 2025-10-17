@@ -68,6 +68,28 @@ class WidgetPreviewHandler(SimpleHTTPRequestHandler):
                 self.end_headers()
                 error_html = f"<html><body><h1>Error</h1><pre>{e}\n\n{traceback.format_exc()}</pre></body></html>"
                 self.wfile.write(error_html.encode())
+        elif self.path in ("/index.js", "/index.js.map"):
+            # Serve widget JavaScript files from the widgets directory
+            try:
+                widgets_dir = Path(__file__).parent
+                file_path = widgets_dir / self.path.lstrip("/")
+
+                if file_path.exists():
+                    self.send_response(200)
+                    if self.path.endswith(".js"):
+                        self.send_header("Content-type", "application/javascript")
+                    elif self.path.endswith(".map"):
+                        self.send_header("Content-type", "application/json")
+                    self.end_headers()
+
+                    with open(file_path, "rb") as f:
+                        self.wfile.write(f.read())
+                else:
+                    print(f"[GET {self.path}] File not found: {file_path}")
+                    self.send_error(404, f"File not found: {self.path}")
+            except Exception as e:
+                print(f"[GET {self.path}] ERROR: {e}")
+                self.send_error(500, str(e))
         else:
             # For other paths, use default behavior
             super().do_GET()

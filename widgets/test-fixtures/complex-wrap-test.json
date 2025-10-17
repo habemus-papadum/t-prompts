@@ -1,0 +1,144 @@
+{
+  "compiled_ir": {
+    "ir_id": "9dc923c9-246f-4ccd-91e6-39c16fc8932f",
+    "subtree_map": {
+      "2554e7eb-3563-4f07-a36b-927c80d9b13d": [
+        "13483206-2641-4117-944c-5da5a7a5552d"
+      ],
+      "54d7cdd4-70a2-415d-b193-177efdbf9dec": [
+        "22db5552-51df-47c5-869a-bd76fc4b27ab"
+      ],
+      "59c92ab7-2beb-4352-b703-d293903b101b": [
+        "1c1233db-a0c0-43bd-9ceb-ee83280d96a3"
+      ],
+      "fc07cb8f-0f80-49e1-a401-cf85e9d6e580": [
+        "dfc64981-52cd-4a3e-9732-4ac750ded3ad"
+      ],
+      "5d849f72-7b8d-43fe-9a11-648e16176c9d": [],
+      "5f9ad81b-58ae-425b-99c1-f75e22324529": [
+        "13483206-2641-4117-944c-5da5a7a5552d",
+        "22db5552-51df-47c5-869a-bd76fc4b27ab",
+        "1c1233db-a0c0-43bd-9ceb-ee83280d96a3",
+        "dfc64981-52cd-4a3e-9732-4ac750ded3ad"
+      ]
+    },
+    "num_elements": 6
+  },
+  "ir": {
+    "chunks": [
+      {
+        "type": "TextChunk",
+        "text": "Introduction: ",
+        "element_id": "2554e7eb-3563-4f07-a36b-927c80d9b13d",
+        "id": "13483206-2641-4117-944c-5da5a7a5552d",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "This is a comprehensive test",
+        "element_id": "54d7cdd4-70a2-415d-b193-177efdbf9dec",
+        "id": "22db5552-51df-47c5-869a-bd76fc4b27ab",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "\n",
+        "element_id": "59c92ab7-2beb-4352-b703-d293903b101b",
+        "id": "1c1233db-a0c0-43bd-9ceb-ee83280d96a3",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "element_id": "fc07cb8f-0f80-49e1-a401-cf85e9d6e580",
+        "id": "dfc64981-52cd-4a3e-9732-4ac750ded3ad",
+        "metadata": {}
+      }
+    ],
+    "source_prompt_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+    "id": "9dc923c9-246f-4ccd-91e6-39c16fc8932f",
+    "metadata": {}
+  },
+  "source_prompt": {
+    "prompt_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+    "children": [
+      {
+        "type": "static",
+        "id": "2554e7eb-3563-4f07-a36b-927c80d9b13d",
+        "parent_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+        "key": 0,
+        "index": 0,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 47
+        },
+        "value": "Introduction: "
+      },
+      {
+        "type": "interpolation",
+        "id": "54d7cdd4-70a2-415d-b193-177efdbf9dec",
+        "parent_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+        "key": "intro",
+        "index": 1,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 47
+        },
+        "expression": "intro",
+        "conversion": null,
+        "format_spec": "intro",
+        "render_hints": "",
+        "value": "This is a comprehensive test"
+      },
+      {
+        "type": "static",
+        "id": "59c92ab7-2beb-4352-b703-d293903b101b",
+        "parent_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+        "key": 1,
+        "index": 2,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 47
+        },
+        "value": "\n"
+      },
+      {
+        "type": "interpolation",
+        "id": "fc07cb8f-0f80-49e1-a401-cf85e9d6e580",
+        "parent_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+        "key": "long",
+        "index": 3,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 47
+        },
+        "expression": "long",
+        "conversion": null,
+        "format_spec": "",
+        "render_hints": "",
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "type": "static",
+        "id": "5d849f72-7b8d-43fe-9a11-648e16176c9d",
+        "parent_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+        "key": 2,
+        "index": 4,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 47
+        },
+        "value": ""
+      }
+    ]
+  },
+  "config": {
+    "wrapping": true,
+    "sourcePrefix": "/Users/nehal/src/structured-prompts"
+  }
+}
