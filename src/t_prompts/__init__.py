@@ -1,5 +1,11 @@
 """Structured prompts using template strings"""
 
+from .diff import (
+    RenderedPromptDiff,
+    StructuredPromptDiff,
+    diff_rendered_prompts,
+    diff_structured_prompts,
+)
 from .element import (
     Element,
     ImageInterpolation,
@@ -47,6 +53,10 @@ __all__ = [
     "dedent",
     "get_default_widget_config",
     "set_default_widget_config",
+    "StructuredPromptDiff",
+    "RenderedPromptDiff",
+    "diff_structured_prompts",
+    "diff_rendered_prompts",
     "parse_format_spec",
     "parse_render_hints",
     "parse_separator",
