@@ -71,10 +71,19 @@ export interface ImageData {
 }
 
 /**
+ * Size information for a chunk
+ */
+export interface ChunkSize {
+  character: number;
+  pixel: number;
+}
+
+/**
  * Centralized metadata computed from widget data.
  * These maps are view-agnostic and can be reused across different visualizations.
  */
 export interface WidgetMetadata {
   elementTypeMap: Record<string, string>;
   elementLocationMap: Record<string, string>;
+  chunkSizeMap: Record<string, ChunkSize>;
 }

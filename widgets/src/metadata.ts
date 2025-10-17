@@ -11,6 +11,8 @@ import type {
   PromptData,
   ElementData,
   SourceLocationData,
+  ChunkSize,
+  IRData,
 } from './types';
 
 /**
@@ -149,6 +151,53 @@ function buildElementTypeMap(promptData: PromptData | null): Record<string, stri
 }
 
 /**
+ * Build a map from chunk ID to chunk size (character count and pixel width).
+ *
+ * For text chunks:
+ *   - character: number of text characters (for LLM token estimation)
+ *   - pixel: 0 (text doesn't have pixel dimensions)
+ *
+ * For image chunks:
+ *   - character: 0 (images don't have text characters)
+ *   - pixel: width * height in pixels
+ *
+ * @param irData - The IR data containing chunks
+ * @returns Map from chunk ID to size information
+ */
+function buildChunkSizeMap(irData: IRData | null): Record<string, ChunkSize> {
+  const map: Record<string, ChunkSize> = {};
+
+  if (!irData || !irData.chunks) {
+    return map;
+  }
+
+  for (const chunk of irData.chunks) {
+    if (chunk.type === 'TextChunk' && chunk.text !== undefined) {
+      // Text chunks: count characters, no pixel size
+      map[chunk.id] = {
+        character: chunk.text.length,
+        pixel: 0,
+      };
+    } else if (chunk.type === 'ImageChunk' && chunk.image) {
+      // Image chunks: no character count, use pixel dimensions (width * height)
+      const imgData = chunk.image;
+      map[chunk.id] = {
+        character: 0,
+        pixel: imgData.width * imgData.height,
+      };
+    } else {
+      // Unknown chunk type
+      map[chunk.id] = {
+        character: 0,
+        pixel: 0,
+      };
+    }
+  }
+
+  return map;
+}
+
+/**
  * Compute all widget metadata from widget data.
  * This centralizes all map-building logic and creates view-agnostic metadata
  * that can be reused across different visualizations.
@@ -162,5 +211,6 @@ export function computeWidgetMetadata(data: WidgetData): WidgetMetadata {
   return {
     elementTypeMap: buildElementTypeMap(data.source_prompt || null),
     elementLocationMap: buildElementLocationMap(data.source_prompt || null, sourcePrefix),
+    chunkSizeMap: buildChunkSizeMap(data.ir || null),
   };
 }
