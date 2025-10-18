@@ -11,6 +11,8 @@ import { replaceInChunksMap } from './base';
 
 const DEFAULT_COLUMN_LIMIT = 90;
 
+type ImageDataCarrier = HTMLElement & { _imageData?: unknown };
+
 /**
  * Copy all data-* attributes from one element to another
  */
@@ -107,9 +109,9 @@ function wrapElement(
   }
 
   // Copy special data (like _imageData) from original element to container
-  const elementWithImageData = element as HTMLElement & { _imageData?: any };
-  if (elementWithImageData._imageData) {
-    (container as typeof elementWithImageData)._imageData = elementWithImageData._imageData;
+  const elementWithImageData = element as ImageDataCarrier;
+  if (elementWithImageData._imageData !== undefined) {
+    (container as ImageDataCarrier)._imageData = elementWithImageData._imageData;
   }
 
   return container;
@@ -285,9 +287,9 @@ export function unwrapLineWrapping(element: HTMLElement, chunks: Map<string, HTM
     replacement.textContent = fullText;
 
     // Copy special data (like _imageData)
-    const containerWithImageData = container as HTMLElement & { _imageData?: any };
-    if (containerWithImageData._imageData) {
-      (replacement as typeof containerWithImageData)._imageData = containerWithImageData._imageData;
+    const containerWithImageData = container as ImageDataCarrier;
+    if (containerWithImageData._imageData !== undefined) {
+      (replacement as ImageDataCarrier)._imageData = containerWithImageData._imageData;
     }
 
     // Replace in DOM

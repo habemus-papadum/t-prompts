@@ -1,11 +1,31 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { initWidget } from '../index';
+import type { WidgetContainer } from '../components/WidgetContainer';
+import type { CodeView } from '../components/CodeView';
+import type { Component } from '../components/base';
+
+type WidgetHostElement = HTMLDivElement & { _widgetComponent?: WidgetContainer };
+
+function getWidget(container: WidgetHostElement): WidgetContainer {
+  if (!container._widgetComponent) {
+    throw new Error('Widget component not initialized');
+  }
+  return container._widgetComponent;
+}
+
+function isCodeView(component: Component): component is CodeView {
+  return typeof (component as Partial<CodeView>).chunkIdToTopElements !== 'undefined';
+}
+
+function findCodeView(widget: WidgetContainer): CodeView | undefined {
+  return widget.views.find(isCodeView);
+}
 
 describe('CodeView image truncation', () => {
-  let container: HTMLDivElement;
+  let container: WidgetHostElement;
 
   beforeEach(() => {
-    container = document.createElement('div');
+    container = document.createElement('div') as WidgetHostElement;
     container.setAttribute('data-tp-widget', 'true');
   });
 
@@ -89,16 +109,16 @@ describe('CodeView image truncation', () => {
     const outputContainer = container.querySelector('.tp-output-container') as HTMLElement;
     expect(outputContainer).toBeTruthy();
 
-    const foldingController = (container as any)._widgetComponent.foldingController;
+    const foldingController = getWidget(container).foldingController;
     expect(foldingController).toBeTruthy();
 
-    const getImageSpan = () =>
-      container.querySelector(`[data-chunk-id="${imageChunkId}"]`) as HTMLElement;
+    const getImageSpan = (): HTMLElement | null =>
+      container.querySelector(`[data-chunk-id="${imageChunkId}"]`);
 
     let imageSpan = getImageSpan();
     expect(imageSpan).toBeTruthy();
-    expect(imageSpan.textContent).toBe('![PNG 50x50](...)');
-    expect(imageSpan.hasAttribute('title')).toBe(false);
+    expect(imageSpan?.textContent).toBe('![PNG 50x50](...)');
+    expect(imageSpan?.hasAttribute('title')).toBe(false);
 
     foldingController.selectByIds([imageChunkId]);
 
@@ -118,17 +138,17 @@ describe('CodeView image truncation', () => {
 
     imageSpan = getImageSpan();
     expect(imageSpan).toBeTruthy();
-    expect(imageSpan.textContent).toBe('![PNG 50x50](...)');
-    expect(imageSpan.hasAttribute('title')).toBe(false);
+    expect(imageSpan?.textContent).toBe('![PNG 50x50](...)');
+    expect(imageSpan?.hasAttribute('title')).toBe(false);
   });
 });
 
 describe('CodeView collapse/expand cycle', () => {
-  let container: HTMLDivElement;
+  let container: WidgetHostElement;
 
   beforeEach(() => {
     // Create fresh container for each test
-    container = document.createElement('div');
+    container = document.createElement('div') as WidgetHostElement;
     container.setAttribute('data-tp-widget', 'true');
   });
 
@@ -224,15 +244,14 @@ describe('CodeView collapse/expand cycle', () => {
     initWidget(container);
 
     // Get the widget component from container
-    const widget = (container as any)._widgetComponent;
-    expect(widget).toBeTruthy();
+    const widget = getWidget(container);
 
     // Get the output container (where chunks are rendered)
     const outputContainer = container.querySelector('.tp-output-container') as HTMLElement;
     expect(outputContainer).toBeTruthy();
 
     // Get folding controller from widget
-    const foldingController = (widget as any).foldingController;
+    const foldingController = widget.foldingController;
     expect(foldingController).toBeTruthy();
 
     // ==== CYCLE 1: Select → Collapse ====
@@ -435,8 +454,7 @@ describe('CodeView collapse/expand cycle', () => {
 
     initWidget(container);
 
-    const widget = (container as any)._widgetComponent;
-    expect(widget).toBeTruthy();
+    const widget = getWidget(container);
 
     const outputContainer = container.querySelector('.tp-output-container') as HTMLElement;
     expect(outputContainer).toBeTruthy();
@@ -451,7 +469,7 @@ describe('CodeView collapse/expand cycle', () => {
     expect(initialTop).toBeTruthy();
     expect(initialTop?.classList.contains('tp-wrap-container')).toBe(true);
 
-    const foldingController = (widget as any).foldingController;
+    const foldingController = widget.foldingController;
     expect(foldingController).toBeTruthy();
 
     foldingController.selectByIds([chunkIds[0]]);
@@ -573,8 +591,7 @@ describe('CodeView collapse/expand cycle', () => {
     initWidget(container);
 
     // Get the widget component from container
-    const widget = (container as any)._widgetComponent;
-    expect(widget).toBeTruthy();
+    const widget = getWidget(container);
 
     // Get the output container (where chunks are rendered)
     const outputContainer = container.querySelector('.tp-output-container') as HTMLElement;
@@ -635,16 +652,16 @@ describe('CodeView collapse/expand cycle', () => {
       console.log('After selection debounce');
 
       // Check if the folding controller has selections
-      const foldingController = (widget as any).foldingController;
+      const foldingController = widget.foldingController;
       const selections = foldingController.getSelections();
       console.log('Folding controller selections:', selections);
 
       // Check the CodeView's chunkIdToTopElements map
       console.log('Widget has views?', !!widget.views);
       console.log('Widget views length:', widget.views?.length);
-      const codeView = widget.views?.[0];
+      const codeView = findCodeView(widget);
       console.log('CodeView exists?', !!codeView);
-      const chunkMap = (codeView as any)?.chunkIdToTopElements;
+      const chunkMap = codeView?.chunkIdToTopElements;
       console.log('chunkIdToTopElements exists?', !!chunkMap);
 
       if (chunkMap) {
@@ -863,7 +880,7 @@ describe('CodeView collapse/expand cycle', () => {
       const outputContainer = container.querySelector('.tp-output-container') as HTMLElement;
       expect(outputContainer).toBeTruthy();
 
-      const widget = (container as any)._widgetComponent;
+      const widget = getWidget(container);
       const foldingController = widget.foldingController;
 
       foldingController.selectByIds([chunkIds[0], chunkIds[1]]);

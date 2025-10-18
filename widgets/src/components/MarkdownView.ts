@@ -10,6 +10,7 @@ import type { WidgetData, WidgetMetadata } from '../types';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingEvent, FoldingClient } from '../folding/types';
 import MarkdownIt from 'markdown-it';
+import type { PluginWithOptions } from 'markdown-it';
 import { katex as katexPlugin } from '@mdit/plugin-katex';
 import katex from 'katex';
 import {
@@ -220,7 +221,16 @@ function generateMarkdownWithPositions(data: WidgetData): {
 /**
  * Convert an image chunk to markdown image syntax with data URL
  */
-function imageToMarkdown(image: any): string {
+interface SerializedImage {
+  base64_data?: string;
+  data?: string;
+  format?: string;
+  width?: number;
+  height?: number;
+  mode?: string;
+}
+
+function imageToMarkdown(image: SerializedImage): string {
   try {
     // Extract image data - Python serialization uses 'base64_data', not 'data'
     const format = image.format?.toLowerCase() || 'png';
@@ -263,9 +273,13 @@ function renderMarkdownWithPositionTracking(markdownText: string): {
 
   // Add KaTeX plugin with all delimiters enabled
   // Supports: $...$ (inline), $$...$$ (block), \(...\) (inline), \[...\] (block)
-  md.use(katexPlugin as any, {
+  type KatexPluginOptions = {
+    delimiters?: 'all' | 'dollars' | Array<[string, string]>;
+  };
+  const katexPluginWithOptions = katexPlugin as unknown as PluginWithOptions<KatexPluginOptions>;
+  md.use(katexPluginWithOptions, {
     delimiters: 'all',
-  } as any);
+  });
 
   // Add custom plugin for position tracking
   const linePositionMap: ElementPositionMap = new Map();
