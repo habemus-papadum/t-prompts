@@ -5,9 +5,22 @@
   "description": "Jupyter notebook widgets for visualizing t-prompts structures",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
   "scripts": {
     "build": "tsc",
     "build:python": "node build.js",
+    "prepublishOnly": "pnpm build",
     "pretest": "node build.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
@@ -15,6 +28,20 @@
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "jupyter",
+    "widgets",
+    "visualization",
+    "prompts",
+    "structured-prompts",
+    "typescript"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/habemus-papadum/t-prompts.git",
+    "directory": "widgets"
   },
   "dependencies": {
     "@mdit/plugin-katex": "^0.23.2",
