@@ -77,6 +77,21 @@ def test_save_widget_html_contains_widget_data(temp_output_dir):
     assert 'children' in html_content
 
 
+def test_save_widget_html_includes_js_prelude(temp_output_dir):
+    """Test that saved HTML includes the JavaScript prelude."""
+    task = "translate"
+    p = prompt(t"Task: {task:t}")
+
+    output_path = temp_output_dir / "widget.html"
+    save_widget_html(p, output_path, "Test Widget")
+
+    html_content = output_path.read_text(encoding="utf-8")
+
+    # Should contain JavaScript bundle in the head
+    assert 'tp-widget-bundle' in html_content
+    assert '<script id="tp-widget-bundle' in html_content
+
+
 def test_save_widget_html_valid_html5(temp_output_dir):
     """Test that saved HTML has valid HTML5 structure."""
     p = prompt(t"Simple prompt")
@@ -171,6 +186,27 @@ def test_create_widget_gallery_contains_all_widgets(temp_output_dir):
     # (the bundle JavaScript also contains this string in selectors)
     widget_count = html_content.count('<div class="tp-widget-root" data-tp-widget>')
     assert widget_count == 3
+
+
+def test_create_widget_gallery_includes_js_prelude(temp_output_dir):
+    """Test that gallery HTML includes the JavaScript prelude only once."""
+    widgets = {
+        "Widget A": prompt(t"First widget"),
+        "Widget B": prompt(t"Second widget"),
+    }
+
+    output_path = temp_output_dir / "gallery.html"
+    create_widget_gallery(widgets, output_path, "Test Gallery")
+
+    html_content = output_path.read_text(encoding="utf-8")
+
+    # Should contain JavaScript bundle in the head
+    assert 'tp-widget-bundle' in html_content
+    assert '<script id="tp-widget-bundle' in html_content
+
+    # Should only appear once in the HTML (not duplicated per widget)
+    bundle_count = html_content.count('<script id="tp-widget-bundle')
+    assert bundle_count == 1
 
 
 def test_create_widget_gallery_contains_count(temp_output_dir):

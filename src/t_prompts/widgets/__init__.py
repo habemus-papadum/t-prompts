@@ -3,7 +3,7 @@
 from .config import WidgetConfig, get_default_widget_config, set_default_widget_config
 from .export import create_widget_gallery, save_widget_html
 from .preview import run_preview
-from .renderer import _render_widget_html
+from .renderer import _render_widget_html, js_prelude, setup_notebook
 from .utils import get_widget_js, get_widget_path
 from .widget import Widget
 
@@ -17,5 +17,7 @@ __all__ = [
     "save_widget_html",
     "create_widget_gallery",
     "run_preview",
+    "js_prelude",
+    "setup_notebook",
     "_render_widget_html",
 ]

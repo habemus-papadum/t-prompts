@@ -13,6 +13,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
+    {js_prelude}
     <style>
         body {{
             margin: 0;
@@ -62,6 +63,7 @@ GALLERY_TEMPLATE = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
+    {js_prelude}
     <style>
         body {{
             margin: 0;
@@ -157,14 +159,17 @@ def save_widget_html(
     >>> save_widget_html(p, "output/widget.html", "Simple Prompt")
     PosixPath('output/widget.html')
     """
+    from .renderer import js_prelude
+
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Get widget HTML
+    # Get widget HTML and JavaScript prelude
     widget_html = obj._repr_html_()
+    js_prelude_html = js_prelude()
 
     # Wrap in full HTML document
-    html = HTML_TEMPLATE.format(title=title, widget_html=widget_html)
+    html = HTML_TEMPLATE.format(title=title, js_prelude=js_prelude_html, widget_html=widget_html)
 
     # Write to file
     path.write_text(html, encoding="utf-8")
@@ -203,8 +208,13 @@ def create_widget_gallery(
     >>> create_widget_gallery(widgets, "output/gallery.html")
     PosixPath('output/gallery.html')
     """
+    from .renderer import js_prelude
+
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Get JavaScript prelude once for all widgets
+    js_prelude_html = js_prelude()
 
     # Render each widget
     gallery_items = []
@@ -231,7 +241,9 @@ def create_widget_gallery(
     gallery_html = "".join(gallery_items)
 
     # Wrap in full HTML document
-    html = GALLERY_TEMPLATE.format(title=title, count=len(widgets), gallery_items=gallery_html)
+    html = GALLERY_TEMPLATE.format(
+        title=title, js_prelude=js_prelude_html, count=len(widgets), gallery_items=gallery_html
+    )
 
     # Write to file
     path.write_text(html, encoding="utf-8")

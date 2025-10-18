@@ -551,6 +551,104 @@ class StructuredPrompt(Element, Mapping[str, InterpolationType]):
             keys += ", ..."
         return f"StructuredPrompt(keys=[{keys}], num_interpolations={len(self._interps)})"
 
+    def clone(self, *, key: Optional[str] = None) -> "StructuredPrompt":
+        """
+        Create a deep copy of this prompt with no parent and new source location.
+
+        This method allows reusing prompt structure in multiple locations. The cloned
+        prompt will have:
+        - A new unique ID
+        - No parent (can be nested anywhere)
+        - Source location captured at the clone() call site
+        - All nested StructuredPrompts recursively cloned
+        - Optionally a new key
+
+        Parameters
+        ----------
+        key : str | None, optional
+            Optional key for the cloned prompt. If None, uses the original key.
+
+        Returns
+        -------
+        StructuredPrompt
+            A deep copy of this prompt with no parent.
+
+        Examples
+        --------
+        Reuse a template in multiple places:
+
+        >>> template = prompt(t"Task: {task}")
+        >>> instance1 = template.clone()
+        >>> instance2 = template.clone()
+        >>> outer = prompt(t"{instance1:i1}\\n{instance2:i2}")
+
+        Clone with a new key:
+
+        >>> footer = prompt(t"--- End ---")
+        >>> page1_footer = footer.clone(key="page1")
+        >>> page2_footer = footer.clone(key="page2")
+
+        Notes
+        -----
+        This method recursively clones all nested StructuredPrompts, ensuring
+        that the entire tree is independent of the original.
+        """
+        from string.templatelib import Interpolation, Template
+
+        # Helper to recursively clone values
+        def clone_value(value: Any) -> Any:
+            if isinstance(value, StructuredPrompt):
+                return value.clone()
+            elif isinstance(value, list):
+                return [clone_value(item) for item in value]
+            else:
+                # Strings, images, etc. can be reused directly
+                return value
+
+        # Clone all interpolation values and create new Interpolation objects
+        # Note: Interpolation constructor is (value, expression, conversion, format_spec)
+        cloned_interps = []
+        for itp in self._template.interpolations:
+            cloned_value = clone_value(itp.value)
+            cloned_interps.append(
+                Interpolation(
+                    cloned_value,      # value comes first
+                    itp.expression,
+                    itp.conversion,
+                    itp.format_spec
+                )
+            )
+
+        # Build the new Template by interleaving strings and interpolations
+        # Template constructor takes: str, Interpolation, str, Interpolation, ..., str
+        template_args = []
+        for i, string in enumerate(self._template.strings):
+            template_args.append(string)
+            if i < len(cloned_interps):
+                template_args.append(cloned_interps[i])
+
+        new_template = Template(*template_args)
+
+        # Capture source location at clone() call site
+        clone_source_location = _capture_source_location()
+
+        # Create new StructuredPrompt with cloned template
+        cloned_prompt = StructuredPrompt(
+            new_template,
+            allow_duplicate_keys=self._allow_duplicates,
+            _processed_strings=self._processed_strings,  # Can reuse (immutable tuple)
+            _source_location=clone_source_location,
+        )
+
+        # Copy metadata (shallow copy is fine for dict)
+        cloned_prompt.metadata = self.metadata.copy()
+
+        # Set the key if provided
+        if key is not None:
+            cloned_prompt.key = key
+
+        return cloned_prompt
+
     def widget(self, config: Optional["WidgetConfig"] = None) -> "Widget":
         """
         Create a Widget for Jupyter notebook display.

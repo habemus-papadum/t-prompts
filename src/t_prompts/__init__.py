@@ -33,7 +33,14 @@ from .parsing import (
 from .source_location import SourceLocation
 from .structured_prompt import StructuredPrompt, dedent, prompt
 from .text import process_dedent
-from .widgets import Widget, WidgetConfig, get_default_widget_config, set_default_widget_config
+from .widgets import (
+    Widget,
+    WidgetConfig,
+    get_default_widget_config,
+    js_prelude,
+    set_default_widget_config,
+    setup_notebook,
+)
 
 __version__ = "0.15.0-alpha"
 __all__ = [
@@ -53,6 +60,8 @@ __all__ = [
     "dedent",
     "get_default_widget_config",
     "set_default_widget_config",
+    "js_prelude",
+    "setup_notebook",
     "StructuredPromptDiff",
     "RenderedPromptDiff",
     "diff_structured_prompts",

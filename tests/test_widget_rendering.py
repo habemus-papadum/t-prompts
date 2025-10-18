@@ -64,38 +64,27 @@ def test_html_contains_embedded_json():
     assert "type=\"application/json\"" in html
 
 
-def test_html_contains_javascript_bundle():
-    """Test that first call includes JavaScript bundle."""
-    from t_prompts.widgets import renderer as widget_renderer
-
-    # Reset the bundle injection flag
-    widget_renderer._bundle_injected = False
-
+def test_html_does_not_contain_javascript_bundle():
+    """Test that widget HTML no longer includes JavaScript bundle."""
     task = "translate"
     p = prompt(t"Task: {task:t}")
     html = p._repr_html_()
 
-    # First call should include the bundle
-    assert '<script id="tp-widget-bundle">' in html or '<script id="tp-widget-bundle"' in html
+    # Widget HTML should NOT include the bundle anymore
+    assert "tp-widget-bundle" not in html
+    assert "<script id=" not in html or '<script data-role="tp-widget-data"' in html
 
 
-def test_html_singleton_injection():
-    """Test that JavaScript bundle is always included (deduplication happens in JS)."""
-    task1 = "translate"
-    p1 = prompt(t"Task: {task1:t1}")
-    html1 = p1._repr_html_()
+def test_html_contains_helper_message():
+    """Test that widget HTML contains helper message for uninitalized state."""
+    task = "translate"
+    p = prompt(t"Task: {task:t}")
+    html = p._repr_html_()
 
-    # First call should include bundle
-    assert "tp-widget-bundle" in html1
-
-    # Second call should also include bundle (JavaScript handles deduplication)
-    task2 = "summarize"
-    p2 = prompt(t"Task: {task2:t2}")
-    html2 = p2._repr_html_()
-
-    # Bundle is always injected now - JS handles deduplication
-    assert "tp-widget-bundle" in html2
-    assert html2.count("tp-widget-bundle") == 1
+    # Should contain helper message
+    assert "tp-widget-helper" in html
+    assert "Widget not initialized" in html
+    assert "setup_notebook()" in html
 
 
 def test_html_contains_valid_json_data():
@@ -197,3 +186,48 @@ def test_ir_html_contains_rendered_output():
         # Validate source_prompt structure
         assert "prompt_id" in data["source_prompt"]
         assert "children" in data["source_prompt"]
+
+
+def test_js_prelude_returns_script_tag():
+    """Test that js_prelude() returns a script tag with the bundle."""
+    from t_prompts import js_prelude
+
+    prelude = js_prelude()
+
+    assert isinstance(prelude, str)
+    assert "<script" in prelude
+    assert "tp-widget-bundle" in prelude
+    assert "</script>" in prelude
+
+
+def test_js_prelude_has_cache_busting():
+    """Test that js_prelude() includes cache-busting hash in ID."""
+    from t_prompts import js_prelude
+
+    prelude = js_prelude()
+
+    # Should have hash-based ID like "tp-widget-bundle-a1b2c3d4"
+    assert 'id="tp-widget-bundle-' in prelude
+
+
+def test_setup_notebook_returns_widget():
+    """Test that setup_notebook() returns a Widget instance."""
+    from t_prompts import setup_notebook
+    from t_prompts.widgets import Widget
+
+    widget = setup_notebook()
+
+    assert isinstance(widget, Widget)
+
+
+def test_setup_notebook_contains_js_prelude():
+    """Test that setup_notebook() widget contains the JavaScript prelude."""
+    from t_prompts import setup_notebook
+
+    widget = setup_notebook()
+    html = widget._repr_html_()
+
+    assert isinstance(html, str)
+    assert "<script" in html
+    assert "tp-widget-bundle" in html
+    assert "</script>" in html

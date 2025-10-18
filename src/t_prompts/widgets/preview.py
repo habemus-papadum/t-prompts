@@ -190,6 +190,8 @@ def _generate_html(
     TypeError
         If the object returned by generator_func does not have _repr_html_() method.
     """
+    from .renderer import js_prelude
+
     print(f"  [HTML] Calling generator function: {generator_func.__name__}")
     obj = generator_func()
     print(f"  [HTML] Got object: {type(obj).__name__}")
@@ -204,6 +206,10 @@ def _generate_html(
 
     widget_html = obj._repr_html_()
     print(f"  [HTML] Widget HTML size: {len(widget_html)} bytes")
+
+    # Get JavaScript prelude for widget initialization
+    js_prelude_html = js_prelude()
+    print(f"  [HTML] JS prelude size: {len(js_prelude_html)} bytes")
 
     # Conditionally include banner and its styles
     banner_styles = ""
@@ -288,6 +294,7 @@ def _generate_html(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Widget Preview</title>
+    {js_prelude_html}
     <style>
         body {{
             margin: 0;
