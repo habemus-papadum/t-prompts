@@ -58,6 +58,9 @@ export function buildCodeView(
 
   // 4. Selection tracking with debouncing
   let selectionTimeout: ReturnType<typeof setTimeout> | null = null;
+  const DOUBLE_TAP_WINDOW_MS = 350;
+  let lastSpaceTapTimestamp = 0;
+  let spaceTapTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function handleSelectionChange(): void {
     if (selectionTimeout) {
@@ -120,14 +123,54 @@ export function buildCodeView(
     );
   }
 
-  // 5. Keyboard handler for collapse
+  function resetSpaceTapTimer(): void {
+    lastSpaceTapTimestamp = 0;
+    if (spaceTapTimeout) {
+      clearTimeout(spaceTapTimeout);
+      spaceTapTimeout = null;
+    }
+  }
+
+  function currentTimestamp(): number {
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+      return performance.now();
+    }
+    return Date.now();
+  }
+
+  // 5. Keyboard handler for collapse / expand
   function handleKeyDown(event: KeyboardEvent): void {
     if (event.key === ' ' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
       event.preventDefault();
       const selections = foldingController.getSelections();
       if (selections.length > 0) {
         foldingController.commitSelections();
+        const domSelection = window.getSelection();
+        if (domSelection && domSelection.rangeCount > 0) {
+          domSelection.removeAllRanges();
+          document.dispatchEvent(new Event('selectionchange'));
+        }
+        resetSpaceTapTimer();
+        return;
       }
+
+      const now = currentTimestamp();
+
+      if (lastSpaceTapTimestamp > 0 && now - lastSpaceTapTimestamp <= DOUBLE_TAP_WINDOW_MS) {
+        foldingController.expandAll();
+        resetSpaceTapTimer();
+        return;
+      }
+
+      lastSpaceTapTimestamp = now;
+
+      if (spaceTapTimeout) {
+        clearTimeout(spaceTapTimeout);
+      }
+
+      spaceTapTimeout = setTimeout(() => {
+        resetSpaceTapTimer();
+      }, DOUBLE_TAP_WINDOW_MS);
     }
   }
 
@@ -271,6 +314,8 @@ export function buildCodeView(
       if (selectionTimeout) {
         clearTimeout(selectionTimeout);
       }
+
+      resetSpaceTapTimer();
 
       // Unregister from folding controller
       foldingController.removeClient(foldingClient);

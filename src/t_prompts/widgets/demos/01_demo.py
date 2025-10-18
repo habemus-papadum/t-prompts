@@ -28,14 +28,6 @@ p6 = dedent(t"""
 
 intro = "This is a comprehensive test"
 long = "a" * 240
-p6 = dedent(t"""
-
-    Introduction: {intro:intro}
-    {long}
-
-
-""")
-
 
 def my_prompt():
     return p6

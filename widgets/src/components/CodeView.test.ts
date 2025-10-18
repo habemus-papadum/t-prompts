@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { initWidget } from '../index';
 
 describe('CodeView image truncation', () => {
@@ -285,6 +285,9 @@ describe('CodeView collapse/expand cycle', () => {
     expect(chunk1.style.display).toBe('none');
     expect(chunk2.style.display).toBe('none');
     expect(chunk3.style.display).not.toBe('none');
+
+    const domSelectionAfterCollapse = window.getSelection();
+    expect(domSelectionAfterCollapse?.rangeCount ?? 0).toBe(0);
 
     // Check that a collapsed chunk pill is present
     const collapsedPill1 = container.querySelector('.tp-chunk-collapsed') as HTMLElement;
@@ -759,11 +762,138 @@ describe('CodeView collapse/expand cycle', () => {
         expect(chunk2.style.display).toBe('none');
         expect(chunk3.style.display).toBe('none');
 
+        const domSelectionSecondCollapse = window.getSelection();
+        expect(domSelectionSecondCollapse?.rangeCount ?? 0).toBe(0);
+
         // Check that a collapsed chunk pill is present
         const collapsedPill2 = container.querySelector('.tp-chunk-collapsed') as HTMLElement;
         expect(collapsedPill2).toBeTruthy();
         console.log('Second collapsed pill:', collapsedPill2.textContent);
       });
+    });
+
+    it('expands all collapsed chunks when space bar is double-tapped without selection', () => {
+      const chunkIds = ['chunk-1', 'chunk-2', 'chunk-3'];
+      const elementIds = ['element-1', 'element-2', 'element-3'];
+
+      const widgetData = {
+        compiled_ir: {
+          ir_id: 'ir-double-space',
+          subtree_map: {
+            [elementIds[0]]: [chunkIds[0]],
+            [elementIds[1]]: [chunkIds[1]],
+            [elementIds[2]]: [chunkIds[2]],
+          },
+          num_elements: 3,
+        },
+        ir: {
+          chunks: [
+            {
+              type: 'TextChunk',
+              text: 'First chunk',
+              element_id: elementIds[0],
+              id: chunkIds[0],
+              metadata: {},
+            },
+            {
+              type: 'TextChunk',
+              text: 'Second chunk',
+              element_id: elementIds[1],
+              id: chunkIds[1],
+              metadata: {},
+            },
+            {
+              type: 'TextChunk',
+              text: 'Third chunk',
+              element_id: elementIds[2],
+              id: chunkIds[2],
+              metadata: {},
+            },
+          ],
+          source_prompt_id: 'prompt-double-space',
+          id: 'ir-double-space',
+          metadata: {},
+        },
+        source_prompt: {
+          prompt_id: 'prompt-double-space',
+          children: [
+            {
+              type: 'static',
+              id: elementIds[0],
+              parent_id: 'prompt-double-space',
+              key: 0,
+              index: 0,
+              source_location: null,
+              value: 'First chunk',
+            },
+            {
+              type: 'static',
+              id: elementIds[1],
+              parent_id: 'prompt-double-space',
+              key: 1,
+              index: 1,
+              source_location: null,
+              value: 'Second chunk',
+            },
+            {
+              type: 'static',
+              id: elementIds[2],
+              parent_id: 'prompt-double-space',
+              key: 2,
+              index: 2,
+              source_location: null,
+              value: 'Third chunk',
+            },
+          ],
+        },
+      };
+
+      const scriptTag = document.createElement('script');
+      scriptTag.setAttribute('data-role', 'tp-widget-data');
+      scriptTag.setAttribute('type', 'application/json');
+      scriptTag.textContent = JSON.stringify(widgetData);
+      container.appendChild(scriptTag);
+
+      const mountPoint = document.createElement('div');
+      mountPoint.className = 'tp-widget-mount';
+      container.appendChild(mountPoint);
+
+      initWidget(container);
+
+      const outputContainer = container.querySelector('.tp-output-container') as HTMLElement;
+      expect(outputContainer).toBeTruthy();
+
+      const widget = (container as any)._widgetComponent;
+      const foldingController = widget.foldingController;
+
+      foldingController.selectByIds([chunkIds[0], chunkIds[1]]);
+
+      const collapseEvent = new KeyboardEvent('keydown', {
+        key: ' ',
+        bubbles: true,
+      });
+      outputContainer.dispatchEvent(collapseEvent);
+
+      expect(outputContainer.querySelectorAll('.tp-chunk-collapsed')).toHaveLength(1);
+
+      let mockTime = 0;
+      const timeSpy = vi.spyOn(performance, 'now').mockImplementation(() => mockTime);
+
+      const spaceEvent = new KeyboardEvent('keydown', {
+        key: ' ',
+        bubbles: true,
+      });
+
+      mockTime = 100;
+      outputContainer.dispatchEvent(spaceEvent);
+      expect(outputContainer.querySelectorAll('.tp-chunk-collapsed')).toHaveLength(1);
+
+      mockTime = 240;
+      outputContainer.dispatchEvent(spaceEvent);
+
+      expect(outputContainer.querySelectorAll('.tp-chunk-collapsed')).toHaveLength(0);
+
+      timeSpy.mockRestore();
     });
   });
 });

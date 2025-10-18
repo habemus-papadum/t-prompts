@@ -1,13 +1,45 @@
 /**
  * Toolbar Component
  *
- * Displays view mode toggle buttons (code, markdown, split)
+ * Displays view mode toggle buttons (code, markdown, split) and auxiliary
+ * status indicators sourced from the folding controller.
  */
 
-import type { ViewMode } from '../types';
+import type { ChunkSize, ViewMode } from '../types';
+import type { FoldingController } from '../folding/controller';
+import type { FoldingClient, FoldingEvent } from '../folding/types';
+import { createVisibilityMeter } from './VisibilityMeter';
 
 export interface ToolbarCallbacks {
   onViewModeChange: (mode: ViewMode) => void;
+}
+
+export interface ToolbarMetrics {
+  totalCharacters: number;
+  totalPixels: number;
+  chunkIds: string[];
+  chunkSizeMap: Record<string, ChunkSize>;
+}
+
+export interface ToolbarOptions {
+  currentMode: ViewMode;
+  callbacks: ToolbarCallbacks;
+  foldingController: FoldingController;
+  metrics: ToolbarMetrics;
+}
+
+export interface ToolbarComponent {
+  element: HTMLElement;
+  destroy(): void;
+}
+
+type ToolbarElement = HTMLElement & {
+  _buttons?: Record<ViewMode, HTMLButtonElement>;
+};
+
+interface HelpFeature {
+  container: HTMLElement;
+  destroy(): void;
 }
 
 /**
@@ -40,18 +72,16 @@ const icons = {
     svg.setAttribute('fill', 'currentColor');
     svg.innerHTML = '<path d="M1 3h6v10H1V3zm1 1v8h4V4H2zm7-1h6v10H9V3zm1 1v8h4V4h-4z"/>';
     return svg;
-  },
+ },
 };
 
 /**
  * Create toolbar with view toggle buttons
- *
- * @param currentMode - The currently active view mode
- * @param callbacks - Event callbacks
- * @returns Toolbar element
  */
-export function createToolbar(currentMode: ViewMode, callbacks: ToolbarCallbacks): HTMLElement {
-  const toolbar = document.createElement('div');
+export function createToolbar(options: ToolbarOptions): ToolbarComponent {
+  const { currentMode, callbacks, foldingController, metrics } = options;
+
+  const toolbar = document.createElement('div') as ToolbarElement;
   toolbar.className = 'tp-toolbar';
 
   // Left side: Title
@@ -60,7 +90,22 @@ export function createToolbar(currentMode: ViewMode, callbacks: ToolbarCallbacks
   title.textContent = 't-prompts';
   toolbar.appendChild(title);
 
+  // Metric indicator (inline component)
+  const visibilityMeter = createVisibilityMeter({
+    totalCharacters: metrics.totalCharacters,
+    totalPixels: metrics.totalPixels,
+    showCharacterText: true,
+    showPixelText: true,
+    showCharacterPie: true,
+    showPixelPie: true,
+  });
+
   // Right side: View toggle buttons
+  const rightContainer = document.createElement('div');
+  rightContainer.className = 'tp-toolbar-right';
+
+  rightContainer.appendChild(visibilityMeter.element);
+
   const viewToggle = document.createElement('div');
   viewToggle.className = 'tp-view-toggle';
 
@@ -80,19 +125,74 @@ export function createToolbar(currentMode: ViewMode, callbacks: ToolbarCallbacks
   viewToggle.appendChild(markdownBtn);
   viewToggle.appendChild(splitBtn);
 
-  toolbar.appendChild(viewToggle);
+  rightContainer.appendChild(viewToggle);
+  const helpFeature = createHelpFeature();
+  rightContainer.appendChild(helpFeature.container);
+  toolbar.appendChild(rightContainer);
 
   // Store buttons for updating active state
-  (toolbar as any)._buttons = { code: codeBtn, markdown: markdownBtn, split: splitBtn };
+  toolbar._buttons = { code: codeBtn, markdown: markdownBtn, split: splitBtn };
 
-  return toolbar;
+  const foldingClient: FoldingClient = {
+    onStateChanged(event: FoldingEvent): void {
+      switch (event.type) {
+        case 'chunks-collapsed':
+        case 'chunk-expanded':
+        case 'state-reset':
+          recomputeVisibility();
+          break;
+        default:
+          break;
+      }
+    },
+  };
+
+  foldingController.addClient(foldingClient);
+
+  function recomputeVisibility(): void {
+    let visibleCharacters = 0;
+    let visiblePixels = 0;
+
+    for (const chunkId of metrics.chunkIds) {
+      if (foldingController.isCollapsed(chunkId)) {
+        continue;
+      }
+
+      const size = metrics.chunkSizeMap[chunkId];
+      if (!size) {
+        continue;
+      }
+
+      if (size.character) {
+        visibleCharacters += size.character;
+      }
+
+      if (size.pixel) {
+        visiblePixels += size.pixel;
+      }
+    }
+
+    visibilityMeter.update(visibleCharacters, visiblePixels);
+  }
+
+  recomputeVisibility();
+
+  return {
+    element: toolbar,
+    destroy(): void {
+      foldingController.removeClient(foldingClient);
+      visibilityMeter.destroy();
+      helpFeature.destroy();
+      toolbar.remove();
+    },
+  };
 }
 
 /**
  * Update toolbar active state
  */
 export function updateToolbarMode(toolbar: HTMLElement, mode: ViewMode): void {
-  const buttons = (toolbar as any)._buttons;
+  const buttons = (toolbar as ToolbarElement)._buttons;
   if (!buttons) return;
 
   // Remove active class from all buttons
@@ -126,4 +226,123 @@ function createToggleButton(
   }
 
   return button;
+}
+
+function createHelpFeature(): HelpFeature {
+  const container = document.createElement('div');
+  container.className = 'tp-help-container';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'tp-help-button';
+  button.title = 'Widget help';
+  button.setAttribute('aria-label', 'Widget help');
+  button.setAttribute('aria-haspopup', 'dialog');
+  button.setAttribute('aria-expanded', 'false');
+
+  button.innerHTML = `
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path
+        d="M12 21.75a9.75 9.75 0 1 0 0-19.5 9.75 9.75 0 0 0 0 19.5z"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+      />
+      <path
+        d="M12 16.5h.008M9.75 9.75a2.25 2.25 0 0 1 4.5 0c0 1.5-2.25 1.875-2.25 3v.375"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  `;
+
+  const popover = document.createElement('div');
+  popover.className = 'tp-help-popover';
+  popover.setAttribute('role', 'dialog');
+  popover.setAttribute('aria-modal', 'false');
+  popover.hidden = true;
+
+  const title = document.createElement('h3');
+  title.className = 'tp-help-title';
+  title.textContent = 'How to use this widget';
+
+  const list = document.createElement('ul');
+  list.className = 'tp-help-list';
+
+  const items: Array<[string, string]> = [
+    ['View modes', 'Use the toolbar toggles to switch between Code, Markdown, or Split views.'],
+    ['Collapse content', 'Select one or more elements and press the space bar to collapse them.'],
+    ['Expand content', 'Double-click a collapsed segment or double-tap the space bar when nothing is selected.'],
+  ];
+
+  for (const [heading, description] of items) {
+    const item = document.createElement('li');
+    const itemHeading = document.createElement('strong');
+    itemHeading.textContent = `${heading}: `;
+    item.appendChild(itemHeading);
+    item.append(description);
+    list.appendChild(item);
+  }
+
+  popover.appendChild(title);
+  popover.appendChild(list);
+
+  container.appendChild(button);
+  container.appendChild(popover);
+
+  let isOpen = false;
+
+  function open(): void {
+    if (isOpen) return;
+    isOpen = true;
+    popover.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    document.addEventListener('click', handleDocumentClick, true);
+    document.addEventListener('keydown', handleKeyDown, true);
+  }
+
+  function close(): void {
+    if (!isOpen) return;
+    isOpen = false;
+    popover.hidden = true;
+    button.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', handleDocumentClick, true);
+    document.removeEventListener('keydown', handleKeyDown, true);
+  }
+
+  function handleDocumentClick(event: MouseEvent): void {
+    if (!container.contains(event.target as Node)) {
+      close();
+    }
+  }
+
+  function handleKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      close();
+      button.focus();
+    }
+  }
+
+  const handleButtonClick = (event: MouseEvent): void => {
+    event.stopPropagation();
+    if (isOpen) {
+      close();
+    } else {
+      open();
+    }
+  };
+
+  button.addEventListener('click', handleButtonClick);
+
+  return {
+    container,
+    destroy(): void {
+      close();
+      button.removeEventListener('click', handleButtonClick);
+      container.remove();
+    },
+  };
 }

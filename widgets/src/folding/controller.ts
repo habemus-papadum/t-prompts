@@ -19,6 +19,7 @@ export class FoldingController {
   private state: FoldingState;
   private clients: Set<FoldingClient>;
   private indexMap: Map<ChunkId, number>; // ChunkId → index in visibleSequence
+  private collapsedChunkIds: Set<ChunkId>; // Set of all collapsed chunk IDs (containers + their children)
 
   /**
    * Create a new folding controller
@@ -33,6 +34,7 @@ export class FoldingController {
     };
     this.clients = new Set();
     this.indexMap = this.buildIndexMap();
+    this.collapsedChunkIds = new Set();
   }
 
   // ============================================================================
@@ -200,6 +202,12 @@ export class FoldingController {
       // Store in collapsed chunks map
       this.state.collapsedChunks.set(collapsedId, collapsedChunk);
 
+      // Add the container chunk ID and all its children to the collapsed set
+      this.collapsedChunkIds.add(collapsedId);
+      for (const childId of selectedChunks) {
+        this.collapsedChunkIds.add(childId);
+      }
+
       // Replace the selected range with the collapsed chunk in visible sequence
       this.state.visibleSequence.splice(start, end - start + 1, collapsedId);
 
@@ -252,6 +260,17 @@ export class FoldingController {
       throw new Error(`Collapsed chunk not in visible sequence: ${collapsedId}`);
     }
 
+    // Remove the container chunk ID from the collapsed set
+    this.collapsedChunkIds.delete(collapsedId);
+
+    // Remove children from the collapsed set, but skip children that are themselves collapsed containers
+    for (const childId of collapsedChunk.children) {
+      // If this child is itself a collapsed container, keep it in the set
+      if (!this.state.collapsedChunks.has(childId)) {
+        this.collapsedChunkIds.delete(childId);
+      }
+    }
+
     // Replace the collapsed chunk with its children
     this.state.visibleSequence.splice(index, 1, ...collapsedChunk.children);
 
@@ -271,6 +290,41 @@ export class FoldingController {
   // ============================================================================
   // Queries
   // ============================================================================
+
+  /**
+   * Check if a chunk ID is currently collapsed
+   *
+   * Returns true if the chunk is either:
+   * - A collapsed container chunk, OR
+   * - A child chunk inside a collapsed container
+   *
+   * @param chunkId - The chunk ID to check
+   * @returns True if the chunk is collapsed, false otherwise
+   */
+  isCollapsed(chunkId: ChunkId): boolean {
+    return this.collapsedChunkIds.has(chunkId);
+  }
+
+  /**
+   * Expand all currently collapsed chunks.
+   *
+   * Iteratively expands any collapsed container present in the visible sequence
+   * until no collapsed chunks remain. Each individual expansion emits its own
+   * chunk-expanded event.
+   */
+  expandAll(): void {
+    while (true) {
+      const nextCollapsed = this.state.visibleSequence.find(
+        (id) => this.collapsedChunkIds.has(id) && this.state.collapsedChunks.has(id)
+      );
+
+      if (!nextCollapsed) {
+        break;
+      }
+
+      this.expandChunk(nextCollapsed);
+    }
+  }
 
   /**
    * Get the current visible sequence

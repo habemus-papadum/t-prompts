@@ -4,8 +4,7 @@
  */
 
 import { initWidget } from './renderer';
-import widgetStyles from './styles.css';
-import { STYLES_HASH } from './generated';
+import { STYLES_HASH, WIDGET_STYLES } from './generated';
 
 // Export version matching Python package
 export const VERSION = '0.9.0-alpha';
@@ -41,7 +40,7 @@ function injectStyles(): void {
   // Inject new styles
   const styleElement = document.createElement('style');
   styleElement.id = styleId;
-  styleElement.textContent = widgetStyles;
+  styleElement.textContent = WIDGET_STYLES;
   document.head.appendChild(styleElement);
 
   if (window.__TPWidget) {

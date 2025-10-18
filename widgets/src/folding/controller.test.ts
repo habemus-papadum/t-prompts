@@ -649,4 +649,180 @@ describe('FoldingController', () => {
       expect(selections).toEqual([{ start: 2, end: 2 }]);
     });
   });
+
+  describe('isCollapsed', () => {
+    it('should return false for all chunks initially', () => {
+      expect(controller.isCollapsed('chunk1')).toBe(false);
+      expect(controller.isCollapsed('chunk2')).toBe(false);
+      expect(controller.isCollapsed('chunk3')).toBe(false);
+      expect(controller.isCollapsed('chunk4')).toBe(false);
+      expect(controller.isCollapsed('chunk5')).toBe(false);
+    });
+
+    it('should return true for container chunk after collapse', () => {
+      controller.addSelection(1, 2);
+      const collapsedIds = controller.commitSelections();
+
+      // The container should be marked as collapsed
+      expect(controller.isCollapsed(collapsedIds[0])).toBe(true);
+    });
+
+    it('should return true for child chunks after collapse', () => {
+      controller.addSelection(1, 2);
+      controller.commitSelections();
+
+      // Both children (chunk2 and chunk3) should be marked as collapsed
+      expect(controller.isCollapsed('chunk2')).toBe(true);
+      expect(controller.isCollapsed('chunk3')).toBe(true);
+    });
+
+    it('should return false for non-collapsed chunks when some chunks are collapsed', () => {
+      controller.addSelection(1, 2);
+      controller.commitSelections();
+
+      // Chunks outside the collapsed range should not be collapsed
+      expect(controller.isCollapsed('chunk1')).toBe(false);
+      expect(controller.isCollapsed('chunk4')).toBe(false);
+      expect(controller.isCollapsed('chunk5')).toBe(false);
+    });
+
+    it('should return false for container and children after expand', () => {
+      controller.addSelection(1, 2);
+      const collapsedIds = controller.commitSelections();
+
+      // Expand the chunk
+      controller.expandChunk(collapsedIds[0]);
+
+      // Container and children should no longer be collapsed
+      expect(controller.isCollapsed(collapsedIds[0])).toBe(false);
+      expect(controller.isCollapsed('chunk2')).toBe(false);
+      expect(controller.isCollapsed('chunk3')).toBe(false);
+    });
+
+    it('should handle multiple disjoint collapsed chunks', () => {
+      controller.addSelection(1, 1); // chunk2
+      controller.addSelection(3, 4); // chunk4, chunk5
+      const collapsedIds = controller.commitSelections();
+
+      // First collapsed chunk and its child
+      expect(controller.isCollapsed(collapsedIds[0])).toBe(true);
+      expect(controller.isCollapsed('chunk2')).toBe(true);
+
+      // Second collapsed chunk and its children
+      expect(controller.isCollapsed(collapsedIds[1])).toBe(true);
+      expect(controller.isCollapsed('chunk4')).toBe(true);
+      expect(controller.isCollapsed('chunk5')).toBe(true);
+
+      // Non-collapsed chunks
+      expect(controller.isCollapsed('chunk1')).toBe(false);
+      expect(controller.isCollapsed('chunk3')).toBe(false);
+    });
+
+    it('should handle nested collapsed chunks', () => {
+      // First collapse: chunks 1-2 (chunk2, chunk3)
+      controller.addSelection(1, 2);
+      const firstCollapsedIds = controller.commitSelections();
+      const firstCollapsedId = firstCollapsedIds[0];
+
+      // All should be marked as collapsed
+      expect(controller.isCollapsed(firstCollapsedId)).toBe(true);
+      expect(controller.isCollapsed('chunk2')).toBe(true);
+      expect(controller.isCollapsed('chunk3')).toBe(true);
+
+      // Sequence is now: ['chunk1', firstCollapsedId, 'chunk4', 'chunk5']
+      // Second collapse: indices 0-1 (chunk1 and firstCollapsedId)
+      controller.addSelection(0, 1);
+      const secondCollapsedIds = controller.commitSelections();
+      const secondCollapsedId = secondCollapsedIds[0];
+
+      // All should still be marked as collapsed
+      expect(controller.isCollapsed(secondCollapsedId)).toBe(true);
+      expect(controller.isCollapsed('chunk1')).toBe(true);
+      expect(controller.isCollapsed(firstCollapsedId)).toBe(true);
+      expect(controller.isCollapsed('chunk2')).toBe(true);
+      expect(controller.isCollapsed('chunk3')).toBe(true);
+
+      // Expand outer collapsed chunk
+      controller.expandChunk(secondCollapsedId);
+
+      // After expanding outer, the inner collapsed chunk and its children should still be collapsed
+      expect(controller.isCollapsed(secondCollapsedId)).toBe(false);
+      expect(controller.isCollapsed('chunk1')).toBe(false);
+      expect(controller.isCollapsed(firstCollapsedId)).toBe(true);
+      expect(controller.isCollapsed('chunk2')).toBe(true);
+      expect(controller.isCollapsed('chunk3')).toBe(true);
+
+      // Expand inner collapsed chunk
+      controller.expandChunk(firstCollapsedId);
+
+      // Now nothing should be collapsed
+      expect(controller.isCollapsed(firstCollapsedId)).toBe(false);
+      expect(controller.isCollapsed('chunk2')).toBe(false);
+      expect(controller.isCollapsed('chunk3')).toBe(false);
+    });
+
+    it('should return false for nonexistent chunk IDs', () => {
+      // Nonexistent chunks should return false
+      expect(controller.isCollapsed('nonexistent')).toBe(false);
+      expect(controller.isCollapsed('random-id')).toBe(false);
+    });
+
+    it('should handle collapse after expand cycle', () => {
+      // First cycle
+      controller.addSelection(1, 2);
+      const firstCollapsedIds = controller.commitSelections();
+      expect(controller.isCollapsed('chunk2')).toBe(true);
+
+      controller.expandChunk(firstCollapsedIds[0]);
+      expect(controller.isCollapsed('chunk2')).toBe(false);
+
+      // Second cycle - collapse same range again
+      controller.addSelection(1, 2);
+      const secondCollapsedIds = controller.commitSelections();
+      expect(controller.isCollapsed('chunk2')).toBe(true);
+      expect(controller.isCollapsed('chunk3')).toBe(true);
+
+      // Different container ID but same children
+      expect(secondCollapsedIds[0]).not.toBe(firstCollapsedIds[0]);
+    });
+  });
+
+  describe('expandAll', () => {
+    it('should expand all collapsed chunks', () => {
+      controller.addSelection(1, 3);
+      const collapsedIds = controller.commitSelections();
+
+      expect(controller.isCollapsed(collapsedIds[0])).toBe(true);
+
+      controller.expandAll();
+
+      expect(controller.isCollapsed(collapsedIds[0])).toBe(false);
+      expect(controller.getVisibleSequence()).toEqual(['chunk1', 'chunk2', 'chunk3', 'chunk4', 'chunk5']);
+    });
+
+    it('should expand nested collapsed chunks', () => {
+      controller.addSelection(1, 2);
+      const innerCollapsedIds = controller.commitSelections();
+      const innerId = innerCollapsedIds[0];
+
+      controller.addSelection(0, 1);
+      const outerCollapsedIds = controller.commitSelections();
+      const outerId = outerCollapsedIds[0];
+
+      expect(controller.isCollapsed(outerId)).toBe(true);
+      expect(controller.isCollapsed(innerId)).toBe(true);
+
+      controller.expandAll();
+
+      expect(controller.isCollapsed(outerId)).toBe(false);
+      expect(controller.isCollapsed(innerId)).toBe(false);
+      expect(controller.getVisibleSequence()).toEqual(['chunk1', 'chunk2', 'chunk3', 'chunk4', 'chunk5']);
+    });
+
+    it('should be a no-op when nothing is collapsed', () => {
+      const before = controller.getVisibleSequence();
+      expect(() => controller.expandAll()).not.toThrow();
+      expect(controller.getVisibleSequence()).toEqual(before);
+    });
+  });
 });

@@ -13,6 +13,7 @@ import { buildCodeView } from './CodeView';
 import { buildMarkdownView } from './MarkdownView';
 import { FoldingController } from '../folding/controller';
 import { createToolbar, updateToolbarMode } from './Toolbar';
+import type { ToolbarComponent } from './Toolbar';
 
 /**
  * Widget container component interface
@@ -40,6 +41,18 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   // 2. Initialize folding controller with chunk sequence
   const initialChunkIds = data.ir?.chunks?.map((chunk) => chunk.id) || [];
   const foldingController = new FoldingController(initialChunkIds);
+
+  const chunkSizeMap = metadata.chunkSizeMap;
+  let totalCharacters = 0;
+  let totalPixels = 0;
+  for (const chunkId of initialChunkIds) {
+    const size = chunkSizeMap[chunkId];
+    if (!size) {
+      continue;
+    }
+    totalCharacters += size.character ?? 0;
+    totalPixels += size.pixel ?? 0;
+  }
 
   // 3. Build both views
   const codeView = buildCodeView(data, metadata, foldingController);
@@ -85,9 +98,20 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   }
 
   // 8. Create toolbar
-  const toolbar = createToolbar(currentViewMode, {
-    onViewModeChange: setViewMode,
+  const toolbarComponent: ToolbarComponent = createToolbar({
+    currentMode: currentViewMode,
+    callbacks: {
+      onViewModeChange: setViewMode,
+    },
+    foldingController,
+    metrics: {
+      totalCharacters,
+      totalPixels,
+      chunkIds: initialChunkIds,
+      chunkSizeMap,
+    },
   });
+  const toolbar = toolbarComponent.element;
 
   // 9. Assemble
   element.appendChild(toolbar);
@@ -113,6 +137,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     destroy(): void {
       // Cleanup all views
       views.forEach((view) => view.destroy());
+      toolbarComponent.destroy();
       element.remove();
     },
   };
