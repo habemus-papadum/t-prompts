@@ -124,10 +124,10 @@ export function sourcePositionPlugin(md: MarkdownIt, positionMaps: SourcePositio
   const fallbackTextRenderer: RenderRule = (tokens, idx) => tokens[idx].content;
   const originalTextRenderer = md.renderer.rules.text || fallbackTextRenderer;
 
-  md.renderer.rules.text = (tokens, idx, options, env, self): string => {
+  md.renderer.rules.text = (tokens, idx, options, _env, self): string => {
     const token = tokens[idx];
     const inlineId = token.meta?.inlineId;
-    const rendered = originalTextRenderer(tokens, idx, options, env, self);
+    const rendered = originalTextRenderer(tokens, idx, options, _env, self);
 
     if (!inlineId) {
       return rendered;
@@ -140,7 +140,7 @@ export function sourcePositionPlugin(md: MarkdownIt, positionMaps: SourcePositio
     self.renderToken(tokens, idx, options);
   const originalCodeInline = md.renderer.rules.code_inline || fallbackCodeInlineRenderer;
 
-  md.renderer.rules.code_inline = (tokens, idx, options, env, self): string => {
+  md.renderer.rules.code_inline = (tokens, idx, options, _env, self): string => {
     const token = tokens[idx];
     const inlineId = token.meta?.inlineId;
 
@@ -148,7 +148,7 @@ export function sourcePositionPlugin(md: MarkdownIt, positionMaps: SourcePositio
       token.attrSet('data-md-inline-id', inlineId);
     }
 
-    return originalCodeInline(tokens, idx, options, env, self);
+    return originalCodeInline(tokens, idx, options, _env, self);
   };
 
   md.core.ruler.after('inline', 'tp-track-inline-positions', (state): void => {

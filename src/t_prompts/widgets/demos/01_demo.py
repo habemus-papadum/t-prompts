@@ -7,14 +7,17 @@ from t_prompts.widgets import run_preview
 intro = "This is a comprehensive test"
 examples = [prompt(t"- Example {str(i):{i}}") for i in range(3)]
 img2 = Image.new("RGB", (50, 50), color="red")
-long = ("a" * 240 )
-latex = r"""$$x^n + y^n = z^n $$"""  # Simple LaTeX expression
+long = "a" * 240
+latex_term_a = "x^n"
+latex_term_b = "y^n"
+latex_term_c = "z^n"
+latex = dedent(t"""
+    $${latex_term_a:latex_term_a} + {latex_term_b:latex_term_b} = {latex_term_c:latex_term_c}$$
+""")  # Simple LaTeX expression with interpolations
 code = dedent(t"""
-    ```python
     # Sample code block
     def hello_world():
         print("{intro:world}!")
-    ```
     """)
 p6 = dedent(t"""
     Introduction: {intro:intro}
@@ -35,8 +38,11 @@ p6 = dedent(t"""
     def hello_world():
         print("Hello, world!")
     ```
-    {code:code}
 
+    ```python
+    {code:code}
+    ```
+    
     ```python
     # Sample code block
     def hello_world():

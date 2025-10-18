@@ -522,6 +522,32 @@
   padding: 0;
 }
 
+.tp-code-chunk {
+  display: inline;
+}
+
+.tp-code-token {
+  font-family: var(--tp-font-mono);
+}
+
+.tp-code-token-keyword {
+  color: #d73a49;
+  font-weight: 600;
+}
+
+.tp-code-token-string {
+  color: #22863a;
+}
+
+.tp-code-token-comment {
+  color: #6a737d;
+  font-style: italic;
+}
+
+.tp-code-token-number {
+  color: #005cc5;
+}
+
 .tp-markdown-container img {
   max-width: 100%;
   height: auto;
@@ -561,6 +587,22 @@
 
   .tp-markdown-container pre {
     background: hsla(var(--tp-hue-static), 20%, 50%, 0.15);
+  }
+
+  .tp-code-token-keyword {
+    color: #ff7b72;
+  }
+
+  .tp-code-token-string {
+    color: #7ee787;
+  }
+
+  .tp-code-token-comment {
+    color: #8b949e;
+  }
+
+  .tp-code-token-number {
+    color: #79c0ff;
   }
 }
 

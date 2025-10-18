@@ -1,201 +1,263 @@
 {
   "compiled_ir": {
-    "ir_id": "a780f0ec-771c-4a48-8542-1ab9fada1d72",
+    "ir_id": "fece55af-a6eb-4207-bdae-817a805b8a8f",
     "subtree_map": {
-      "3d87b20e-328a-413e-8e3f-0e40de0e02e4": [
-        "d17a605c-fcf9-4672-99c0-2c8d0cca07ec"
+      "5a08c498-0717-4e20-bc6b-0ee48e4be34c": [
+        "ea9aadf7-f71f-4436-be24-01024bc69e5e"
       ],
-      "1dc46fcf-c051-4cba-b2f2-f6aa0a5f2b1d": [
-        "425cff53-3cf0-44a1-a9e6-a2a2a99e9015"
+      "0a7d4733-7d90-4516-bf31-6b575654917b": [
+        "ebeae32b-330e-47c3-b609-ad5c00771a1a"
       ],
-      "efd11e0a-a3bf-4759-8434-789151bb1889": [
-        "1cde6da7-df04-4ebd-bb4f-5a501c3aa60d"
+      "8c340c91-307e-4ab3-91f0-6a6e5153dd6e": [
+        "3c1f7a3c-2d5d-48d3-b4db-33d2f28abe90"
       ],
-      "f2b65932-8c7d-4fea-9d82-47a39373e41e": [
-        "02a85669-ee61-41eb-96d7-ceed40e2cb94"
+      "36a59fd6-ab8b-4716-9dfa-07bbb7ed1cfa": [
+        "8f9fd1bf-26db-41cb-a9ea-d45fc2b972de"
       ],
-      "1692a321-eb3a-4083-a08f-b7b4f4e374b0": [
-        "c96cefe2-1a4e-450b-b0a2-25fea74b564e"
+      "dff440b8-30da-4c15-b8bb-61ad12628c33": [
+        "dd5cea79-a178-4b64-87d7-7bc70a6d9b00"
       ],
-      "094317c0-3d6a-4af4-b912-b2dacdbef884": [
-        "cadd0c05-06a9-4688-b3f2-c7ea8de257e3"
+      "ffa58ac5-1b1f-4cf1-941d-68299065f4ed": [
+        "e16957eb-1dd7-4ae1-8d46-c29bfd3d01ed"
       ],
-      "5c17dbad-3c53-475a-9bbc-044e7b94d1d4": [
-        "f9f74ed0-18c1-4921-90d1-866567b475a7"
+      "031f42df-ac97-400b-b733-83f51799c231": [
+        "177248bd-69d1-45d1-a754-75514182ab80"
       ],
-      "e3213943-1d49-4c79-8ebf-bf0c14b7cdeb": [],
-      "a44add1f-a9cf-4941-b3f9-9a5d8e5b37df": [
-        "cadd0c05-06a9-4688-b3f2-c7ea8de257e3",
-        "f9f74ed0-18c1-4921-90d1-866567b475a7"
+      "d6cb0c08-7b93-4be2-bba5-2173492da357": [],
+      "3cc9ff1a-b50d-4101-a78b-ad8b2ff611e8": [
+        "e16957eb-1dd7-4ae1-8d46-c29bfd3d01ed",
+        "177248bd-69d1-45d1-a754-75514182ab80"
       ],
-      "6eda744a-08cc-4819-9064-8c2c23c6a318": [
-        "b520304e-32d9-425b-a429-d32e59ae8b18"
+      "6a40d44f-3229-4d87-8b87-50fe8ed8c7f1": [
+        "93276254-3056-403c-a17a-b516d9210010"
       ],
-      "4af29ed7-acbd-4b63-927e-853491fbeffd": [
-        "acf8742e-eea8-4c32-94da-926a84866c83"
+      "597d91f5-7100-4324-8a31-1961c449214e": [
+        "3223c7fd-7cb5-413f-a2e7-fdff8030a375"
       ],
-      "de0a0319-ae53-49b4-b0ad-6d6d89d2d6c1": [],
-      "657615cb-cbf8-4279-a448-ca349596c7e4": [
-        "b520304e-32d9-425b-a429-d32e59ae8b18",
-        "acf8742e-eea8-4c32-94da-926a84866c83"
+      "08409842-2023-4731-b747-0b38f397f3f1": [],
+      "d825b0cd-1e39-4356-8b07-d3de4ce930a3": [
+        "93276254-3056-403c-a17a-b516d9210010",
+        "3223c7fd-7cb5-413f-a2e7-fdff8030a375"
       ],
-      "774d8d9e-c50c-49eb-9244-3cd79f2fb8a9": [
-        "477d74dc-2739-4125-adc3-4807e097c2ed"
+      "0b4e2945-330d-4c1e-acaf-c49618892443": [
+        "f0e79e61-5367-4676-9fe7-fe0b7ab04e84"
       ],
-      "0cec1588-b1a4-4968-8913-13ba0fda2ed0": [
-        "2eece5cc-da70-477f-8125-f7718d80a8de"
+      "ce9b54c4-2671-405f-b2cb-79075999cca2": [
+        "2a7f616e-59a8-48c9-b060-c8e10da836be"
       ],
-      "3fc50d80-4ade-4900-a896-bd860c2f7554": [],
-      "0bb8943e-38f9-405d-93cc-dc1ffe5756cd": [
-        "477d74dc-2739-4125-adc3-4807e097c2ed",
-        "2eece5cc-da70-477f-8125-f7718d80a8de"
+      "1192f3cc-86a8-42d5-afc7-451ef3d79f0e": [],
+      "adbd1da0-46df-43bd-bdfc-b2bc327febd6": [
+        "f0e79e61-5367-4676-9fe7-fe0b7ab04e84",
+        "2a7f616e-59a8-48c9-b060-c8e10da836be"
       ],
-      "d3ccb905-0214-47c4-874f-8638cbb0c042": [
-        "cadd0c05-06a9-4688-b3f2-c7ea8de257e3",
-        "f9f74ed0-18c1-4921-90d1-866567b475a7",
-        "a1e03a4b-96fb-496c-9269-33b738d39019",
-        "b520304e-32d9-425b-a429-d32e59ae8b18",
-        "acf8742e-eea8-4c32-94da-926a84866c83",
-        "952c95bc-3da8-4383-9037-270407049c1f",
-        "477d74dc-2739-4125-adc3-4807e097c2ed",
-        "2eece5cc-da70-477f-8125-f7718d80a8de"
+      "9c723860-3692-4561-822f-d33563435866": [
+        "e16957eb-1dd7-4ae1-8d46-c29bfd3d01ed",
+        "177248bd-69d1-45d1-a754-75514182ab80",
+        "19297a15-21f3-4dea-bb68-60b3b6f17d6b",
+        "93276254-3056-403c-a17a-b516d9210010",
+        "3223c7fd-7cb5-413f-a2e7-fdff8030a375",
+        "16334843-c2fe-42e6-8ae1-dfac556a3a16",
+        "f0e79e61-5367-4676-9fe7-fe0b7ab04e84",
+        "2a7f616e-59a8-48c9-b060-c8e10da836be"
       ],
-      "13e0e71f-3911-4204-b836-4b0899ae5560": [
-        "39b9cccd-74e7-4952-8911-d4e83b51413a"
+      "a3cc7197-71e5-419c-a671-c0434d6c76c3": [
+        "00e588b7-f5fd-4dfd-8762-17049681aa2e"
       ],
-      "68af7bff-3600-4f54-94f5-0cec15ba0ba2": [
-        "173e0059-7f52-4cb9-a413-1d1309df764e"
+      "cd5e3540-90da-41a0-9480-4da7b99f68bb": [
+        "aff1f055-7f88-4dfd-a804-4de1744c9e5e"
       ],
-      "a9804f8d-ea60-4008-9ebe-dd34a66a83e6": [
-        "e3725663-1f15-4a6f-aa3e-947fd409ff85"
+      "b526110b-7753-45d3-9100-2f13bdf88878": [
+        "99527585-f169-4911-9971-080fdca35213"
       ],
-      "09031ba2-9749-4c07-b9e0-62867af41c21": [
-        "24e47863-d3fa-4f5a-b077-079d84c5b2ff"
+      "96a90532-800f-4046-b904-e5a0bac2f5a6": [
+        "8e29f160-27af-4a95-b990-0ed7b5476034"
       ],
-      "9ee6736d-ceb5-4277-bf3d-2cb4cdae3e18": [
-        "0d2fe5d3-25b8-4b75-8c09-a05154492e33"
+      "b2990e74-cac0-4461-92fa-d4f184532fae": [
+        "2621d8e0-2b3e-4063-a237-717b05137e32"
       ],
-      "50cd1654-256f-4de4-8ebe-78a64ceea461": [
-        "d17a605c-fcf9-4672-99c0-2c8d0cca07ec",
-        "425cff53-3cf0-44a1-a9e6-a2a2a99e9015",
-        "1cde6da7-df04-4ebd-bb4f-5a501c3aa60d",
-        "02a85669-ee61-41eb-96d7-ceed40e2cb94",
-        "c96cefe2-1a4e-450b-b0a2-25fea74b564e",
-        "cadd0c05-06a9-4688-b3f2-c7ea8de257e3",
-        "f9f74ed0-18c1-4921-90d1-866567b475a7",
-        "a1e03a4b-96fb-496c-9269-33b738d39019",
-        "b520304e-32d9-425b-a429-d32e59ae8b18",
-        "acf8742e-eea8-4c32-94da-926a84866c83",
-        "952c95bc-3da8-4383-9037-270407049c1f",
-        "477d74dc-2739-4125-adc3-4807e097c2ed",
-        "2eece5cc-da70-477f-8125-f7718d80a8de",
-        "39b9cccd-74e7-4952-8911-d4e83b51413a",
-        "173e0059-7f52-4cb9-a413-1d1309df764e",
-        "e3725663-1f15-4a6f-aa3e-947fd409ff85",
-        "24e47863-d3fa-4f5a-b077-079d84c5b2ff",
-        "0d2fe5d3-25b8-4b75-8c09-a05154492e33"
+      "4339d361-d6c3-4938-b8e8-861ad0c72b8d": [
+        "68855fd1-75ad-4fb8-a4e5-49637c99a4db"
+      ],
+      "20105990-0fad-492a-b274-0bfbfdd8dfcc": [
+        "9467fa6a-1050-475b-a404-b09a302290dc"
+      ],
+      "bdea81bf-acc7-41c9-bb49-7cf604c99991": [
+        "98244fc2-420b-43ef-8394-7b2c7b4eae5c"
+      ],
+      "c56bf403-207c-43cd-a4c7-5c3bde5d9ec4": [
+        "feeef630-f26c-4fff-9734-1e42c3c261fd"
+      ],
+      "30a7ce9b-327b-4a9d-b741-9d9d1235352b": [
+        "38bb82a6-4c7f-4afc-af80-4c895cb4a2be"
+      ],
+      "09658fae-bbac-40e3-8aeb-24ecf253fecc": [
+        "8e29f160-27af-4a95-b990-0ed7b5476034",
+        "2621d8e0-2b3e-4063-a237-717b05137e32",
+        "68855fd1-75ad-4fb8-a4e5-49637c99a4db",
+        "9467fa6a-1050-475b-a404-b09a302290dc",
+        "98244fc2-420b-43ef-8394-7b2c7b4eae5c",
+        "feeef630-f26c-4fff-9734-1e42c3c261fd",
+        "38bb82a6-4c7f-4afc-af80-4c895cb4a2be"
+      ],
+      "a98e0622-13fa-466f-ac86-1cf68fe27ff8": [
+        "ee17fb67-896f-4838-bc8a-bb25c0bd91b1"
+      ],
+      "cddd7260-6635-4f2c-abb8-8204d84fc350": [
+        "03b4fde3-4854-4765-9247-e2e96cf1ef85"
+      ],
+      "517d2523-ed09-425d-a5aa-ff7b8b97613a": [
+        "d2e28be6-adf2-4773-a80c-dd0298b48b3c"
+      ],
+      "d022764e-41ca-4111-9aef-4741542fce8c": [
+        "78125905-1ed1-4684-8eff-5cf1c83ee721"
+      ],
+      "f502ed5f-185b-4cf0-8f72-8fcf9b20b18d": [
+        "03b4fde3-4854-4765-9247-e2e96cf1ef85",
+        "d2e28be6-adf2-4773-a80c-dd0298b48b3c",
+        "78125905-1ed1-4684-8eff-5cf1c83ee721"
+      ],
+      "f55ca2f4-b24e-4d4c-982f-0debb0387ba9": [
+        "d5929045-2593-4da0-9648-31d346c8c3e0"
+      ],
+      "2b43d907-eab2-4122-8dc9-5136a6c05b73": [
+        "11f5afe3-62c2-47a5-b853-55099a259b60"
+      ],
+      "570ca4c6-382f-4932-868e-05a2810cfac5": [
+        "c4f7d7a6-06ab-4aa8-97c4-e44aad629069"
+      ],
+      "e086dfb7-e39b-4c5d-9276-4cebe31965d4": [
+        "ea9aadf7-f71f-4436-be24-01024bc69e5e",
+        "ebeae32b-330e-47c3-b609-ad5c00771a1a",
+        "3c1f7a3c-2d5d-48d3-b4db-33d2f28abe90",
+        "8f9fd1bf-26db-41cb-a9ea-d45fc2b972de",
+        "dd5cea79-a178-4b64-87d7-7bc70a6d9b00",
+        "e16957eb-1dd7-4ae1-8d46-c29bfd3d01ed",
+        "177248bd-69d1-45d1-a754-75514182ab80",
+        "19297a15-21f3-4dea-bb68-60b3b6f17d6b",
+        "93276254-3056-403c-a17a-b516d9210010",
+        "3223c7fd-7cb5-413f-a2e7-fdff8030a375",
+        "16334843-c2fe-42e6-8ae1-dfac556a3a16",
+        "f0e79e61-5367-4676-9fe7-fe0b7ab04e84",
+        "2a7f616e-59a8-48c9-b060-c8e10da836be",
+        "00e588b7-f5fd-4dfd-8762-17049681aa2e",
+        "aff1f055-7f88-4dfd-a804-4de1744c9e5e",
+        "99527585-f169-4911-9971-080fdca35213",
+        "8e29f160-27af-4a95-b990-0ed7b5476034",
+        "2621d8e0-2b3e-4063-a237-717b05137e32",
+        "68855fd1-75ad-4fb8-a4e5-49637c99a4db",
+        "9467fa6a-1050-475b-a404-b09a302290dc",
+        "98244fc2-420b-43ef-8394-7b2c7b4eae5c",
+        "feeef630-f26c-4fff-9734-1e42c3c261fd",
+        "38bb82a6-4c7f-4afc-af80-4c895cb4a2be",
+        "ee17fb67-896f-4838-bc8a-bb25c0bd91b1",
+        "03b4fde3-4854-4765-9247-e2e96cf1ef85",
+        "d2e28be6-adf2-4773-a80c-dd0298b48b3c",
+        "78125905-1ed1-4684-8eff-5cf1c83ee721",
+        "d5929045-2593-4da0-9648-31d346c8c3e0",
+        "11f5afe3-62c2-47a5-b853-55099a259b60",
+        "c4f7d7a6-06ab-4aa8-97c4-e44aad629069"
       ]
     },
-    "num_elements": 24
+    "num_elements": 38
   },
   "ir": {
     "chunks": [
       {
         "type": "TextChunk",
         "text": "Introduction: ",
-        "element_id": "3d87b20e-328a-413e-8e3f-0e40de0e02e4",
-        "id": "d17a605c-fcf9-4672-99c0-2c8d0cca07ec",
+        "element_id": "5a08c498-0717-4e20-bc6b-0ee48e4be34c",
+        "id": "ea9aadf7-f71f-4436-be24-01024bc69e5e",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "This is a comprehensive test",
-        "element_id": "1dc46fcf-c051-4cba-b2f2-f6aa0a5f2b1d",
-        "id": "425cff53-3cf0-44a1-a9e6-a2a2a99e9015",
+        "element_id": "0a7d4733-7d90-4516-bf31-6b575654917b",
+        "id": "ebeae32b-330e-47c3-b609-ad5c00771a1a",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "\n\n",
-        "element_id": "efd11e0a-a3bf-4759-8434-789151bb1889",
-        "id": "1cde6da7-df04-4ebd-bb4f-5a501c3aa60d",
+        "element_id": "8c340c91-307e-4ab3-91f0-6a6e5153dd6e",
+        "id": "3c1f7a3c-2d5d-48d3-b4db-33d2f28abe90",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "element_id": "f2b65932-8c7d-4fea-9d82-47a39373e41e",
-        "id": "02a85669-ee61-41eb-96d7-ceed40e2cb94",
+        "element_id": "36a59fd6-ab8b-4716-9dfa-07bbb7ed1cfa",
+        "id": "8f9fd1bf-26db-41cb-a9ea-d45fc2b972de",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "\n\nExamples:\n",
-        "element_id": "1692a321-eb3a-4083-a08f-b7b4f4e374b0",
-        "id": "c96cefe2-1a4e-450b-b0a2-25fea74b564e",
+        "element_id": "dff440b8-30da-4c15-b8bb-61ad12628c33",
+        "id": "dd5cea79-a178-4b64-87d7-7bc70a6d9b00",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "- Example ",
-        "element_id": "094317c0-3d6a-4af4-b912-b2dacdbef884",
-        "id": "cadd0c05-06a9-4688-b3f2-c7ea8de257e3",
+        "element_id": "ffa58ac5-1b1f-4cf1-941d-68299065f4ed",
+        "id": "e16957eb-1dd7-4ae1-8d46-c29bfd3d01ed",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "0",
-        "element_id": "5c17dbad-3c53-475a-9bbc-044e7b94d1d4",
-        "id": "f9f74ed0-18c1-4921-90d1-866567b475a7",
+        "element_id": "031f42df-ac97-400b-b733-83f51799c231",
+        "id": "177248bd-69d1-45d1-a754-75514182ab80",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "\n",
-        "element_id": "d3ccb905-0214-47c4-874f-8638cbb0c042",
-        "id": "a1e03a4b-96fb-496c-9269-33b738d39019",
+        "element_id": "9c723860-3692-4561-822f-d33563435866",
+        "id": "19297a15-21f3-4dea-bb68-60b3b6f17d6b",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "- Example ",
-        "element_id": "6eda744a-08cc-4819-9064-8c2c23c6a318",
-        "id": "b520304e-32d9-425b-a429-d32e59ae8b18",
+        "element_id": "6a40d44f-3229-4d87-8b87-50fe8ed8c7f1",
+        "id": "93276254-3056-403c-a17a-b516d9210010",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "1",
-        "element_id": "4af29ed7-acbd-4b63-927e-853491fbeffd",
-        "id": "acf8742e-eea8-4c32-94da-926a84866c83",
+        "element_id": "597d91f5-7100-4324-8a31-1961c449214e",
+        "id": "3223c7fd-7cb5-413f-a2e7-fdff8030a375",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "\n",
-        "element_id": "d3ccb905-0214-47c4-874f-8638cbb0c042",
-        "id": "952c95bc-3da8-4383-9037-270407049c1f",
+        "element_id": "9c723860-3692-4561-822f-d33563435866",
+        "id": "16334843-c2fe-42e6-8ae1-dfac556a3a16",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "- Example ",
-        "element_id": "774d8d9e-c50c-49eb-9244-3cd79f2fb8a9",
-        "id": "477d74dc-2739-4125-adc3-4807e097c2ed",
+        "element_id": "0b4e2945-330d-4c1e-acaf-c49618892443",
+        "id": "f0e79e61-5367-4676-9fe7-fe0b7ab04e84",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "2",
-        "element_id": "0cec1588-b1a4-4968-8913-13ba0fda2ed0",
-        "id": "2eece5cc-da70-477f-8125-f7718d80a8de",
+        "element_id": "ce9b54c4-2671-405f-b2cb-79075999cca2",
+        "id": "2a7f616e-59a8-48c9-b060-c8e10da836be",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "\n\nImage reference:\n",
-        "element_id": "13e0e71f-3911-4204-b836-4b0899ae5560",
-        "id": "39b9cccd-74e7-4952-8911-d4e83b51413a",
+        "element_id": "a3cc7197-71e5-419c-a671-c0434d6c76c3",
+        "id": "00e588b7-f5fd-4dfd-8762-17049681aa2e",
         "metadata": {}
       },
       {
@@ -207,43 +269,127 @@
           "height": 50,
           "mode": "RGB"
         },
-        "element_id": "68af7bff-3600-4f54-94f5-0cec15ba0ba2",
-        "id": "173e0059-7f52-4cb9-a413-1d1309df764e",
+        "element_id": "cd5e3540-90da-41a0-9480-4da7b99f68bb",
+        "id": "aff1f055-7f88-4dfd-a804-4de1744c9e5e",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "\n\nLatex:\n",
-        "element_id": "a9804f8d-ea60-4008-9ebe-dd34a66a83e6",
-        "id": "e3725663-1f15-4a6f-aa3e-947fd409ff85",
+        "element_id": "b526110b-7753-45d3-9100-2f13bdf88878",
+        "id": "99527585-f169-4911-9971-080fdca35213",
         "metadata": {}
       },
       {
         "type": "TextChunk",
-        "text": "$$x^n + y^n = z^n $$",
-        "element_id": "09031ba2-9749-4c07-b9e0-62867af41c21",
-        "id": "24e47863-d3fa-4f5a-b077-079d84c5b2ff",
+        "text": "$$",
+        "element_id": "96a90532-800f-4046-b904-e5a0bac2f5a6",
+        "id": "8e29f160-27af-4a95-b990-0ed7b5476034",
         "metadata": {}
       },
       {
         "type": "TextChunk",
-        "text": "\n\nConclusion: This demonstrates all widget features working together.",
-        "element_id": "9ee6736d-ceb5-4277-bf3d-2cb4cdae3e18",
-        "id": "0d2fe5d3-25b8-4b75-8c09-a05154492e33",
+        "text": "x^n",
+        "element_id": "b2990e74-cac0-4461-92fa-d4f184532fae",
+        "id": "2621d8e0-2b3e-4063-a237-717b05137e32",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "+ ",
+        "element_id": "4339d361-d6c3-4938-b8e8-861ad0c72b8d",
+        "id": "68855fd1-75ad-4fb8-a4e5-49637c99a4db",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "y^n",
+        "element_id": "20105990-0fad-492a-b274-0bfbfdd8dfcc",
+        "id": "9467fa6a-1050-475b-a404-b09a302290dc",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "= ",
+        "element_id": "bdea81bf-acc7-41c9-bb49-7cf604c99991",
+        "id": "98244fc2-420b-43ef-8394-7b2c7b4eae5c",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "z^n",
+        "element_id": "c56bf403-207c-43cd-a4c7-5c3bde5d9ec4",
+        "id": "feeef630-f26c-4fff-9734-1e42c3c261fd",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "$$",
+        "element_id": "30a7ce9b-327b-4a9d-b741-9d9d1235352b",
+        "id": "38bb82a6-4c7f-4afc-af80-4c895cb4a2be",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "\n\n```python\n# Sample code block\ndef hello_world():\n    print(\"Hello, world!\")\n```\n",
+        "element_id": "a98e0622-13fa-466f-ac86-1cf68fe27ff8",
+        "id": "ee17fb67-896f-4838-bc8a-bb25c0bd91b1",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "```python\n# Sample code block\ndef hello_world():\n    print(\"",
+        "element_id": "cddd7260-6635-4f2c-abb8-8204d84fc350",
+        "id": "03b4fde3-4854-4765-9247-e2e96cf1ef85",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "This is a comprehensive test",
+        "element_id": "517d2523-ed09-425d-a5aa-ff7b8b97613a",
+        "id": "d2e28be6-adf2-4773-a80c-dd0298b48b3c",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "!\")\n```",
+        "element_id": "d022764e-41ca-4111-9aef-4741542fce8c",
+        "id": "78125905-1ed1-4684-8eff-5cf1c83ee721",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "\n\n```python\n# Sample code block\ndef hello_world():\n    print(\"",
+        "element_id": "f55ca2f4-b24e-4d4c-982f-0debb0387ba9",
+        "id": "d5929045-2593-4da0-9648-31d346c8c3e0",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "This is a comprehensive test",
+        "element_id": "2b43d907-eab2-4122-8dc9-5136a6c05b73",
+        "id": "11f5afe3-62c2-47a5-b853-55099a259b60",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "!\")\n```\n\n\nConclusion: This demonstrates all widget features working together.",
+        "element_id": "570ca4c6-382f-4932-868e-05a2810cfac5",
+        "id": "c4f7d7a6-06ab-4aa8-97c4-e44aad629069",
         "metadata": {}
       }
     ],
-    "source_prompt_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
-    "id": "a780f0ec-771c-4a48-8542-1ab9fada1d72",
+    "source_prompt_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
+    "id": "fece55af-a6eb-4207-bdae-817a805b8a8f",
     "metadata": {}
   },
   "source_prompt": {
-    "prompt_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+    "prompt_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
     "children": [
       {
         "type": "static",
-        "id": "3d87b20e-328a-413e-8e3f-0e40de0e02e4",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "id": "5a08c498-0717-4e20-bc6b-0ee48e4be34c",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": 0,
         "index": 0,
         "source_location": {
@@ -255,8 +401,8 @@
       },
       {
         "type": "interpolation",
-        "id": "1dc46fcf-c051-4cba-b2f2-f6aa0a5f2b1d",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "id": "0a7d4733-7d90-4516-bf31-6b575654917b",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": "intro",
         "index": 1,
         "source_location": {
@@ -272,8 +418,8 @@
       },
       {
         "type": "static",
-        "id": "efd11e0a-a3bf-4759-8434-789151bb1889",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "id": "8c340c91-307e-4ab3-91f0-6a6e5153dd6e",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": 1,
         "index": 2,
         "source_location": {
@@ -285,8 +431,8 @@
       },
       {
         "type": "interpolation",
-        "id": "f2b65932-8c7d-4fea-9d82-47a39373e41e",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "id": "36a59fd6-ab8b-4716-9dfa-07bbb7ed1cfa",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": "long",
         "index": 3,
         "source_location": {
@@ -302,8 +448,8 @@
       },
       {
         "type": "static",
-        "id": "1692a321-eb3a-4083-a08f-b7b4f4e374b0",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "id": "dff440b8-30da-4c15-b8bb-61ad12628c33",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": 2,
         "index": 4,
         "source_location": {
@@ -315,8 +461,8 @@
       },
       {
         "type": "list",
-        "id": "d3ccb905-0214-47c4-874f-8638cbb0c042",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "id": "9c723860-3692-4561-822f-d33563435866",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": "examples",
         "index": 5,
         "source_location": {
@@ -332,8 +478,8 @@
         "children": [
           {
             "type": "nested_prompt",
-            "id": "a44add1f-a9cf-4941-b3f9-9a5d8e5b37df",
-            "parent_id": "d3ccb905-0214-47c4-874f-8638cbb0c042",
+            "id": "3cc9ff1a-b50d-4101-a78b-ad8b2ff611e8",
+            "parent_id": "9c723860-3692-4561-822f-d33563435866",
             "key": 0,
             "index": 5,
             "source_location": {
@@ -345,7 +491,7 @@
             "conversion": null,
             "format_spec": "",
             "render_hints": "",
-            "prompt_id": "a44add1f-a9cf-4941-b3f9-9a5d8e5b37df",
+            "prompt_id": "3cc9ff1a-b50d-4101-a78b-ad8b2ff611e8",
             "creation_location": {
               "filename": "<frozen importlib._bootstrap>",
               "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
@@ -354,8 +500,8 @@
             "children": [
               {
                 "type": "static",
-                "id": "094317c0-3d6a-4af4-b912-b2dacdbef884",
-                "parent_id": "a44add1f-a9cf-4941-b3f9-9a5d8e5b37df",
+                "id": "ffa58ac5-1b1f-4cf1-941d-68299065f4ed",
+                "parent_id": "3cc9ff1a-b50d-4101-a78b-ad8b2ff611e8",
                 "key": 0,
                 "index": 0,
                 "source_location": {
@@ -367,8 +513,8 @@
               },
               {
                 "type": "interpolation",
-                "id": "5c17dbad-3c53-475a-9bbc-044e7b94d1d4",
-                "parent_id": "a44add1f-a9cf-4941-b3f9-9a5d8e5b37df",
+                "id": "031f42df-ac97-400b-b733-83f51799c231",
+                "parent_id": "3cc9ff1a-b50d-4101-a78b-ad8b2ff611e8",
                 "key": "0",
                 "index": 1,
                 "source_location": {
@@ -384,8 +530,8 @@
               },
               {
                 "type": "static",
-                "id": "e3213943-1d49-4c79-8ebf-bf0c14b7cdeb",
-                "parent_id": "a44add1f-a9cf-4941-b3f9-9a5d8e5b37df",
+                "id": "d6cb0c08-7b93-4be2-bba5-2173492da357",
+                "parent_id": "3cc9ff1a-b50d-4101-a78b-ad8b2ff611e8",
                 "key": 1,
                 "index": 2,
                 "source_location": {
@@ -399,8 +545,8 @@
           },
           {
             "type": "nested_prompt",
-            "id": "657615cb-cbf8-4279-a448-ca349596c7e4",
-            "parent_id": "d3ccb905-0214-47c4-874f-8638cbb0c042",
+            "id": "d825b0cd-1e39-4356-8b07-d3de4ce930a3",
+            "parent_id": "9c723860-3692-4561-822f-d33563435866",
             "key": 1,
             "index": 5,
             "source_location": {
@@ -412,7 +558,7 @@
             "conversion": null,
             "format_spec": "",
             "render_hints": "",
-            "prompt_id": "657615cb-cbf8-4279-a448-ca349596c7e4",
+            "prompt_id": "d825b0cd-1e39-4356-8b07-d3de4ce930a3",
             "creation_location": {
               "filename": "<frozen importlib._bootstrap>",
               "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
@@ -421,8 +567,8 @@
             "children": [
               {
                 "type": "static",
-                "id": "6eda744a-08cc-4819-9064-8c2c23c6a318",
-                "parent_id": "657615cb-cbf8-4279-a448-ca349596c7e4",
+                "id": "6a40d44f-3229-4d87-8b87-50fe8ed8c7f1",
+                "parent_id": "d825b0cd-1e39-4356-8b07-d3de4ce930a3",
                 "key": 0,
                 "index": 0,
                 "source_location": {
@@ -434,8 +580,8 @@
               },
               {
                 "type": "interpolation",
-                "id": "4af29ed7-acbd-4b63-927e-853491fbeffd",
-                "parent_id": "657615cb-cbf8-4279-a448-ca349596c7e4",
+                "id": "597d91f5-7100-4324-8a31-1961c449214e",
+                "parent_id": "d825b0cd-1e39-4356-8b07-d3de4ce930a3",
                 "key": "1",
                 "index": 1,
                 "source_location": {
@@ -451,8 +597,8 @@
               },
               {
                 "type": "static",
-                "id": "de0a0319-ae53-49b4-b0ad-6d6d89d2d6c1",
-                "parent_id": "657615cb-cbf8-4279-a448-ca349596c7e4",
+                "id": "08409842-2023-4731-b747-0b38f397f3f1",
+                "parent_id": "d825b0cd-1e39-4356-8b07-d3de4ce930a3",
                 "key": 1,
                 "index": 2,
                 "source_location": {
@@ -466,8 +612,8 @@
           },
           {
             "type": "nested_prompt",
-            "id": "0bb8943e-38f9-405d-93cc-dc1ffe5756cd",
-            "parent_id": "d3ccb905-0214-47c4-874f-8638cbb0c042",
+            "id": "adbd1da0-46df-43bd-bdfc-b2bc327febd6",
+            "parent_id": "9c723860-3692-4561-822f-d33563435866",
             "key": 2,
             "index": 5,
             "source_location": {
@@ -479,7 +625,7 @@
             "conversion": null,
             "format_spec": "",
             "render_hints": "",
-            "prompt_id": "0bb8943e-38f9-405d-93cc-dc1ffe5756cd",
+            "prompt_id": "adbd1da0-46df-43bd-bdfc-b2bc327febd6",
             "creation_location": {
               "filename": "<frozen importlib._bootstrap>",
               "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
@@ -488,8 +634,8 @@
             "children": [
               {
                 "type": "static",
-                "id": "774d8d9e-c50c-49eb-9244-3cd79f2fb8a9",
-                "parent_id": "0bb8943e-38f9-405d-93cc-dc1ffe5756cd",
+                "id": "0b4e2945-330d-4c1e-acaf-c49618892443",
+                "parent_id": "adbd1da0-46df-43bd-bdfc-b2bc327febd6",
                 "key": 0,
                 "index": 0,
                 "source_location": {
@@ -501,8 +647,8 @@
               },
               {
                 "type": "interpolation",
-                "id": "0cec1588-b1a4-4968-8913-13ba0fda2ed0",
-                "parent_id": "0bb8943e-38f9-405d-93cc-dc1ffe5756cd",
+                "id": "ce9b54c4-2671-405f-b2cb-79075999cca2",
+                "parent_id": "adbd1da0-46df-43bd-bdfc-b2bc327febd6",
                 "key": "2",
                 "index": 1,
                 "source_location": {
@@ -518,8 +664,8 @@
               },
               {
                 "type": "static",
-                "id": "3fc50d80-4ade-4900-a896-bd860c2f7554",
-                "parent_id": "0bb8943e-38f9-405d-93cc-dc1ffe5756cd",
+                "id": "1192f3cc-86a8-42d5-afc7-451ef3d79f0e",
+                "parent_id": "adbd1da0-46df-43bd-bdfc-b2bc327febd6",
                 "key": 1,
                 "index": 2,
                 "source_location": {
@@ -535,8 +681,8 @@
       },
       {
         "type": "static",
-        "id": "13e0e71f-3911-4204-b836-4b0899ae5560",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "id": "a3cc7197-71e5-419c-a671-c0434d6c76c3",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": 3,
         "index": 6,
         "source_location": {
@@ -548,8 +694,8 @@
       },
       {
         "type": "image",
-        "id": "68af7bff-3600-4f54-94f5-0cec15ba0ba2",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "id": "cd5e3540-90da-41a0-9480-4da7b99f68bb",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": "img",
         "index": 7,
         "source_location": {
@@ -571,8 +717,8 @@
       },
       {
         "type": "static",
-        "id": "a9804f8d-ea60-4008-9ebe-dd34a66a83e6",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "id": "b526110b-7753-45d3-9100-2f13bdf88878",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": 4,
         "index": 8,
         "source_location": {
@@ -583,9 +729,9 @@
         "value": "\n\nLatex:\n"
       },
       {
-        "type": "interpolation",
-        "id": "09031ba2-9749-4c07-b9e0-62867af41c21",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "type": "nested_prompt",
+        "id": "09658fae-bbac-40e3-8aeb-24ecf253fecc",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": "latex",
         "index": 9,
         "source_location": {
@@ -597,12 +743,122 @@
         "conversion": null,
         "format_spec": "latex",
         "render_hints": "",
-        "value": "$$x^n + y^n = z^n $$"
+        "prompt_id": "09658fae-bbac-40e3-8aeb-24ecf253fecc",
+        "creation_location": {
+          "filename": "<frozen importlib._bootstrap>",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+          "line": 491
+        },
+        "children": [
+          {
+            "type": "static",
+            "id": "96a90532-800f-4046-b904-e5a0bac2f5a6",
+            "parent_id": "09658fae-bbac-40e3-8aeb-24ecf253fecc",
+            "key": 0,
+            "index": 0,
+            "source_location": {
+              "filename": "<frozen importlib._bootstrap>",
+              "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+              "line": 491
+            },
+            "value": "$$"
+          },
+          {
+            "type": "interpolation",
+            "id": "b2990e74-cac0-4461-92fa-d4f184532fae",
+            "parent_id": "09658fae-bbac-40e3-8aeb-24ecf253fecc",
+            "key": "latex_term_a",
+            "index": 1,
+            "source_location": {
+              "filename": "<frozen importlib._bootstrap>",
+              "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+              "line": 491
+            },
+            "expression": "latex_term_a",
+            "conversion": null,
+            "format_spec": "latex_term_a",
+            "render_hints": "",
+            "value": "x^n"
+          },
+          {
+            "type": "static",
+            "id": "4339d361-d6c3-4938-b8e8-861ad0c72b8d",
+            "parent_id": "09658fae-bbac-40e3-8aeb-24ecf253fecc",
+            "key": 1,
+            "index": 2,
+            "source_location": {
+              "filename": "<frozen importlib._bootstrap>",
+              "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+              "line": 491
+            },
+            "value": "+ "
+          },
+          {
+            "type": "interpolation",
+            "id": "20105990-0fad-492a-b274-0bfbfdd8dfcc",
+            "parent_id": "09658fae-bbac-40e3-8aeb-24ecf253fecc",
+            "key": "latex_term_b",
+            "index": 3,
+            "source_location": {
+              "filename": "<frozen importlib._bootstrap>",
+              "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+              "line": 491
+            },
+            "expression": "latex_term_b",
+            "conversion": null,
+            "format_spec": "latex_term_b",
+            "render_hints": "",
+            "value": "y^n"
+          },
+          {
+            "type": "static",
+            "id": "bdea81bf-acc7-41c9-bb49-7cf604c99991",
+            "parent_id": "09658fae-bbac-40e3-8aeb-24ecf253fecc",
+            "key": 2,
+            "index": 4,
+            "source_location": {
+              "filename": "<frozen importlib._bootstrap>",
+              "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+              "line": 491
+            },
+            "value": "= "
+          },
+          {
+            "type": "interpolation",
+            "id": "c56bf403-207c-43cd-a4c7-5c3bde5d9ec4",
+            "parent_id": "09658fae-bbac-40e3-8aeb-24ecf253fecc",
+            "key": "latex_term_c",
+            "index": 5,
+            "source_location": {
+              "filename": "<frozen importlib._bootstrap>",
+              "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+              "line": 491
+            },
+            "expression": "latex_term_c",
+            "conversion": null,
+            "format_spec": "latex_term_c",
+            "render_hints": "",
+            "value": "z^n"
+          },
+          {
+            "type": "static",
+            "id": "30a7ce9b-327b-4a9d-b741-9d9d1235352b",
+            "parent_id": "09658fae-bbac-40e3-8aeb-24ecf253fecc",
+            "key": 3,
+            "index": 6,
+            "source_location": {
+              "filename": "<frozen importlib._bootstrap>",
+              "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+              "line": 491
+            },
+            "value": "$$"
+          }
+        ]
       },
       {
         "type": "static",
-        "id": "9ee6736d-ceb5-4277-bf3d-2cb4cdae3e18",
-        "parent_id": "50cd1654-256f-4de4-8ebe-78a64ceea461",
+        "id": "a98e0622-13fa-466f-ac86-1cf68fe27ff8",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
         "key": 5,
         "index": 10,
         "source_location": {
@@ -610,7 +866,117 @@
           "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
           "line": 491
         },
-        "value": "\n\nConclusion: This demonstrates all widget features working together."
+        "value": "\n\n```python\n# Sample code block\ndef hello_world():\n    print(\"Hello, world!\")\n```\n"
+      },
+      {
+        "type": "nested_prompt",
+        "id": "f502ed5f-185b-4cf0-8f72-8fcf9b20b18d",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
+        "key": "code",
+        "index": 11,
+        "source_location": {
+          "filename": "<frozen importlib._bootstrap>",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+          "line": 491
+        },
+        "expression": "code",
+        "conversion": null,
+        "format_spec": "code",
+        "render_hints": "",
+        "prompt_id": "f502ed5f-185b-4cf0-8f72-8fcf9b20b18d",
+        "creation_location": {
+          "filename": "<frozen importlib._bootstrap>",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+          "line": 491
+        },
+        "children": [
+          {
+            "type": "static",
+            "id": "cddd7260-6635-4f2c-abb8-8204d84fc350",
+            "parent_id": "f502ed5f-185b-4cf0-8f72-8fcf9b20b18d",
+            "key": 0,
+            "index": 0,
+            "source_location": {
+              "filename": "<frozen importlib._bootstrap>",
+              "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+              "line": 491
+            },
+            "value": "```python\n# Sample code block\ndef hello_world():\n    print(\""
+          },
+          {
+            "type": "interpolation",
+            "id": "517d2523-ed09-425d-a5aa-ff7b8b97613a",
+            "parent_id": "f502ed5f-185b-4cf0-8f72-8fcf9b20b18d",
+            "key": "world",
+            "index": 1,
+            "source_location": {
+              "filename": "<frozen importlib._bootstrap>",
+              "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+              "line": 491
+            },
+            "expression": "intro",
+            "conversion": null,
+            "format_spec": "world",
+            "render_hints": "",
+            "value": "This is a comprehensive test"
+          },
+          {
+            "type": "static",
+            "id": "d022764e-41ca-4111-9aef-4741542fce8c",
+            "parent_id": "f502ed5f-185b-4cf0-8f72-8fcf9b20b18d",
+            "key": 1,
+            "index": 2,
+            "source_location": {
+              "filename": "<frozen importlib._bootstrap>",
+              "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+              "line": 491
+            },
+            "value": "!\")\n```"
+          }
+        ]
+      },
+      {
+        "type": "static",
+        "id": "f55ca2f4-b24e-4d4c-982f-0debb0387ba9",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
+        "key": 6,
+        "index": 12,
+        "source_location": {
+          "filename": "<frozen importlib._bootstrap>",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+          "line": 491
+        },
+        "value": "\n\n```python\n# Sample code block\ndef hello_world():\n    print(\""
+      },
+      {
+        "type": "interpolation",
+        "id": "2b43d907-eab2-4122-8dc9-5136a6c05b73",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
+        "key": "world",
+        "index": 13,
+        "source_location": {
+          "filename": "<frozen importlib._bootstrap>",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+          "line": 491
+        },
+        "expression": "intro",
+        "conversion": null,
+        "format_spec": "world",
+        "render_hints": "",
+        "value": "This is a comprehensive test"
+      },
+      {
+        "type": "static",
+        "id": "570ca4c6-382f-4932-868e-05a2810cfac5",
+        "parent_id": "e086dfb7-e39b-4c5d-9276-4cebe31965d4",
+        "key": 7,
+        "index": 14,
+        "source_location": {
+          "filename": "<frozen importlib._bootstrap>",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/<frozen importlib._bootstrap>",
+          "line": 491
+        },
+        "value": "!\")\n```\n\n\nConclusion: This demonstrates all widget features working together."
       }
     ]
   },

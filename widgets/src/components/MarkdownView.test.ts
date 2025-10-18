@@ -206,6 +206,76 @@ describe('MarkdownView', () => {
     }
   });
 
+  it('should maintain per-chunk folding within math blocks', () => {
+    const mathTexts = ['x^n', '+ ', 'y^n', '= ', 'z^n'];
+    const chunks = demo01Data.ir?.chunks ?? [];
+    const mathChunkIds = new Map<string, string>();
+
+    for (const chunk of chunks) {
+      if (!chunk.text) {
+        continue;
+      }
+      if (mathTexts.includes(chunk.text)) {
+        mathChunkIds.set(chunk.text, chunk.id);
+      }
+    }
+
+    expect(mathChunkIds.size).toBe(mathTexts.length);
+
+    const controller = new FoldingController(chunks.map((chunk) => chunk.id));
+    const view = buildMarkdownView(demo01Data, metadata, controller);
+    let referenceBlock: HTMLElement | null = null;
+    for (const [text, chunkId] of mathChunkIds.entries()) {
+      const elements = view.chunkIdToElements.get(chunkId) ?? [];
+      expect(elements.length).toBeGreaterThan(0);
+      for (const el of elements) {
+        const mathContainer = el.closest<HTMLElement>('.katex-display, .katex');
+        expect(mathContainer, `Chunk "${text}" should map to a KaTeX node`).toBeTruthy();
+
+        expect(el.classList.contains('tp-markdown-chunk'), `Chunk "${text}" should be wrapped in a chunk span`).toBe(
+          true
+        );
+        expect(el.getAttribute('data-chunk-id')).toBe(chunkId);
+        expect(el.getAttribute('data-chunk-ids')?.split(/\s+/).includes(chunkId)).toBe(true);
+
+        if (!referenceBlock) {
+          referenceBlock = mathContainer;
+        } else {
+          expect(mathContainer).toBe(referenceBlock);
+        }
+      }
+    }
+  });
+
+  it('should split and highlight code fence content per chunk', () => {
+    const chunks = demo01Data.ir?.chunks ?? [];
+    const controller = new FoldingController(chunks.map((chunk) => chunk.id));
+    const view = buildMarkdownView(demo01Data, metadata, controller);
+
+    const codeElement = view.element.querySelector('pre code');
+    expect(codeElement).toBeTruthy();
+    expect(codeElement?.querySelector('.tp-code-token-keyword')).toBeTruthy();
+    expect(codeElement?.querySelector('.tp-code-token-string')).toBeTruthy();
+
+    const codeChunks = Array.from(view.element.querySelectorAll<HTMLElement>('.tp-code-chunk'));
+    expect(codeChunks.length).toBeGreaterThan(0);
+
+    const interpolationChunk = codeChunks.find((chunkNode) => {
+      const chunkId = chunkNode.getAttribute('data-chunk-id');
+      const sourceChunk = chunks.find((chunk) => chunk.id === chunkId);
+      return sourceChunk?.text === 'This is a comprehensive test';
+    });
+
+    expect(interpolationChunk).toBeTruthy();
+    const targetChunkId = interpolationChunk?.getAttribute('data-chunk-id') ?? '';
+    const mappedElements = view.chunkIdToElements.get(targetChunkId) ?? [];
+    expect(mappedElements.length).toBeGreaterThan(0);
+    mappedElements.forEach((el) => {
+      expect(el.classList.contains('tp-code-chunk')).toBe(true);
+      expect(el.closest('pre')).toBeTruthy();
+    });
+  });
+
   it('should handle empty chunks gracefully', () => {
     const emptyData: WidgetData = {
       ir: {
