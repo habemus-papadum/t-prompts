@@ -47,7 +47,9 @@ export function initWidget(container: HTMLElement): void {
       } else if (diffData.diff_type === 'rendered') {
         component = buildRenderedPromptDiffView(diffData as RenderedPromptDiffData);
       } else {
-        container.innerHTML = `<div class="tp-error">Unknown diff type: ${(diffData as any).diff_type}</div>`;
+        // Exhaustiveness check - this should never happen
+        const _exhaustiveCheck: never = diffData;
+        container.innerHTML = `<div class="tp-error">Unknown diff type: ${(_exhaustiveCheck as { diff_type?: string }).diff_type}</div>`;
         return;
       }
 

@@ -10,10 +10,9 @@ import type { RenderedPromptDiffData, ChunkDelta } from '../diff-types';
 
 /**
  * RenderedPromptDiffView component interface
+ * Currently just the base Component interface
  */
-export interface RenderedPromptDiffView extends Component {
-  // Currently just the base Component interface
-}
+export type RenderedPromptDiffView = Component;
 
 /**
  * Build a RenderedPromptDiffView component from diff data
@@ -95,7 +94,7 @@ export function buildRenderedPromptDiffView(
   // 5. Return component
   return {
     element,
-    destroy: () => {
+    destroy: (): void => {
       // No cleanup needed for now
     },
   };

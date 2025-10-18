@@ -10,10 +10,9 @@ import type { StructuredPromptDiffData, NodeDelta, TextEdit } from '../diff-type
 
 /**
  * StructuredPromptDiffView component interface
+ * Currently just the base Component interface
  */
-export interface StructuredPromptDiffView extends Component {
-  // Currently just the base Component interface
-}
+export type StructuredPromptDiffView = Component;
 
 /**
  * Build a StructuredPromptDiffView component from diff data
@@ -68,7 +67,7 @@ export function buildStructuredPromptDiffView(
   // 5. Return component
   return {
     element,
-    destroy: () => {
+    destroy: (): void => {
       // No cleanup needed for now
     },
   };

@@ -29,12 +29,12 @@ export interface TextEdit {
 export interface NodeDelta {
   status: DiffStatus;
   element_type: string;
-  key: any;
+  key: string | number | null;
   before_id: string | null;
   after_id: string | null;
   before_index: number | null;
   after_index: number | null;
-  attr_changes: Record<string, [any, any]>;
+  attr_changes: Record<string, [unknown, unknown]>;
   text_edits: TextEdit[];
   children: NodeDelta[];
 }

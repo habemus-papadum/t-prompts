@@ -42,7 +42,7 @@ p6 = dedent(t"""
     ```python
     {code:code}
     ```
-    
+
     ```python
     # Sample code block
     def hello_world():
