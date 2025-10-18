@@ -1,6 +1,6 @@
 {
   "name": "@t-prompts/widgets",
-  "version": "0.14.0-alpha",
+  "version": "0.14.0",
   "type": "module",
   "description": "Jupyter notebook widgets for visualizing t-prompts structures",
   "main": "dist/index.js",
