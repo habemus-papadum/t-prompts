@@ -74,4 +74,3 @@ describe('diff HTML snippets', () => {
     expect(document.querySelector('.tp-diff-chunk[data-op="insert"]')).not.toBeNull();
   });
 });
-

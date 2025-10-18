@@ -37,7 +37,7 @@ from rich.table import Table
 console = Console()
 
 # File paths
-REPO_ROOT = Path(__file__).parent
+REPO_ROOT = Path(__file__).parent.parent  # Go up from scripts/ to repo root
 PYPROJECT_TOML = REPO_ROOT / "pyproject.toml"
 INIT_PY = REPO_ROOT / "src" / "t_prompts" / "__init__.py"
 WIDGETS_PACKAGE_JSON = REPO_ROOT / "widgets" / "package.json"

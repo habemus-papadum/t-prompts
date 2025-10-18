@@ -56,4 +56,3 @@ def my_prompt():
 
 if __name__ == "__main__":
     run_preview(__file__, my_prompt)
-

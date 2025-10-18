@@ -30,8 +30,9 @@ def test_structured_prompt_diff_detects_text_changes():
     assert any(edit.op in {"insert", "replace"} for edit in static.text_edits)
 
     html = diff._repr_html_()
-    assert "tp-diff-view" in html
-    assert "Structured prompt diff" in html
+    assert "tp-sp-diff-mount" in html
+    assert "data-tp-widget" in html
+    assert '"diff_type": "structured"' in html
 
     rich = diff.to_rich()
     assert "StructuredPrompt" in rich
@@ -86,8 +87,9 @@ def test_rendered_diff_tracks_chunk_operations():
     assert diff.per_element
 
     html = diff._repr_html_()
-    assert "tp-diff-chunks" in html
-    assert "Rendered diff" in html
+    assert "tp-rendered-diff-mount" in html
+    assert "data-tp-widget" in html
+    assert '"diff_type": "rendered"' in html
 
     rich = diff.to_rich()
     assert "insert=" in rich

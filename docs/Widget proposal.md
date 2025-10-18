@@ -141,4 +141,3 @@ Deliver a simple, non-interactive visualization to unblock documentation and qui
 2. Scaffold bundler configuration and embed the generated bundle into `widget_assets.py`.
 3. Build the minimal Phase 1 renderer using markdown-it and KaTeX.
 4. Document usage in the docs site and gather feedback before tackling Phase 2.
-

@@ -17,38 +17,60 @@ This is a Python library called `t-prompts` (package name: `t-prompts`, module n
 If you think a version change is needed, inform the user but do not make the change yourself.
 
 ### Release Management
-**ABSOLUTELY NEVER RUN THE RELEASE SCRIPT (`./release.sh`).** This is a production deployment script that:
+**ABSOLUTELY NEVER RUN THE RELEASE SCRIPT (`./scripts/release.sh`).** This is a production deployment script that:
 - Publishes the package to PyPI (affects real users)
 - Creates GitHub releases (public and permanent)
 - Pushes commits and tags to the repository
 - Triggers documentation deployment
 
 **This script should ONLY be run by a human who fully understands the consequences.** Do not:
-- Execute `./release.sh` under any circumstances
+- Execute `./scripts/release.sh` under any circumstances
 - Suggest running it unless the user explicitly asks about the release process
 - Include it in automated workflows or scripts
 
 If the user needs to make a release, explain the process but let them run the script themselves.
 
+**Other release-related scripts** (also in `scripts/` folder):
+- `scripts/pre-release.sh` - Pre-release validation checks
+- `scripts/publish.sh` - Publish to PyPI (called by release.sh)
+- **DO NOT run these manually** - they are part of the release automation
+
 ## Development Commands
 
 ### Environment Setup
+
+**Quick Setup (Recommended for fresh clones)**:
 ```bash
-# Install dependencies and sync environment (includes dev dependencies)
+# Run the setup script - sets up everything in one command
+./scripts/setup.sh
+```
+
+This script will:
+1. Check for required tools (uv, pnpm)
+2. Install Python dependencies with `uv sync --frozen`
+3. Install pnpm packages
+4. Build TypeScript widgets
+5. Set up pre-commit hooks
+
+**Manual Setup**:
+```bash
+# Install Python dependencies (includes dev dependencies)
 uv sync --frozen
 
-# Install all optional dependencies (image) for development
-uv sync --frozen --all-extras
+# Install pnpm packages
+pnpm install
 
-# Or install specific extras only
-uv sync --frozen --extra image
+# Build TypeScript widgets
+pnpm build
+
+# Set up pre-commit hooks
+uv run pre-commit install
 ```
 
 **Important for Development**:
-- Use `uv sync --frozen --all-extras` to ensure you have all optional dependencies available for testing image features
 - The `--frozen` flag ensures the lockfile is used without modification, maintaining reproducible builds
-- The optional dependencies are:
-  - `image`: Pillow for image interpolation support
+- Pillow (image support) is now included by default in main dependencies
+- Pre-commit hooks automatically strip notebook outputs and check code quality before commits
 
 ### Testing
 ```bash
@@ -103,14 +125,21 @@ pnpm --filter @t-prompts/widgets lint
 # Serve documentation locally (auto-reloads on changes)
 uv run mkdocs serve
 
-# Build documentation
+# Build documentation (executes all notebooks during build)
 uv run mkdocs build
 
 # Test demo notebooks (REQUIRED after any notebook changes)
-./test_notebooks.sh
+./scripts/test_notebooks.sh
+
+# Run a single notebook
+./scripts/nb.sh docs/demos/01-basic.ipynb
 ```
 
-**Important**: After making any changes to demo notebooks (files in `docs/demos/*.ipynb`), you MUST run `./test_notebooks.sh` to verify the notebook executes without errors. Do not consider notebook changes complete until this test passes.
+**Important**:
+- After making any changes to demo notebooks (files in `docs/demos/*.ipynb`), you MUST run `./scripts/test_notebooks.sh` to verify the notebook executes without errors
+- Notebooks are stored **without outputs** in git (pre-commit hooks automatically strip them)
+- During docs build with `mkdocs build`, notebooks are executed to generate fresh outputs
+- Do not consider notebook changes complete until `./scripts/test_notebooks.sh` passes
 
 ### Scratchpad Directory
 
@@ -247,7 +276,7 @@ describe('myTransform', () => {
 
 ### Project Structure
 - **src/t_prompts/**: Main package source code (src-layout)
-  
+
 ### Key Constraints
 - **Python Version**: Requires Python 3.14+ for t-strings (string.templatelib)
 - **Dependency Management**: Uses UV exclusively; uv.lock is committed

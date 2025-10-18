@@ -136,7 +136,7 @@ export function sourcePositionPlugin(md: MarkdownIt, positionMaps: SourcePositio
     return `<span data-md-inline-id="${inlineId}">${rendered}</span>`;
   };
 
-  const fallbackCodeInlineRenderer: RenderRule = (tokens, idx, options, env, self) =>
+  const fallbackCodeInlineRenderer: RenderRule = (tokens, idx, options, _env, self) =>
     self.renderToken(tokens, idx, options);
   const originalCodeInline = md.renderer.rules.code_inline || fallbackCodeInlineRenderer;
 

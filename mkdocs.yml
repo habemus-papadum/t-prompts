@@ -56,7 +56,10 @@ docs_dir: docs
 # Plugins to enable
 plugins:
   - search
-  - mkdocs-jupyter
+  - mkdocs-jupyter:
+      execute: true
+      allow_errors: false
+      kernel_name: python3
   - mkdocstrings:
       default_handler: python
       handlers:
