@@ -825,4 +825,45 @@ describe('FoldingController', () => {
       expect(controller.getVisibleSequence()).toEqual(before);
     });
   });
+
+  describe('expandByChunkIds', () => {
+    it('expands collapsed chunk containing target child', () => {
+      controller.addSelection(1, 2);
+      const [collapsedId] = controller.commitSelections();
+      expect(controller.isCollapsed('chunk2')).toBe(true);
+
+      controller.expandByChunkIds(['chunk2']);
+
+      expect(controller.isCollapsed('chunk2')).toBe(false);
+      expect(controller.getVisibleSequence()).toContain('chunk2');
+      expect(controller.getVisibleSequence()).toContain('chunk3');
+
+      // Ensure event emitted
+      const expandEvents = clientCalls.filter((call) => call.event.type === 'chunk-expanded');
+      expect(expandEvents.length).toBeGreaterThan(0);
+      expect(expandEvents[0].event.type).toBe('chunk-expanded');
+      expect((expandEvents[0].event as { expandedId: string }).expandedId).toBe(collapsedId);
+    });
+
+    it('recursively expands nested collapsed chunks containing target', () => {
+      // Collapse chunk2 & chunk3
+      controller.addSelection(1, 2);
+      const [innerCollapsed] = controller.commitSelections();
+
+      // Collapse the resulting collapsed chunk together with chunk4
+      const indexOfCollapsed = controller.getVisibleSequence().indexOf(innerCollapsed);
+      controller.addSelection(indexOfCollapsed, indexOfCollapsed + 1);
+      controller.commitSelections();
+
+      // Before expansion, chunk2 is hidden
+      expect(controller.isCollapsed('chunk2')).toBe(true);
+
+      controller.expandByChunkIds(['chunk2']);
+
+      expect(controller.isCollapsed('chunk2')).toBe(false);
+      expect(controller.getVisibleSequence()).toContain('chunk2');
+      expect(controller.getVisibleSequence()).toContain('chunk3');
+      expect(controller.getVisibleSequence()).toContain('chunk4');
+    });
+  });
 });

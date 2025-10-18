@@ -18,6 +18,7 @@ export interface WidgetData {
 export interface ConfigData {
   wrapping: boolean;
   sourcePrefix: string;
+  treeShowWhitespace?: 'default' | 'always' | 'never';  // How to handle whitespace-only static elements
 }
 
 export interface CompiledIRData {

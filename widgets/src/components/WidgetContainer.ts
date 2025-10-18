@@ -9,6 +9,7 @@
 
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata, ViewMode } from '../types';
+import { buildTreeView } from './TreeView';
 import { buildCodeView } from './CodeView';
 import { buildMarkdownView } from './MarkdownView';
 import { FoldingController } from '../folding/controller';
@@ -54,7 +55,35 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     totalPixels += size.pixel ?? 0;
   }
 
-  // 3. Build both views
+  const treeStorageKey = `tp-tree-collapsed:${data.compiled_ir?.ir_id ?? 'default'}`;
+
+  // 3. Build views
+  const treeContainer = document.createElement('div');
+  treeContainer.className = 'tp-tree-container';
+
+  const expandStrip = document.createElement('button');
+  expandStrip.type = 'button';
+  expandStrip.className = 'tp-tree-expand-strip';
+  expandStrip.textContent = '▸';
+  expandStrip.setAttribute('aria-label', 'Show tree view');
+
+  let collapseTreePanel: () => void = () => {};
+  let expandTreePanel: () => void = () => {};
+
+  const treeView = buildTreeView({
+    data,
+    metadata,
+    foldingController,
+    onCollapse: () => collapseTreePanel(),
+  });
+
+  const treePanel = document.createElement('div');
+  treePanel.className = 'tp-panel tp-tree-panel';
+  treePanel.appendChild(treeView.element);
+
+  treeContainer.appendChild(treePanel);
+  treeContainer.appendChild(expandStrip);
+
   const codeView = buildCodeView(data, metadata, foldingController);
   const markdownView = buildMarkdownView(data, metadata, foldingController);
 
@@ -70,6 +99,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   // 5. Create content area
   const contentArea = document.createElement('div');
   contentArea.className = 'tp-content-area';
+  contentArea.appendChild(treeContainer);
   contentArea.appendChild(codePanel);
   contentArea.appendChild(markdownPanel);
 
@@ -121,7 +151,35 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   setViewMode(currentViewMode);
 
   // 11. Track views
-  const views: Component[] = [codeView, markdownView];
+  const views: Component[] = [treeView, codeView, markdownView];
+
+  expandStrip.addEventListener('click', () => expandTreePanel());
+
+  collapseTreePanel = (): void => {
+    treeContainer.classList.add('tp-tree-container--collapsed');
+    expandStrip.classList.add('tp-tree-expand-strip--visible');
+    try {
+      window.sessionStorage.setItem(treeStorageKey, '1');
+    } catch {
+      // ignore storage errors (e.g., sandboxed environments)
+    }
+  };
+
+  expandTreePanel = (): void => {
+    treeContainer.classList.remove('tp-tree-container--collapsed');
+    expandStrip.classList.remove('tp-tree-expand-strip--visible');
+    try {
+      window.sessionStorage.setItem(treeStorageKey, '0');
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  if (shouldCollapseTreePanel(treeStorageKey)) {
+    collapseTreePanel();
+  } else {
+    expandTreePanel();
+  }
 
   // 12. Return component
   return {
@@ -141,4 +199,12 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
       element.remove();
     },
   };
+}
+
+function shouldCollapseTreePanel(storageKey: string): boolean {
+  try {
+    return window.sessionStorage.getItem(storageKey) === '1';
+  } catch {
+    return false;
+  }
 }

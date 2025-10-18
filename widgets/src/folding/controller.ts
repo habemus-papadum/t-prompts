@@ -306,6 +306,39 @@ export class FoldingController {
   }
 
   /**
+   * Expand any collapsed containers whose descendants overlap the provided chunk IDs.
+   */
+  expandByChunkIds(targetChunkIds: ChunkId[]): void {
+    if (targetChunkIds.length === 0 || this.state.collapsedChunks.size === 0) {
+      return;
+    }
+
+    const targetSet = new Set(targetChunkIds);
+
+    let expanded = false;
+    do {
+      expanded = false;
+
+      for (const [collapsedId, collapsedChunk] of this.state.collapsedChunks.entries()) {
+        if (!this.collapsedChunkIds.has(collapsedId)) {
+          continue;
+        }
+
+        const isVisible = this.state.visibleSequence.includes(collapsedId);
+        if (!isVisible) {
+          continue;
+        }
+
+        if (targetSet.has(collapsedId) || this.collapsedChunkContainsTarget(collapsedChunk, targetSet)) {
+          this.expandChunk(collapsedId);
+          expanded = true;
+          break; // restart iteration because state mutated
+        }
+      }
+    } while (expanded);
+  }
+
+  /**
    * Expand all currently collapsed chunks.
    *
    * Iteratively expands any collapsed container present in the visible sequence
@@ -455,5 +488,24 @@ export class FoldingController {
     for (const client of this.clients) {
       client.onStateChanged(event, state);
     }
+  }
+
+  private collapsedChunkContainsTarget(chunk: CollapsedChunk, targetSet: Set<ChunkId>): boolean {
+    if (targetSet.has(chunk.id)) {
+      return true;
+    }
+
+    for (const childId of chunk.children) {
+      if (targetSet.has(childId)) {
+        return true;
+      }
+
+      const nested = this.state.collapsedChunks.get(childId);
+      if (nested && this.collapsedChunkContainsTarget(nested, targetSet)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }
