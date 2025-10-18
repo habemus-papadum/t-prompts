@@ -4,8 +4,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..ir import IntermediateRepresentation
-    from ..structured_prompt import StructuredPrompt
+    pass
 
 # Module-level flag to track if bundle has been injected
 _bundle_injected = False
@@ -50,7 +49,7 @@ def _get_widget_bundle() -> str:
     return js_bundle
 
 
-def _render_widget_html(data: dict[str, Any], *, force_inject: bool = False) -> str:
+def _render_widget_html(data: dict[str, Any], mount_class: str, *, force_inject: bool = False) -> str:
     """
     Render widget HTML with singleton injection strategy.
 
@@ -58,6 +57,8 @@ def _render_widget_html(data: dict[str, Any], *, force_inject: bool = False) -> 
     ----------
     data : dict[str, Any]
         JSON data to embed in the widget (from toJSON()).
+    mount_class : str
+        CSS class name for the widget mount point.
     force_inject : bool, optional
         If True, always inject the bundle even if already injected.
         Default is False.
@@ -91,46 +92,8 @@ def _render_widget_html(data: dict[str, Any], *, force_inject: bool = False) -> 
     html_parts.append(f"""
 <div class="tp-widget-root" data-tp-widget>
     <script data-role="tp-widget-data" type="application/json">{json_data}</script>
-    <div class="tp-widget-mount"></div>
+    <div class="{mount_class}"></div>
 </div>
 """)
 
     return "".join(html_parts)
-
-
-def render_structured_prompt_html(prompt: "StructuredPrompt") -> str:
-    """
-    Render a StructuredPrompt as HTML widget.
-
-    Parameters
-    ----------
-    prompt : StructuredPrompt
-        The structured prompt to render.
-
-    Returns
-    -------
-    str
-        HTML string for Jupyter notebook display.
-    """
-    # Export to JSON
-    data = prompt.toJSON()
-    return _render_widget_html(data)
-
-
-def render_ir_html(ir: "IntermediateRepresentation") -> str:
-    """
-    Render an IntermediateRepresentation as HTML widget.
-
-    Parameters
-    ----------
-    ir : IntermediateRepresentation
-        The intermediate representation to render.
-
-    Returns
-    -------
-    str
-        HTML string for Jupyter notebook display.
-    """
-    # Export to JSON
-    data = ir.toJSON()
-    return _render_widget_html(data)

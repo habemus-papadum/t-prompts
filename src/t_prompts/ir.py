@@ -769,7 +769,7 @@ class CompiledIR:
         data = self.widget_data(config)
 
         # Render to HTML
-        html = _render_widget_html(data)
+        html = _render_widget_html(data, "tp-widget-mount")
         return Widget(html)
 
     def _repr_html_(self) -> str:
