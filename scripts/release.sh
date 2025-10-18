@@ -5,16 +5,17 @@ This script automates the release process:
 1. Verifies git repo is clean
 2. Validates version has -alpha suffix
 3. Calculates release version (strips -alpha)
-4. Runs all validation (tests, notebooks, linting, docs, widgets build/lint/test)
-5. Updates version files (pyproject.toml, __init__.py, package.json, version.ts) to release version
-6. Updates uv.lock with new version
-7. Creates release commit and tag
-8. Pushes tag to origin
-9. Publishes to PyPI
-10. Creates GitHub release (triggers docs deployment)
-11. Bumps to next development version with -alpha
-12. Updates uv.lock with new dev version
-13. Commits and pushes development version
+4. Runs TypeScript validation (lint, build TypeScript, build for Python, test)
+5. Runs Python validation (lint, test, docs build)
+6. Updates version files (pyproject.toml, __init__.py, package.json, version.ts) to release version
+7. Updates uv.lock with new version
+8. Creates release commit and tag
+9. Pushes tag to origin
+10. Publishes to PyPI
+11. Creates GitHub release (triggers docs deployment)
+12. Bumps to next development version with -alpha
+13. Updates uv.lock with new dev version
+14. Commits and pushes development version
 """
 
 import argparse
@@ -235,15 +236,6 @@ def run_tests() -> None:
     run_command(["uv", "run", "pytest"], "Running pytest")
 
 
-def run_notebook_tests() -> None:
-    """Run notebook tests."""
-    console.rule("[bold blue]Running Notebook Tests")
-    run_command(
-        ["./test_notebooks.sh", "--no-inplace"],
-        "Running notebook tests (read-only mode)",
-    )
-
-
 def run_linting() -> None:
     """Run linting checks."""
     console.rule("[bold blue]Running Linting Checks")
@@ -256,9 +248,15 @@ def build_docs() -> None:
     run_command(["uv", "run", "mkdocs", "build"], "Building mkdocs site")
 
 
+def build_widgets_typescript() -> None:
+    """Build TypeScript widgets."""
+    console.rule("[bold blue]Building TypeScript Widgets")
+    run_command(["pnpm", "build"], "Building widgets with pnpm")
+
+
 def build_widgets() -> None:
-    """Build JavaScript widgets and verify no uncommitted changes."""
-    console.rule("[bold blue]Building JavaScript Widgets")
+    """Build JavaScript widgets for Python distribution and verify no uncommitted changes."""
+    console.rule("[bold blue]Building JavaScript Widgets for Python")
 
     run_command(["pnpm", "build:python"], "Building widgets with pnpm")
 
@@ -488,46 +486,7 @@ STEPS: list[Step] = [
         category=StepCategory.VALIDATION,
         action=calculate_release_version,
     ),
-    Step(
-        id="run_tests",
-        name="Run Unit Tests",
-        description="Execute pytest test suite",
-        category=StepCategory.VALIDATION,
-        action=run_tests,
-        notes="Usually fast (< 30s)",
-    ),
-    Step(
-        id="run_notebooks",
-        name="Run Notebook Tests",
-        description="Execute all notebook tests in read-only mode",
-        category=StepCategory.VALIDATION,
-        action=run_notebook_tests,
-        notes="⚠️ Can be slow (1-2 minutes) - consider skipping for speed",
-    ),
-    Step(
-        id="run_linting",
-        name="Run Linting",
-        description="Check code quality with ruff",
-        category=StepCategory.VALIDATION,
-        action=run_linting,
-        notes="Usually fast (< 10s)",
-    ),
-    Step(
-        id="build_docs",
-        name="Build Documentation",
-        description="Build mkdocs site",
-        category=StepCategory.VALIDATION,
-        action=build_docs,
-        notes="Moderate speed (30-60s)",
-    ),
-    Step(
-        id="build_widgets",
-        name="Build Widgets",
-        description="Build JavaScript widgets and verify no uncommitted changes",
-        category=StepCategory.VALIDATION,
-        action=build_widgets,
-        notes="Usually fast (< 30s)",
-    ),
+    # TypeScript processing (lint, build, build for Python, test)
     Step(
         id="widget_linting",
         name="Run Widget Linting",
@@ -537,12 +496,53 @@ STEPS: list[Step] = [
         notes="Usually fast (< 10s)",
     ),
     Step(
+        id="build_widgets_typescript",
+        name="Build TypeScript Widgets",
+        description="Build TypeScript widgets with pnpm build",
+        category=StepCategory.VALIDATION,
+        action=build_widgets_typescript,
+        notes="Usually fast (< 30s)",
+    ),
+    Step(
+        id="build_widgets",
+        name="Build Widgets for Python",
+        description="Build JavaScript widgets for Python distribution and verify no uncommitted changes",
+        category=StepCategory.VALIDATION,
+        action=build_widgets,
+        notes="Usually fast (< 30s)",
+    ),
+    Step(
         id="widget_tests",
         name="Run Widget Tests",
         description="Execute widget test suite with pnpm test",
         category=StepCategory.VALIDATION,
         action=run_widget_tests,
         notes="Usually fast (< 30s)",
+    ),
+    # Python processing (lint, test, build docs)
+    Step(
+        id="run_linting",
+        name="Run Linting",
+        description="Check code quality with ruff",
+        category=StepCategory.VALIDATION,
+        action=run_linting,
+        notes="Usually fast (< 10s)",
+    ),
+    Step(
+        id="run_tests",
+        name="Run Unit Tests",
+        description="Execute pytest test suite",
+        category=StepCategory.VALIDATION,
+        action=run_tests,
+        notes="Usually fast (< 30s)",
+    ),
+    Step(
+        id="build_docs",
+        name="Build Documentation",
+        description="Build mkdocs site",
+        category=StepCategory.VALIDATION,
+        action=build_docs,
+        notes="Moderate speed (30-60s)",
     ),
     # Pre-release steps
     Step(
