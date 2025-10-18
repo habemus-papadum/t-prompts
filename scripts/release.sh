@@ -346,7 +346,7 @@ def publish_to_pypi() -> None:
     """Publish the package to PyPI using the publish script."""
     console.rule("[bold blue]Publishing to PyPI")
 
-    run_command(["./publish.sh"], "Running publish.sh to build and publish to PyPI")
+    run_command(["./scripts/publish.sh"], "Running publish.sh to build and publish to PyPI")
 
 
 def create_github_release() -> None:
