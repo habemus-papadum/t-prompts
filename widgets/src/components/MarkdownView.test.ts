@@ -7,6 +7,7 @@ import { buildMarkdownView } from './MarkdownView';
 import type { WidgetData, WidgetMetadata } from '../types';
 import { FoldingController } from '../folding/controller';
 import { JSDOM } from 'jsdom';
+import demo01Data from '../../test-fixtures/demo-01.json';
 
 // Setup JSDOM
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
@@ -34,8 +35,9 @@ describe('MarkdownView', () => {
     };
 
     metadata = {
-      totalChunks: 3,
-      hasImages: false,
+      elementTypeMap: {},
+      elementLocationMap: {},
+      chunkSizeMap: {},
     };
 
     foldingController = new FoldingController(['chunk1', 'chunk2', 'chunk3']);
@@ -160,7 +162,9 @@ describe('MarkdownView', () => {
     for (const [chunkId, elements] of chunkIdToElements.entries()) {
       expect(elements.length).toBeGreaterThan(0);
       for (const el of elements) {
-        expect(el.getAttribute('data-chunk-id')).toBe(chunkId);
+        const chunkIdsAttr = el.getAttribute('data-chunk-ids') || el.getAttribute('data-chunk-id') || '';
+        const chunkIds = chunkIdsAttr.split(/\s+/).filter(Boolean);
+        expect(chunkIds).toContain(chunkId);
       }
     }
   });
@@ -307,5 +311,149 @@ describe('MarkdownView', () => {
 
     // Verify base64 data is included
     expect(src).toContain(testImageData.base64_data);
+  });
+
+  it('should apply collapsed markers when chunks are collapsed', () => {
+    const view = buildMarkdownView(data, metadata, foldingController);
+    const chunkElements = view.chunkIdToElements.get('chunk2');
+    expect(chunkElements).toBeDefined();
+    const elementsArray = chunkElements ?? [];
+    expect(elementsArray.length).toBeGreaterThan(0);
+
+    const events: string[] = [];
+    foldingController.addClient({
+      onStateChanged(event) {
+        events.push(event.type);
+      },
+    });
+
+    foldingController.selectByIds(['chunk2']);
+    const collapsedIds = foldingController.commitSelections();
+    expect(collapsedIds.length).toBe(1);
+    expect(foldingController.isCollapsed('chunk2')).toBe(true);
+    expect(events).toContain('chunks-collapsed');
+
+    elementsArray.forEach((el) => {
+      expect(el.classList.contains('tp-markdown-collapsed')).toBe(true);
+    });
+    expect(view.element.querySelectorAll('.tp-markdown-collapsed').length).toBeGreaterThan(0);
+
+    const indicator = elementsArray[0].previousElementSibling as HTMLElement | null;
+    expect(indicator).toBeTruthy();
+    expect(indicator?.classList.contains('tp-markdown-collapsed-indicator')).toBe(true);
+    expect(indicator?.textContent).toBe('⋯');
+
+    foldingController.expandChunk(collapsedIds[0]);
+
+    elementsArray.forEach((el) => {
+      expect(el.classList.contains('tp-markdown-collapsed')).toBe(false);
+    });
+    expect(view.element.querySelector('.tp-markdown-collapsed-indicator')).toBeNull();
+  });
+
+  it('should show image indicator for collapsed image chunks', () => {
+    const testImageData = {
+      base64_data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      format: 'png',
+      width: 1,
+      height: 1,
+      mode: 'RGB'
+    };
+
+    const imageData: WidgetData = {
+      ir: {
+        chunks: [
+          { id: 'chunk1', text: 'Before\n\n', element_id: 'elem1', type: 'TextChunk' },
+          {
+            id: 'chunk2',
+            element_id: 'elem2',
+            type: 'ImageChunk',
+            image: testImageData,
+          },
+        ],
+      },
+      source_prompt: {},
+      compiled_ir: {},
+      config: {},
+    };
+
+    const view = buildMarkdownView(imageData, metadata, foldingController);
+    foldingController.selectByIds(['chunk2']);
+    const collapsedIds = foldingController.commitSelections();
+    expect(collapsedIds.length).toBe(1);
+
+    const collapsedElements = view.chunkIdToElements.get('chunk2') ?? [];
+    expect(collapsedElements.length).toBeGreaterThan(0);
+    collapsedElements.forEach((el) => {
+      expect(el.classList.contains('tp-markdown-collapsed')).toBe(true);
+    });
+
+    const indicator = collapsedElements[0].previousElementSibling as HTMLElement | null;
+    expect(indicator).toBeTruthy();
+    expect(indicator?.textContent).toBe('🖼⋯');
+
+    foldingController.expandChunk(collapsedIds[0]);
+    expect(view.element.querySelector('.tp-markdown-collapsed-indicator')).toBeNull();
+  });
+
+  describe('demo fixture', () => {
+    it('maps every demo chunk to DOM elements with chunk ids', () => {
+      const widgetData = demo01Data as unknown as WidgetData;
+      const chunkIds = widgetData.ir?.chunks?.map((chunk) => chunk.id) ?? [];
+
+      const controller = new FoldingController(chunkIds);
+      const view = buildMarkdownView(widgetData, metadata, controller);
+      const missing = chunkIds.filter((id) => !view.chunkIdToElements.has(id));
+      expect(missing, `chunks missing from map: ${missing.join(', ')}`).toEqual([]);
+
+      for (const chunkId of chunkIds) {
+        const elements = view.chunkIdToElements.get(chunkId);
+        expect(elements, `chunk ${chunkId} should map to elements`).toBeDefined();
+        expect(elements && elements.length).toBeGreaterThan(0);
+
+        const hasAttributeMatch =
+          elements?.some((el) => {
+            const attr = el.getAttribute('data-chunk-ids') || el.getAttribute('data-chunk-id') || '';
+            return attr.split(/\s+/).filter(Boolean).includes(chunkId);
+          }) ?? false;
+
+        expect(hasAttributeMatch, `chunk ${chunkId} should be present in element attributes`).toBe(true);
+      }
+    });
+
+    it('collapses long text chunk and hides markdown content', () => {
+      const widgetData = demo01Data as unknown as WidgetData;
+      const chunkIds = widgetData.ir?.chunks?.map((chunk) => chunk.id) ?? [];
+      const controller = new FoldingController(chunkIds);
+      const view = buildMarkdownView(widgetData, metadata, controller);
+
+      const longChunkId = widgetData.ir?.chunks?.find(
+        (chunk) => chunk.text && chunk.text.startsWith('aaaa')
+      )?.id;
+
+      expect(longChunkId).toBeDefined();
+      if (!longChunkId) {
+        return;
+      }
+
+      controller.selectByIds([longChunkId]);
+      const [collapsedId] = controller.commitSelections();
+      expect(controller.isCollapsed(longChunkId)).toBe(true);
+
+      const elements = view.chunkIdToElements.get(longChunkId) ?? [];
+      expect(elements.length).toBeGreaterThan(0);
+      elements.forEach((el) => {
+        expect(el.classList.contains('tp-markdown-collapsed')).toBe(true);
+      });
+
+      const indicator = elements[0].previousElementSibling as HTMLElement | null;
+      expect(indicator).toBeTruthy();
+      expect(indicator?.textContent).toMatch(/⋯/);
+
+      controller.expandChunk(collapsedId);
+      elements.forEach((el) => {
+        expect(el.classList.contains('tp-markdown-collapsed')).toBe(false);
+      });
+    });
   });
 });

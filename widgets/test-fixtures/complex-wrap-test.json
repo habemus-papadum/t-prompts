@@ -1,25 +1,25 @@
 {
   "compiled_ir": {
-    "ir_id": "9dc923c9-246f-4ccd-91e6-39c16fc8932f",
+    "ir_id": "e1a916c5-279d-43a5-9cb1-f14b5fa419a5",
     "subtree_map": {
-      "2554e7eb-3563-4f07-a36b-927c80d9b13d": [
-        "13483206-2641-4117-944c-5da5a7a5552d"
+      "3f2f22ea-df2b-4681-96e6-6d5e782e2c33": [
+        "e36a867a-9788-48d8-807a-0fd8a34c040f"
       ],
-      "54d7cdd4-70a2-415d-b193-177efdbf9dec": [
-        "22db5552-51df-47c5-869a-bd76fc4b27ab"
+      "ffb29f76-887b-4986-9753-bc4356067a42": [
+        "9ad2d01d-7fb6-4f53-bd5b-8cb56cecdef5"
       ],
-      "59c92ab7-2beb-4352-b703-d293903b101b": [
-        "1c1233db-a0c0-43bd-9ceb-ee83280d96a3"
+      "8fbf973b-7dbc-4630-bbb2-e16d498f6abf": [
+        "dbd69528-4d8f-4fae-93f9-3c84f3f886db"
       ],
-      "fc07cb8f-0f80-49e1-a401-cf85e9d6e580": [
-        "dfc64981-52cd-4a3e-9732-4ac750ded3ad"
+      "e4695952-7bfc-4be5-a958-7746a0ea7113": [
+        "ad5701c5-0c30-4a86-8a79-cdee9f7fa2c9"
       ],
-      "5d849f72-7b8d-43fe-9a11-648e16176c9d": [],
-      "5f9ad81b-58ae-425b-99c1-f75e22324529": [
-        "13483206-2641-4117-944c-5da5a7a5552d",
-        "22db5552-51df-47c5-869a-bd76fc4b27ab",
-        "1c1233db-a0c0-43bd-9ceb-ee83280d96a3",
-        "dfc64981-52cd-4a3e-9732-4ac750ded3ad"
+      "196f2674-56ae-43f2-a2ae-3ceda43680b4": [],
+      "decf0259-5377-463e-b0ed-d46a7ef39963": [
+        "e36a867a-9788-48d8-807a-0fd8a34c040f",
+        "9ad2d01d-7fb6-4f53-bd5b-8cb56cecdef5",
+        "dbd69528-4d8f-4fae-93f9-3c84f3f886db",
+        "ad5701c5-0c30-4a86-8a79-cdee9f7fa2c9"
       ]
     },
     "num_elements": 6
@@ -29,43 +29,43 @@
       {
         "type": "TextChunk",
         "text": "Introduction: ",
-        "element_id": "2554e7eb-3563-4f07-a36b-927c80d9b13d",
-        "id": "13483206-2641-4117-944c-5da5a7a5552d",
+        "element_id": "3f2f22ea-df2b-4681-96e6-6d5e782e2c33",
+        "id": "e36a867a-9788-48d8-807a-0fd8a34c040f",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "This is a comprehensive test",
-        "element_id": "54d7cdd4-70a2-415d-b193-177efdbf9dec",
-        "id": "22db5552-51df-47c5-869a-bd76fc4b27ab",
+        "element_id": "ffb29f76-887b-4986-9753-bc4356067a42",
+        "id": "9ad2d01d-7fb6-4f53-bd5b-8cb56cecdef5",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "\n",
-        "element_id": "59c92ab7-2beb-4352-b703-d293903b101b",
-        "id": "1c1233db-a0c0-43bd-9ceb-ee83280d96a3",
+        "element_id": "8fbf973b-7dbc-4630-bbb2-e16d498f6abf",
+        "id": "dbd69528-4d8f-4fae-93f9-3c84f3f886db",
         "metadata": {}
       },
       {
         "type": "TextChunk",
         "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "element_id": "fc07cb8f-0f80-49e1-a401-cf85e9d6e580",
-        "id": "dfc64981-52cd-4a3e-9732-4ac750ded3ad",
+        "element_id": "e4695952-7bfc-4be5-a958-7746a0ea7113",
+        "id": "ad5701c5-0c30-4a86-8a79-cdee9f7fa2c9",
         "metadata": {}
       }
     ],
-    "source_prompt_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
-    "id": "9dc923c9-246f-4ccd-91e6-39c16fc8932f",
+    "source_prompt_id": "decf0259-5377-463e-b0ed-d46a7ef39963",
+    "id": "e1a916c5-279d-43a5-9cb1-f14b5fa419a5",
     "metadata": {}
   },
   "source_prompt": {
-    "prompt_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+    "prompt_id": "decf0259-5377-463e-b0ed-d46a7ef39963",
     "children": [
       {
         "type": "static",
-        "id": "2554e7eb-3563-4f07-a36b-927c80d9b13d",
-        "parent_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+        "id": "3f2f22ea-df2b-4681-96e6-6d5e782e2c33",
+        "parent_id": "decf0259-5377-463e-b0ed-d46a7ef39963",
         "key": 0,
         "index": 0,
         "source_location": {
@@ -77,8 +77,8 @@
       },
       {
         "type": "interpolation",
-        "id": "54d7cdd4-70a2-415d-b193-177efdbf9dec",
-        "parent_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+        "id": "ffb29f76-887b-4986-9753-bc4356067a42",
+        "parent_id": "decf0259-5377-463e-b0ed-d46a7ef39963",
         "key": "intro",
         "index": 1,
         "source_location": {
@@ -94,8 +94,8 @@
       },
       {
         "type": "static",
-        "id": "59c92ab7-2beb-4352-b703-d293903b101b",
-        "parent_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+        "id": "8fbf973b-7dbc-4630-bbb2-e16d498f6abf",
+        "parent_id": "decf0259-5377-463e-b0ed-d46a7ef39963",
         "key": 1,
         "index": 2,
         "source_location": {
@@ -107,8 +107,8 @@
       },
       {
         "type": "interpolation",
-        "id": "fc07cb8f-0f80-49e1-a401-cf85e9d6e580",
-        "parent_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+        "id": "e4695952-7bfc-4be5-a958-7746a0ea7113",
+        "parent_id": "decf0259-5377-463e-b0ed-d46a7ef39963",
         "key": "long",
         "index": 3,
         "source_location": {
@@ -124,8 +124,8 @@
       },
       {
         "type": "static",
-        "id": "5d849f72-7b8d-43fe-9a11-648e16176c9d",
-        "parent_id": "5f9ad81b-58ae-425b-99c1-f75e22324529",
+        "id": "196f2674-56ae-43f2-a2ae-3ceda43680b4",
+        "parent_id": "decf0259-5377-463e-b0ed-d46a7ef39963",
         "key": 2,
         "index": 4,
         "source_location": {
@@ -139,6 +139,6 @@
   },
   "config": {
     "wrapping": true,
-    "sourcePrefix": "/Users/nehal/src/structured-prompts"
+    "sourcePrefix": "/Users/nehal/src/structured-prompts/widgets"
   }
 }

@@ -63,6 +63,8 @@ export function sourcePositionPlugin(md: MarkdownIt, positionMap: ElementPositio
     'bullet_list_open',
     'ordered_list_open',
     'image', // Track images for chunk mapping
+    'math_block',
+    'math_inline',
     // Don't track other inline elements - they don't have reliable map data
     // 'strong_open',
     // 'em_open',

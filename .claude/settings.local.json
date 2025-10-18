@@ -58,7 +58,8 @@
       "Bash(git check-ignore:*)",
       "Bash(pnpm test:coverage:*)",
       "Bash(pnpm --filter @t-prompts/widgets test WidgetContainer)",
-      "Bash(pnpm --filter @t-prompts/widgets vitest run:*)"
+      "Bash(pnpm --filter @t-prompts/widgets vitest run:*)",
+      "Bash(pnpm --filter @t-prompts/widgets test MarkdownView)"
     ],
     "deny": [],
     "ask": []

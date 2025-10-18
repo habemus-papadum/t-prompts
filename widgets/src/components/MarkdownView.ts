@@ -34,6 +34,10 @@ export interface MarkdownView extends Component {
   chunkIdToElements: Map<string, HTMLElement[]>; // chunkId → array of DOM elements
 }
 
+const COLLAPSED_CLASS = 'tp-markdown-collapsed';
+const COLLAPSED_INDICATOR_CLASS = 'tp-markdown-collapsed-indicator';
+const CHUNK_IDS_ATTR = 'data-chunk-ids';
+
 /**
  * Build a MarkdownView component from widget data and metadata
  *
@@ -52,27 +56,103 @@ export function buildMarkdownView(
 
   // 2. Build chunk ID to elements map
   const chunkIdToElements = new Map<string, HTMLElement[]>();
+  const collapsedIndicators = new WeakMap<HTMLElement, HTMLElement>();
 
   // 3. Stage 1: Generate markdown text with position tracking
-  const { markdownText, chunkPositions } = generateMarkdownWithPositions(data);
+  const { markdownText, chunkPositions, chunkTexts } = generateMarkdownWithPositions(data);
 
   // 4. Stage 2: Render markdown and create position-to-element mapping
   const { html, positionToElements } = renderMarkdownWithPositionTracking(markdownText);
 
   // 5. Combine mappings: chunkId → positions → elements
   element.innerHTML = html;
-  buildChunkToElementMapping(element, chunkPositions, positionToElements, chunkIdToElements);
+  buildChunkToElementMapping(element, chunkPositions, chunkTexts, positionToElements, chunkIdToElements);
 
-  // 6. Create folding client (placeholder for now)
+  function clearCollapsedMarkers(): void {
+    const collapsedElements = element.querySelectorAll(`.${COLLAPSED_CLASS}`);
+    collapsedElements.forEach((node) => {
+      const htmlElement = node as HTMLElement;
+      htmlElement.classList.remove(COLLAPSED_CLASS);
+      const indicator = collapsedIndicators.get(htmlElement);
+      if (indicator) {
+        indicator.remove();
+        collapsedIndicators.delete(htmlElement);
+      }
+    });
+
+    const indicators = element.querySelectorAll(`.${COLLAPSED_INDICATOR_CLASS}`);
+    indicators.forEach((node) => node.remove());
+  }
+
+  function insertIndicator(target: HTMLElement, isImage: boolean): void {
+    if (!target.parentNode) {
+      return;
+    }
+
+    const indicator = document.createElement('span');
+    indicator.className = COLLAPSED_INDICATOR_CLASS;
+    indicator.textContent = isImage ? '🖼⋯' : '⋯';
+    indicator.title = isImage ? 'Collapsed image content' : 'Collapsed content';
+    indicator.setAttribute('aria-label', indicator.title);
+
+    const defaultView = target.ownerDocument?.defaultView;
+    const display = defaultView ? defaultView.getComputedStyle(target).display : '';
+
+    if (display === 'list-item') {
+      indicator.classList.add(`${COLLAPSED_INDICATOR_CLASS}--list-item`);
+    } else if (display === 'block' || display === 'flex' || display === 'grid') {
+      indicator.classList.add(`${COLLAPSED_INDICATOR_CLASS}--block`);
+    } else {
+      indicator.classList.add(`${COLLAPSED_INDICATOR_CLASS}--inline`);
+    }
+
+    target.insertAdjacentElement('beforebegin', indicator);
+    collapsedIndicators.set(target, indicator);
+  }
+
+  function markCollapsedElement(target: HTMLElement): void {
+    target.classList.add(COLLAPSED_CLASS);
+    if (collapsedIndicators.has(target)) {
+      return;
+    }
+
+    const containsImage = target.matches('img, figure') || !!target.querySelector('img');
+    insertIndicator(target, containsImage);
+  }
+
+  function applyCollapsedState(): void {
+    clearCollapsedMarkers();
+
+    for (const [chunkId, elements] of chunkIdToElements.entries()) {
+      if (!foldingController.isCollapsed(chunkId)) {
+        continue;
+      }
+
+      for (const el of elements) {
+        if (!el) {
+          continue;
+        }
+        markCollapsedElement(el);
+      }
+    }
+  }
+
+  // 6. Create folding client
   const foldingClient: FoldingClient = {
     onStateChanged(event: FoldingEvent): void {
-      // TODO: Handle folding events
-      console.log('Folding event:', event.type);
+      switch (event.type) {
+        case 'chunks-collapsed':
+        case 'chunk-expanded':
+        case 'state-reset':
+          applyCollapsedState();
+          break;
+      }
     },
   };
 
   // 7. Register as client
   foldingController.addClient(foldingClient);
+  applyCollapsedState();
 
   // 8. Return component
   return {
@@ -96,10 +176,12 @@ export function buildMarkdownView(
 function generateMarkdownWithPositions(data: WidgetData): {
   markdownText: string;
   chunkPositions: Map<string, PositionRange>;
+  chunkTexts: Map<string, string>;
 } {
   const chunks = data.ir?.chunks || [];
   let markdownText = '';
   const chunkPositions = new Map<string, PositionRange>();
+  const chunkTexts = new Map<string, string>();
 
   for (const chunk of chunks) {
     const start = markdownText.length;
@@ -118,9 +200,10 @@ function generateMarkdownWithPositions(data: WidgetData): {
     const end = markdownText.length;
 
     chunkPositions.set(chunk.id, { start, end });
+    chunkTexts.set(chunk.id, text);
   }
 
-  return { markdownText, chunkPositions };
+  return { markdownText, chunkPositions, chunkTexts };
 }
 
 /**
@@ -191,6 +274,7 @@ function renderMarkdownWithPositionTracking(markdownText: string): {
 function buildChunkToElementMapping(
   container: HTMLElement,
   chunkPositions: Map<string, PositionRange>,
+  chunkTexts: Map<string, string>,
   positionToElements: ElementPositionMap,
   chunkIdToElements: Map<string, HTMLElement[]>
 ): void {
@@ -200,16 +284,20 @@ function buildChunkToElementMapping(
 
     for (const [elementId, elementRange] of positionToElements.entries()) {
       // Check if ranges overlap
-      if (rangesOverlap(chunkRange, elementRange)) {
-        // Find the DOM element with this data-md-id
-        const element = container.querySelector(`[data-md-id="${elementId}"]`);
+      if (!rangesOverlap(chunkRange, elementRange)) {
+        continue;
+      }
 
-        // Check if element exists (use duck typing instead of instanceof for JSDOM compatibility)
-        if (element && element.nodeType === 1) {
-          // Add chunk ID to the element
-          element.setAttribute('data-chunk-id', chunkId);
-          elements.push(element as HTMLElement);
-        }
+      const element = container.querySelector(`[data-md-id="${elementId}"]`);
+
+      if (!element || element.nodeType !== 1) {
+        continue;
+      }
+
+      const htmlElement = element as HTMLElement;
+      addChunkIdToElement(htmlElement, chunkId);
+      if (!elements.includes(htmlElement)) {
+        elements.push(htmlElement);
       }
     }
 
@@ -217,6 +305,97 @@ function buildChunkToElementMapping(
       chunkIdToElements.set(chunkId, elements);
     }
   }
+
+  const missingChunks: string[] = [];
+  for (const chunkId of chunkPositions.keys()) {
+    if (!chunkIdToElements.has(chunkId)) {
+      missingChunks.push(chunkId);
+    }
+  }
+
+  if (missingChunks.length > 0) {
+    assignLatexChunks(container, missingChunks, chunkTexts, chunkIdToElements);
+  }
+}
+
+function addChunkIdToElement(element: HTMLElement, chunkId: string): void {
+  const existingIdsAttr = element.getAttribute(CHUNK_IDS_ATTR);
+  const existingIds = existingIdsAttr ? new Set(existingIdsAttr.split(/\s+/).filter(Boolean)) : new Set<string>();
+
+  if (!existingIds.has(chunkId)) {
+    existingIds.add(chunkId);
+    element.setAttribute(CHUNK_IDS_ATTR, Array.from(existingIds).join(' '));
+  }
+
+  if (!element.hasAttribute('data-chunk-id')) {
+    element.setAttribute('data-chunk-id', chunkId);
+  }
+}
+
+function assignLatexChunks(
+  container: HTMLElement,
+  chunkIds: string[],
+  chunkTexts: Map<string, string>,
+  chunkIdToElements: Map<string, HTMLElement[]>
+): void {
+  const katexBlocks = Array.from(container.querySelectorAll<HTMLElement>('.katex-block'));
+  const usedBlocks = new Set<HTMLElement>();
+
+  for (const chunkId of chunkIds) {
+    const chunkText = chunkTexts.get(chunkId) ?? '';
+    const normalizedChunkLatex = normalizeLatex(extractLatexFromChunk(chunkText));
+    if (!normalizedChunkLatex) {
+      continue;
+    }
+
+    const matchingBlock = katexBlocks.find((block) => {
+      if (usedBlocks.has(block)) {
+        return false;
+      }
+
+      const annotation = block.querySelector('annotation[encoding="application/x-tex"]');
+      const annotationText = annotation?.textContent ? normalizeLatex(annotation.textContent) : '';
+      return annotationText === normalizedChunkLatex;
+    });
+
+    if (!matchingBlock) {
+      continue;
+    }
+
+    addChunkIdToElement(matchingBlock, chunkId);
+    const existing = chunkIdToElements.get(chunkId) ?? [];
+    if (!existing.includes(matchingBlock)) {
+      existing.push(matchingBlock);
+      chunkIdToElements.set(chunkId, existing);
+    }
+
+    usedBlocks.add(matchingBlock);
+  }
+}
+
+function extractLatexFromChunk(rawText: string): string {
+  const trimmed = rawText.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
+    return trimmed.slice(2, -2);
+  }
+
+  if (trimmed.startsWith('\\[') && trimmed.endsWith('\\]')) {
+    return trimmed.slice(2, -2);
+  }
+
+  if (trimmed.startsWith('\\(') && trimmed.endsWith('\\)')) {
+    return trimmed.slice(2, -2);
+  }
+
+  return trimmed;
+}
+
+function normalizeLatex(value: string): string {
+  return value.replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').trim();
 }
 
 /**
