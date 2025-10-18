@@ -80,15 +80,23 @@ uv run pytest tests/test_example.py::test_version
 
 ### Code Quality
 ```bash
-# Check code with ruff
+# Check Python code with ruff
 uv run ruff check .
 
-# Format code with ruff
+# Format Python code with ruff
 uv run ruff format .
 
-# Fix auto-fixable issues
+# Fix auto-fixable Python issues
 uv run ruff check --fix .
+
+# Check TypeScript/JavaScript code with eslint
+pnpm --filter @t-prompts/widgets lint
 ```
+
+**Important**: When creating or modifying multiple files, always run the appropriate linter before considering your work complete:
+- After Python changes: `uv run ruff check .`
+- After TypeScript/JavaScript changes: `pnpm --filter @t-prompts/widgets lint`
+- This catches formatting issues, line length violations, and style problems early
 
 ### Documentation
 ```bash
@@ -291,12 +299,18 @@ TODO
 
 
 ### Code Standards
-- **Ruff Configuration**:
-  - Target: Python 3.14
-  - Line length: 120 characters
-  - Linting rules: E (pycodestyle errors), F (pyflakes), W (warnings), I (isort)
-- **Type Hints**: Use throughout (string.templatelib types + typing)
-- **Docstrings**: NumPy style, include Parameters, Returns, Raises sections
+
+**Python (Ruff Configuration)**:
+- Target: Python 3.14
+- **Line length: 120 characters maximum**
+- Linting rules: E (pycodestyle errors), F (pyflakes), W (warnings), I (isort)
+- Type Hints: Use throughout (string.templatelib types + typing)
+- Docstrings: NumPy style, include Parameters, Returns, Raises sections
+
+**TypeScript/JavaScript (ESLint Configuration)**:
+- **Line length: 120 characters maximum** (enforced by Prettier)
+- Use TypeScript throughout widget code
+- Follow existing code style and patterns
 
 ### Testing Configuration
 - Test files must start with `test_` prefix
@@ -316,6 +330,11 @@ TODO -- explain utils and workflows
 - Include 14 comprehensive tests covering all widget features
 
 ## Common Pitfalls
+
+### Code Quality
+- ❌ Don't skip linting after creating/modifying files → ✅ Run `uv run ruff check .` (Python) or `pnpm --filter @t-prompts/widgets lint` (TypeScript)
+- ❌ Don't ignore line length limits (120 chars) → ✅ Break long lines before committing
+- ❌ Don't batch all linting until the end → ✅ Run linters incrementally as you work
 
 ### JavaScript/Widget Development
 - ❌ Don't `cd widgets && pnpm test` → ✅ Use `pnpm --filter @t-prompts/widgets test` from root

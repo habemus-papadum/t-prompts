@@ -9,7 +9,7 @@ from itertools import zip_longest
 from typing import Any, Iterable, Literal, Optional
 
 from .element import Element, ImageInterpolation, ListInterpolation, Static, TextInterpolation
-from .ir import ImageChunk, IntermediateRepresentation, TextChunk
+from .ir import ImageChunk, TextChunk
 from .structured_prompt import StructuredPrompt
 
 try:  # pragma: no cover - rich is part of the dev environment, but keep graceful degradation
@@ -33,7 +33,8 @@ ChunkOp = Literal["equal", "insert", "delete", "replace"]
 _DIFF_STYLE = """
 <style>
 .tp-diff-view {
-  font-family: var(--tp-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif);
+  font-family: var(--tp-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans',
+    Helvetica, Arial, sans-serif);
   font-size: 14px;
   color: var(--tp-color-fg, #24292e);
   background: var(--tp-color-bg, #ffffff);
@@ -113,7 +114,8 @@ _DIFF_STYLE = """
 
 .tp-diff-text {
   display: inline-block;
-  font-family: var(--tp-font-mono, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace);
+  font-family: var(--tp-font-mono, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+    'Courier New', monospace);
   font-size: 12px;
   padding: 2px 4px;
   border-radius: 4px;
@@ -142,7 +144,8 @@ _DIFF_STYLE = """
 
 .tp-diff-chunk-text {
   white-space: pre-wrap;
-  font-family: var(--tp-font-mono, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace);
+  font-family: var(--tp-font-mono, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+    'Courier New', monospace);
   font-size: 12px;
 }
 
@@ -439,7 +442,8 @@ class RenderedPromptDiff:
         console.print(table)
         totals = self.stats()
         console.print(
-            f"insert={totals['insert']}, delete={totals['delete']}, replace={totals['replace']}, equal={totals['equal']}"
+            f"insert={totals['insert']}, delete={totals['delete']}, "
+            f"replace={totals['replace']}, equal={totals['equal']}"
         )
         return console.export_text(clear=False)
 

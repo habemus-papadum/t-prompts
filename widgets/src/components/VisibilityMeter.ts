@@ -193,10 +193,6 @@ function createPie(wrapperClass: string): PieElements {
   return { wrapper, foregroundCircle: foreground, circumference };
 }
 
-function isPie(part: HTMLElement | PieElements): part is PieElements {
-  return (part as PieElements).foregroundCircle !== undefined;
-}
-
 function updatePie(pie: PieElements, ratio: number): void {
   const clampedRatio = clamp(ratio);
   const offsetValue = pie.circumference * (1 - clampedRatio);
