@@ -60,7 +60,8 @@
       "Bash(pnpm --filter @t-prompts/widgets test WidgetContainer)",
       "Bash(pnpm --filter @t-prompts/widgets vitest run:*)",
       "Bash(pnpm --filter @t-prompts/widgets test MarkdownView)",
-      "Bash(pnpm --filter @t-prompts/widgets test TreeView)"
+      "Bash(pnpm --filter @t-prompts/widgets test TreeView)",
+      "Bash(pnpm build:python)"
     ],
     "deny": [],
     "ask": []

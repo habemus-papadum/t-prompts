@@ -260,7 +260,7 @@ def build_widgets() -> None:
     """Build JavaScript widgets and verify no uncommitted changes."""
     console.rule("[bold blue]Building JavaScript Widgets")
 
-    run_command(["pnpm", "buildPython"], "Building widgets with pnpm")
+    run_command(["pnpm", "build:python"], "Building widgets with pnpm")
 
     result = run_command(
         ["git", "status", "--porcelain", "widgets/dist"],

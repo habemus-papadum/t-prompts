@@ -11,7 +11,7 @@ pnpm --filter @t-prompts/widgets lint
 
 echo ""
 echo "2. TypeScript Build..."
-pnpm --filter @t-prompts/widgets build
+pnpm --filter @t-prompts/widgets build:python
 
 echo ""
 echo "3. TypeScript Tests..."

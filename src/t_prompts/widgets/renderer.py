@@ -6,9 +6,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     pass
 
-# Module-level flag to track if bundle has been injected
-_bundle_injected = False
-
 
 def _get_widget_bundle() -> str:
     """
@@ -51,7 +48,10 @@ def _get_widget_bundle() -> str:
 
 def _render_widget_html(data: dict[str, Any], mount_class: str, *, force_inject: bool = False) -> str:
     """
-    Render widget HTML with singleton injection strategy.
+    Render widget HTML with bundle always included.
+
+    The JavaScript handles deduplication to ensure styles and event listeners
+    are only initialized once per page, even if multiple widgets are rendered.
 
     Parameters
     ----------
@@ -60,7 +60,7 @@ def _render_widget_html(data: dict[str, Any], mount_class: str, *, force_inject:
     mount_class : str
         CSS class name for the widget mount point.
     force_inject : bool, optional
-        If True, always inject the bundle even if already injected.
+        Kept for backwards compatibility. Has no effect since bundle is always injected.
         Default is False.
 
     Returns
@@ -68,22 +68,11 @@ def _render_widget_html(data: dict[str, Any], mount_class: str, *, force_inject:
     str
         HTML string with widget markup.
     """
-    global _bundle_injected
-
-    # Determine if we need to inject the bundle
-    should_inject = force_inject or not _bundle_injected
-
     html_parts = []
 
-    if should_inject:
-        # Get JavaScript bundle
-        js_bundle = _get_widget_bundle()
-
-        # Inject JavaScript bundle (includes widget styles with bundled KaTeX)
-        html_parts.append(f'<script id="tp-widget-bundle">{js_bundle}</script>')
-
-        # Mark as injected
-        _bundle_injected = True
+    # Always inject the bundle - JavaScript handles deduplication
+    js_bundle = _get_widget_bundle()
+    html_parts.append(f'<script id="tp-widget-bundle">{js_bundle}</script>')
 
     # Serialize data to JSON
     json_data = json.dumps(data)

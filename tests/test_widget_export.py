@@ -167,7 +167,9 @@ def test_create_widget_gallery_contains_all_widgets(temp_output_dir):
     assert "<h2>Widget C</h2>" in html_content
 
     # Should contain multiple widget containers
-    widget_count = html_content.count('data-tp-widget')
+    # Count actual div elements with data-tp-widget, not string occurrences
+    # (the bundle JavaScript also contains this string in selectors)
+    widget_count = html_content.count('<div class="tp-widget-root" data-tp-widget>')
     assert widget_count == 3
 
 

@@ -175,12 +175,6 @@ def _generate_html(
     str
         Complete HTML page with widget.
     """
-    # Reset the bundle injection flag to ensure JavaScript is included on every render
-    # This is necessary because the flag is a module-level global that persists
-    # across renders, and we need the JS bundle on every page reload
-    from . import renderer
-    renderer._bundle_injected = False
-
     print(f"  [HTML] Calling generator function: {generator_func.__name__}")
     sp = generator_func()
     print(f"  [HTML] Got StructuredPrompt: {type(sp).__name__}")

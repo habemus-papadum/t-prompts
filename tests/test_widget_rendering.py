@@ -80,12 +80,7 @@ def test_html_contains_javascript_bundle():
 
 
 def test_html_singleton_injection():
-    """Test that JavaScript bundle is only injected once."""
-    from t_prompts.widgets import renderer as widget_renderer
-
-    # Reset the bundle injection flag
-    widget_renderer._bundle_injected = False
-
+    """Test that JavaScript bundle is always included (deduplication happens in JS)."""
     task1 = "translate"
     p1 = prompt(t"Task: {task1:t1}")
     html1 = p1._repr_html_()
@@ -93,13 +88,14 @@ def test_html_singleton_injection():
     # First call should include bundle
     assert "tp-widget-bundle" in html1
 
-    # Second call should not include bundle (singleton pattern)
+    # Second call should also include bundle (JavaScript handles deduplication)
     task2 = "summarize"
     p2 = prompt(t"Task: {task2:t2}")
     html2 = p2._repr_html_()
 
-    # Second call shouldn't re-inject the bundle
-    assert "tp-widget-bundle" not in html2 or html2.count("tp-widget-bundle") == 0
+    # Bundle is always injected now - JS handles deduplication
+    assert "tp-widget-bundle" in html2
+    assert html2.count("tp-widget-bundle") == 1
 
 
 def test_html_contains_valid_json_data():

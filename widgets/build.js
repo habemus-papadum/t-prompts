@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function copyDistToPython() {
+function copyIifeToPython() {
   const distDir = path.join(__dirname, 'dist');
   const pythonWidgetsDir = path.join(__dirname, '..', 'src', 't_prompts', 'widgets');
 
@@ -16,16 +16,16 @@ function copyDistToPython() {
     fs.mkdirSync(pythonWidgetsDir, { recursive: true });
   }
 
-  // Copy .js and .css files from dist/ to Python package (exclude .map files)
-  const files = fs.readdirSync(distDir);
-  for (const file of files) {
-    const ext = path.extname(file);
-    if (ext === '.js' || ext === '.css') {
-      const srcPath = path.join(distDir, file);
-      const destPath = path.join(pythonWidgetsDir, file);
-      fs.copyFileSync(srcPath, destPath);
-      console.log(`  Copied ${file} to Python package`);
-    }
+  // Copy only the IIFE bundle to Python package
+  const iifeBundle = 'index.js';
+  const srcPath = path.join(distDir, iifeBundle);
+  const destPath = path.join(pythonWidgetsDir, iifeBundle);
+
+  if (fs.existsSync(srcPath)) {
+    fs.copyFileSync(srcPath, destPath);
+    console.log(`  Copied ${iifeBundle} to Python package`);
+  } else {
+    throw new Error(`IIFE bundle not found at ${srcPath}`);
   }
 }
 
@@ -40,7 +40,7 @@ export const WIDGET_STYLES = ${JSON.stringify(stylesContent)};
   console.log(`  Generated styles hash: ${hash}`);
 }
 
-async function build() {
+async function buildPython() {
   const outdir = path.join(__dirname, 'dist');
   const srcdir = path.join(__dirname, 'src');
 
@@ -50,6 +50,8 @@ async function build() {
   }
 
   try {
+    console.log('Building IIFE bundle for Python integration...\n');
+
     // Step 1: Bundle KaTeX CSS (resolves @import and bundles fonts)
     console.log('Building KaTeX bundle...');
     await esbuild.build({
@@ -73,13 +75,13 @@ async function build() {
     fs.writeFileSync(path.join(outdir, 'styles.css'), finalStyles);
     console.log('✓ Concatenated styles.css');
 
-    // Step 3: Generate styles module (hash + inline CSS)
+    // Step 3: Generate styles module (hash + inline CSS for IIFE bundle)
     writeGeneratedModule(finalStyles);
 
-    // Step 4: Build JavaScript (uses loader for CSS text import)
-    console.log('Building JavaScript bundle...');
+    // Step 4: Build IIFE JavaScript bundle from index-iife.ts
+    console.log('Building IIFE JavaScript bundle...');
     await esbuild.build({
-      entryPoints: ['src/index.ts'],
+      entryPoints: ['src/index-iife.ts'],
       bundle: true,
       minify: true,
       sourcemap: true,
@@ -92,17 +94,17 @@ async function build() {
       metafile: true,
       logLevel: 'info',
     });
-    console.log('✓ JavaScript bundle built');
+    console.log('✓ IIFE JavaScript bundle built');
 
-    // Step 5: Copy artifacts to Python package
-    copyDistToPython();
+    // Step 5: Copy IIFE bundle to Python package
+    copyIifeToPython();
     console.log('✓ Copied to Python package');
 
-    console.log('\n✅ Build completed successfully');
+    console.log('\n✅ Python build completed successfully');
   } catch (error) {
     console.error('✗ Build failed:', error);
     process.exit(1);
   }
 }
 
-build();
+buildPython();
