@@ -17,6 +17,7 @@ import {
   resetElementIdCounter,
   type ElementPositionMap,
 } from './MarkdownView.plugin';
+import type { InlinePositionMap } from './MarkdownView.plugin';
 
 /**
  * Position range in the markdown source text
@@ -37,6 +38,7 @@ export interface MarkdownView extends Component {
 const COLLAPSED_CLASS = 'tp-markdown-collapsed';
 const COLLAPSED_INDICATOR_CLASS = 'tp-markdown-collapsed-indicator';
 const CHUNK_IDS_ATTR = 'data-chunk-ids';
+const INLINE_CHUNK_CLASS = 'tp-markdown-chunk';
 
 /**
  * Build a MarkdownView component from widget data and metadata
@@ -62,11 +64,18 @@ export function buildMarkdownView(
   const { markdownText, chunkPositions, chunkTexts } = generateMarkdownWithPositions(data);
 
   // 4. Stage 2: Render markdown and create position-to-element mapping
-  const { html, positionToElements } = renderMarkdownWithPositionTracking(markdownText);
+  const { html, positionToElements, inlinePositions } = renderMarkdownWithPositionTracking(markdownText);
 
   // 5. Combine mappings: chunkId → positions → elements
   element.innerHTML = html;
-  buildChunkToElementMapping(element, chunkPositions, chunkTexts, positionToElements, chunkIdToElements);
+  buildChunkToElementMapping(
+    element,
+    chunkPositions,
+    chunkTexts,
+    positionToElements,
+    inlinePositions,
+    chunkIdToElements
+  );
 
   function clearCollapsedMarkers(): void {
     const collapsedElements = element.querySelectorAll(`.${COLLAPSED_CLASS}`);
@@ -91,7 +100,7 @@ export function buildMarkdownView(
 
     const indicator = document.createElement('span');
     indicator.className = COLLAPSED_INDICATOR_CLASS;
-    indicator.textContent = isImage ? '🖼⋯' : '⋯';
+    indicator.textContent = isImage ? '▢⋯' : '⋯';
     indicator.title = isImage ? 'Collapsed image content' : 'Collapsed content';
     indicator.setAttribute('aria-label', indicator.title);
 
@@ -238,6 +247,7 @@ function imageToMarkdown(image: any): string {
 function renderMarkdownWithPositionTracking(markdownText: string): {
   html: string;
   positionToElements: ElementPositionMap; // element-id → position range
+  inlinePositions: InlinePositionMap;
 } {
   // Reset element ID counter for consistent IDs
   resetElementIdCounter();
@@ -257,7 +267,11 @@ function renderMarkdownWithPositionTracking(markdownText: string): {
 
   // Add custom plugin for position tracking
   const linePositionMap: ElementPositionMap = new Map();
-  md.use(sourcePositionPlugin, linePositionMap);
+  const inlinePositionMap: InlinePositionMap = new Map();
+  md.use(sourcePositionPlugin, {
+    block: linePositionMap,
+    inline: inlinePositionMap,
+  });
 
   // Render markdown
   const html = md.render(markdownText);
@@ -265,7 +279,7 @@ function renderMarkdownWithPositionTracking(markdownText: string): {
   // Convert line-based positions to character positions
   const positionToElements = convertLineToCharPositions(markdownText, linePositionMap);
 
-  return { html, positionToElements };
+  return { html, positionToElements, inlinePositions: inlinePositionMap };
 }
 
 /**
@@ -276,34 +290,20 @@ function buildChunkToElementMapping(
   chunkPositions: Map<string, PositionRange>,
   chunkTexts: Map<string, string>,
   positionToElements: ElementPositionMap,
+  inlinePositions: InlinePositionMap,
   chunkIdToElements: Map<string, HTMLElement[]>
 ): void {
-  // For each chunk, find all elements whose positions overlap with the chunk
-  for (const [chunkId, chunkRange] of chunkPositions.entries()) {
-    const elements: HTMLElement[] = [];
+  assignChunksFromInline(container, chunkPositions, inlinePositions, chunkIdToElements);
 
-    for (const [elementId, elementRange] of positionToElements.entries()) {
-      // Check if ranges overlap
-      if (!rangesOverlap(chunkRange, elementRange)) {
-        continue;
-      }
-
-      const element = container.querySelector(`[data-md-id="${elementId}"]`);
-
-      if (!element || element.nodeType !== 1) {
-        continue;
-      }
-
-      const htmlElement = element as HTMLElement;
-      addChunkIdToElement(htmlElement, chunkId);
-      if (!elements.includes(htmlElement)) {
-        elements.push(htmlElement);
-      }
+  const remainingChunks = new Set<string>();
+  for (const chunkId of chunkPositions.keys()) {
+    if (!chunkIdToElements.has(chunkId)) {
+      remainingChunks.add(chunkId);
     }
+  }
 
-    if (elements.length > 0) {
-      chunkIdToElements.set(chunkId, elements);
-    }
+  if (remainingChunks.size > 0) {
+    assignChunksFromBlock(container, chunkPositions, positionToElements, chunkIdToElements, remainingChunks);
   }
 
   const missingChunks: string[] = [];
@@ -330,6 +330,21 @@ function addChunkIdToElement(element: HTMLElement, chunkId: string): void {
   if (!element.hasAttribute('data-chunk-id')) {
     element.setAttribute('data-chunk-id', chunkId);
   }
+}
+
+function upsertChunkElement(
+  chunkIdToElements: Map<string, HTMLElement[]>,
+  chunkId: string,
+  element: HTMLElement
+): void {
+  const existing = chunkIdToElements.get(chunkId);
+  if (existing) {
+    if (!existing.includes(element)) {
+      existing.push(element);
+    }
+    return;
+  }
+  chunkIdToElements.set(chunkId, [element]);
 }
 
 function assignLatexChunks(
@@ -398,10 +413,217 @@ function normalizeLatex(value: string): string {
   return value.replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').trim();
 }
 
+function clamp(value: number, min: number, max: number): number {
+  if (value < min) {
+    return min;
+  }
+  if (value > max) {
+    return max;
+  }
+  return value;
+}
+
 /**
  * Check if two position ranges overlap
  */
 function rangesOverlap(range1: PositionRange, range2: PositionRange): boolean {
   // Ranges overlap if one starts before the other ends
   return range1.start < range2.end && range2.start < range1.end;
+}
+interface ChunkOverlap {
+  chunkId: string;
+  start: number;
+  end: number;
+}
+
+function assignChunksFromInline(
+  container: HTMLElement,
+  chunkPositions: Map<string, PositionRange>,
+  inlinePositions: InlinePositionMap,
+  chunkIdToElements: Map<string, HTMLElement[]>
+): void {
+  if (chunkPositions.size === 0 || inlinePositions.size === 0) {
+    return;
+  }
+
+  const chunkEntries = Array.from(chunkPositions.entries());
+  const inlineNodes = container.querySelectorAll<HTMLElement>('[data-md-inline-id]');
+
+  inlineNodes.forEach((inlineNode) => {
+    const inlineId = inlineNode.getAttribute('data-md-inline-id');
+    if (!inlineId) {
+      return;
+    }
+
+    const inlineRange = inlinePositions.get(inlineId);
+    if (!inlineRange) {
+      return;
+    }
+
+    const overlaps: ChunkOverlap[] = [];
+    for (const [chunkId, chunkRange] of chunkEntries) {
+      const overlapStart = Math.max(inlineRange.start, chunkRange.start);
+      const overlapEnd = Math.min(inlineRange.end, chunkRange.end);
+      if (overlapStart < overlapEnd) {
+        overlaps.push({ chunkId, start: overlapStart, end: overlapEnd });
+      }
+    }
+
+    if (overlaps.length === 0) {
+      inlineNode.removeAttribute('data-md-inline-id');
+      return;
+    }
+
+    overlaps.sort((a, b) => a.start - b.start || a.end - b.end);
+    splitInlineNode(inlineNode, inlineRange, overlaps, chunkIdToElements);
+  });
+}
+
+function assignChunksFromBlock(
+  container: HTMLElement,
+  chunkPositions: Map<string, PositionRange>,
+  positionToElements: ElementPositionMap,
+  chunkIdToElements: Map<string, HTMLElement[]>,
+  targetChunks: Set<string>
+): void {
+  if (targetChunks.size === 0) {
+    return;
+  }
+
+  for (const chunkId of targetChunks) {
+    const chunkRange = chunkPositions.get(chunkId);
+    if (!chunkRange) {
+      continue;
+    }
+
+    const elements: HTMLElement[] = [];
+    for (const [elementId, elementRange] of positionToElements.entries()) {
+      if (!rangesOverlap(chunkRange, elementRange)) {
+        continue;
+      }
+
+      const element = container.querySelector<HTMLElement>(`[data-md-id="${elementId}"]`);
+      if (!element) {
+        continue;
+      }
+
+      addChunkIdToElement(element, chunkId);
+      if (!elements.includes(element)) {
+        elements.push(element);
+      }
+    }
+
+    if (elements.length > 0) {
+      chunkIdToElements.set(chunkId, elements);
+    }
+  }
+}
+
+function splitInlineNode(
+  inlineNode: HTMLElement,
+  inlineRange: PositionRange,
+  overlaps: ChunkOverlap[],
+  chunkIdToElements: Map<string, HTMLElement[]>
+): void {
+  const textNode = inlineNode.firstChild as Text | null;
+  if (!textNode) {
+    inlineNode.removeAttribute('data-md-inline-id');
+    return;
+  }
+
+  const textContent = textNode.textContent ?? '';
+  if (!textContent) {
+    inlineNode.removeAttribute('data-md-inline-id');
+    return;
+  }
+
+  const sourceSpanLength = inlineRange.end - inlineRange.start;
+  const targetLength = textContent.length;
+  const requiresScaling = sourceSpanLength > 0 && sourceSpanLength !== targetLength;
+  const scale = requiresScaling ? targetLength / sourceSpanLength : 1;
+
+  const normalizedSegments: ChunkOverlap[] = [];
+  const boundaries = new Set<number>([0, targetLength]);
+
+  for (const overlap of overlaps) {
+    let relativeStart = overlap.start - inlineRange.start;
+    let relativeEnd = overlap.end - inlineRange.start;
+
+    if (requiresScaling) {
+      relativeStart = Math.floor(relativeStart * scale);
+      relativeEnd = Math.ceil(relativeEnd * scale);
+    }
+
+    relativeStart = clamp(relativeStart, 0, targetLength);
+    relativeEnd = clamp(relativeEnd, 0, targetLength);
+
+    if (relativeStart >= relativeEnd) {
+      continue;
+    }
+
+    normalizedSegments.push({
+      chunkId: overlap.chunkId,
+      start: relativeStart,
+      end: relativeEnd,
+    });
+    boundaries.add(relativeStart);
+    boundaries.add(relativeEnd);
+  }
+
+  if (normalizedSegments.length === 0) {
+    inlineNode.removeAttribute('data-md-inline-id');
+    return;
+  }
+
+  const splitPoints = Array.from(boundaries)
+    .filter((value) => value > 0 && value < targetLength)
+    .sort((a, b) => a - b);
+
+  const textSegments: Array<{ node: Text; start: number; end: number }> = [];
+  let currentNode: Text | null = textNode;
+  let previousBoundary = 0;
+
+  for (const boundary of splitPoints) {
+    if (!currentNode) {
+      break;
+    }
+
+    const relative = boundary - previousBoundary;
+    if (relative <= 0) {
+      continue;
+    }
+
+    const remainder = currentNode.splitText(relative);
+    textSegments.push({ node: currentNode, start: previousBoundary, end: boundary });
+    currentNode = remainder;
+    previousBoundary = boundary;
+  }
+
+  if (currentNode && previousBoundary <= targetLength) {
+    textSegments.push({ node: currentNode, start: previousBoundary, end: targetLength });
+  }
+
+  for (const segment of textSegments) {
+    const coveringChunks = normalizedSegments.filter(
+      (chunk) => chunk.start < segment.end && chunk.end > segment.start
+    );
+
+    if (coveringChunks.length === 0) {
+      continue;
+    }
+
+    const textSegmentNode = segment.node;
+    const wrapper = inlineNode.ownerDocument.createElement('span');
+    wrapper.classList.add(INLINE_CHUNK_CLASS);
+
+    for (const chunk of coveringChunks) {
+      addChunkIdToElement(wrapper, chunk.chunkId);
+      upsertChunkElement(chunkIdToElements, chunk.chunkId, wrapper);
+    }
+
+    textSegmentNode.parentNode?.insertBefore(wrapper, textSegmentNode);
+    wrapper.appendChild(textSegmentNode);
+  }
+
+  inlineNode.removeAttribute('data-md-inline-id');
 }

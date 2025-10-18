@@ -23,15 +23,30 @@ export interface PositionRange {
 export type ElementPositionMap = Map<string, PositionRange>;
 
 /**
+ * Inline element position map: inline ID → source position range
+ */
+export type InlinePositionMap = Map<string, PositionRange>;
+
+/**
+ * Position maps used by the markdown-it plugin
+ */
+interface SourcePositionMaps {
+  block: ElementPositionMap;
+  inline: InlinePositionMap;
+}
+
+/**
  * Counter for generating unique element IDs
  */
 let elementIdCounter = 0;
+let inlineIdCounter = 0;
 
 /**
  * Reset the element ID counter (useful for testing)
  */
 export function resetElementIdCounter(): void {
   elementIdCounter = 0;
+  inlineIdCounter = 0;
 }
 
 /**
@@ -47,7 +62,10 @@ export function resetElementIdCounter(): void {
  * @param md - The markdown-it instance
  * @param positionMap - Map to populate with element positions
  */
-export function sourcePositionPlugin(md: MarkdownIt, positionMap: ElementPositionMap): void {
+export function sourcePositionPlugin(md: MarkdownIt, positionMaps: SourcePositionMaps): void {
+  const blockPositionMap = positionMaps.block;
+  const inlinePositionMap = positionMaps.inline;
+
   // Store original renderer rules
   const defaultRenderers: Record<string, RenderRule> = {};
 
@@ -77,7 +95,7 @@ export function sourcePositionPlugin(md: MarkdownIt, positionMap: ElementPositio
     defaultRenderers[type] = md.renderer.rules[type] || md.renderer.renderToken.bind(md.renderer);
 
     // Override with position-tracking version
-    md.renderer.rules[type] = (tokens, idx, options, env, self) => {
+    md.renderer.rules[type] = (tokens, idx, options, env, self): string => {
       const token = tokens[idx];
 
       // Add unique element ID to token attributes
@@ -89,7 +107,7 @@ export function sourcePositionPlugin(md: MarkdownIt, positionMap: ElementPositio
 
         // Store position info (using line-based mapping for now)
         // Note: We'll improve this to use character positions in the mapping stage
-        positionMap.set(elementId, {
+        blockPositionMap.set(elementId, {
           start: token.map[0],
           end: token.map[1],
         });
@@ -102,6 +120,103 @@ export function sourcePositionPlugin(md: MarkdownIt, positionMap: ElementPositio
       }
       return originalRenderer(tokens, idx, options, env, self);
     };
+  });
+  const fallbackTextRenderer: RenderRule = (tokens, idx) => tokens[idx].content;
+  const originalTextRenderer = md.renderer.rules.text || fallbackTextRenderer;
+
+  md.renderer.rules.text = (tokens, idx, options, env, self): string => {
+    const token = tokens[idx];
+    const inlineId = token.meta?.inlineId;
+    const rendered = originalTextRenderer(tokens, idx, options, env, self);
+
+    if (!inlineId) {
+      return rendered;
+    }
+
+    return `<span data-md-inline-id="${inlineId}">${rendered}</span>`;
+  };
+
+  const fallbackCodeInlineRenderer: RenderRule = (tokens, idx, options, env, self) =>
+    self.renderToken(tokens, idx, options);
+  const originalCodeInline = md.renderer.rules.code_inline || fallbackCodeInlineRenderer;
+
+  md.renderer.rules.code_inline = (tokens, idx, options, env, self): string => {
+    const token = tokens[idx];
+    const inlineId = token.meta?.inlineId;
+
+    if (inlineId) {
+      token.attrSet('data-md-inline-id', inlineId);
+    }
+
+    return originalCodeInline(tokens, idx, options, env, self);
+  };
+
+  md.core.ruler.after('inline', 'tp-track-inline-positions', (state): void => {
+    inlinePositionMap.clear();
+
+    const src = state.src;
+    const lineOffsets = computeLineOffsets(src);
+    inlineIdCounter = 0;
+
+    for (const token of state.tokens) {
+      if (token.type !== 'inline' || !token.map || !token.children) {
+        continue;
+      }
+
+      const [startLine, endLine] = token.map;
+      const segmentStart = lineOffsets[startLine] ?? 0;
+      const segmentEnd = lineOffsets[endLine] ?? src.length;
+      const sourceSegment = src.slice(segmentStart, segmentEnd);
+      const inlineContent = token.content;
+
+      if (!inlineContent) {
+        continue;
+      }
+
+      const relativeIndex = sourceSegment.indexOf(inlineContent);
+      const inlineStart = relativeIndex === -1 ? segmentStart : segmentStart + relativeIndex;
+      let pointer = 0;
+
+      for (const child of token.children) {
+        if (!child) {
+          continue;
+        }
+
+        if (child.type === 'softbreak') {
+          const newlineIndex = inlineContent.indexOf('\n', pointer);
+          if (newlineIndex !== -1) {
+            pointer = newlineIndex + 1;
+          }
+          continue;
+        }
+
+        const childContent = child.content || '';
+        if (!childContent) {
+          if (child.markup) {
+            const markupIndex = inlineContent.indexOf(child.markup, pointer);
+            if (markupIndex !== -1) {
+              pointer = markupIndex + child.markup.length;
+            }
+          }
+          continue;
+        }
+
+        const matchIndex = inlineContent.indexOf(childContent, pointer);
+        if (matchIndex === -1) {
+          continue;
+        }
+
+        const start = inlineStart + matchIndex;
+        const end = start + childContent.length;
+        const inlineId = `md-inline-${inlineIdCounter++}`;
+
+        child.meta = child.meta || {};
+        child.meta.inlineId = inlineId;
+        inlinePositionMap.set(inlineId, { start, end });
+
+        pointer = matchIndex + childContent.length;
+      }
+    }
   });
 }
 
@@ -120,13 +235,7 @@ export function convertLineToCharPositions(
   linePositionMap: ElementPositionMap
 ): ElementPositionMap {
   // Build line offset lookup table
-  const lineOffsets: number[] = [0]; // line 0 starts at char 0
-  for (let i = 0; i < markdownText.length; i++) {
-    if (markdownText[i] === '\n') {
-      lineOffsets.push(i + 1); // next line starts after \n
-    }
-  }
-  lineOffsets.push(markdownText.length); // EOF position
+  const lineOffsets = computeLineOffsets(markdownText);
 
   // Convert each line range to character range
   const charPositionMap = new Map<string, PositionRange>();
@@ -142,4 +251,15 @@ export function convertLineToCharPositions(
   }
 
   return charPositionMap;
+}
+
+function computeLineOffsets(markdownText: string): number[] {
+  const lineOffsets: number[] = [0];
+  for (let i = 0; i < markdownText.length; i++) {
+    if (markdownText[i] === '\n') {
+      lineOffsets.push(i + 1);
+    }
+  }
+  lineOffsets.push(markdownText.length);
+  return lineOffsets;
 }

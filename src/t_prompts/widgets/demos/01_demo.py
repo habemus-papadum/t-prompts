@@ -9,6 +9,13 @@ examples = [prompt(t"- Example {str(i):{i}}") for i in range(3)]
 img2 = Image.new("RGB", (50, 50), color="red")
 long = ("a" * 240 )
 latex = r"""$$x^n + y^n = z^n $$"""  # Simple LaTeX expression
+code = dedent(t"""
+    ```python
+    # Sample code block
+    def hello_world():
+        print("{intro:world}!")
+    ```
+    """)
 p6 = dedent(t"""
     Introduction: {intro:intro}
 
@@ -22,6 +29,20 @@ p6 = dedent(t"""
 
     Latex:
     {latex:latex}
+
+    ```python
+    # Sample code block
+    def hello_world():
+        print("Hello, world!")
+    ```
+    {code:code}
+
+    ```python
+    # Sample code block
+    def hello_world():
+        print("{intro:world}!")
+    ```
+
 
     Conclusion: This demonstrates all widget features working together.
     """)

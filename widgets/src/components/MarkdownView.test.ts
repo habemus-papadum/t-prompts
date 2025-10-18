@@ -169,6 +169,43 @@ describe('MarkdownView', () => {
     }
   });
 
+  it('should split list item text across chunks for precise folding', () => {
+    const granularData: WidgetData = {
+      ir: {
+        chunks: [
+          { id: 'chunk-list-1', text: '- Item', element_id: 'elem1', type: 'TextChunk' },
+          { id: 'chunk-list-2', text: ' A\n', element_id: 'elem2', type: 'TextChunk' },
+        ],
+      },
+      source_prompt: {},
+      compiled_ir: {},
+      config: {},
+    };
+
+    const controller = new FoldingController(['chunk-list-1', 'chunk-list-2']);
+    const view = buildMarkdownView(granularData, metadata, controller);
+
+    const listItem = view.element.querySelector('li');
+    expect(listItem).toBeTruthy();
+
+    const chunk1Elements = view.chunkIdToElements.get('chunk-list-1') ?? [];
+    const chunk2Elements = view.chunkIdToElements.get('chunk-list-2') ?? [];
+
+    expect(chunk1Elements.length).toBeGreaterThan(0);
+    expect(chunk2Elements.length).toBeGreaterThan(0);
+
+    // Expect newly created inline wrappers so each chunk can collapse independently
+    expect(chunk1Elements.some((el) => el.tagName.toLowerCase() === 'span')).toBe(true);
+    expect(chunk2Elements.some((el) => el.tagName.toLowerCase() === 'span')).toBe(true);
+
+    for (const el of chunk1Elements) {
+      expect(listItem?.contains(el)).toBe(true);
+    }
+    for (const el of chunk2Elements) {
+      expect(listItem?.contains(el)).toBe(true);
+    }
+  });
+
   it('should handle empty chunks gracefully', () => {
     const emptyData: WidgetData = {
       ir: {
@@ -390,7 +427,7 @@ describe('MarkdownView', () => {
 
     const indicator = collapsedElements[0].previousElementSibling as HTMLElement | null;
     expect(indicator).toBeTruthy();
-    expect(indicator?.textContent).toBe('🖼⋯');
+    expect(indicator?.textContent).toBe('▢⋯');
 
     foldingController.expandChunk(collapsedIds[0]);
     expect(view.element.querySelector('.tp-markdown-collapsed-indicator')).toBeNull();
