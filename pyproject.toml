@@ -41,7 +41,6 @@ build-backend = "hatchling.build"
 packages = ["src/t_prompts"]
 artifacts = [
     "t_prompts/widgets/*.js",
-    "t_prompts/widgets/*.css",
 ]
 
 [dependency-groups]

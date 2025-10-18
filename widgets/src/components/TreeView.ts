@@ -7,7 +7,8 @@
 
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata, ElementData, ChunkSize } from '../types';
-import type { FoldingController, FoldingClient } from '../folding/controller';
+import type { FoldingController } from '../folding/controller';
+import type { FoldingClient } from '../folding/types';
 import { createVisibilityMeter, type VisibilityMeter } from './VisibilityMeter';
 
 export interface TreeView extends Component {

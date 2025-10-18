@@ -47,7 +47,7 @@ const CHUNK_IDS_ATTR = 'data-chunk-ids';
  */
 export function buildMarkdownView(
   data: WidgetData,
-  metadata: WidgetMetadata,
+  _metadata: WidgetMetadata,
   foldingController: FoldingController
 ): MarkdownView {
   // 1. Create initial DOM structure
@@ -251,9 +251,9 @@ function renderMarkdownWithPositionTracking(markdownText: string): {
 
   // Add KaTeX plugin with all delimiters enabled
   // Supports: $...$ (inline), $$...$$ (block), \(...\) (inline), \[...\] (block)
-  md.use(katex, {
+  md.use(katex as any, {
     delimiters: 'all',
-  });
+  } as any);
 
   // Add custom plugin for position tracking
   const linePositionMap: ElementPositionMap = new Map();

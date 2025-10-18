@@ -6,7 +6,7 @@ This script automates the release process:
 2. Validates version has -alpha suffix
 3. Calculates release version (strips -alpha)
 4. Runs all validation (tests, notebooks, linting, docs, widgets build/lint/test)
-5. Updates version files to release version
+5. Updates version files (pyproject.toml, __init__.py, package.json, version.ts) to release version
 6. Updates uv.lock with new version
 7. Creates release commit and tag
 8. Pushes tag to origin
@@ -41,6 +41,7 @@ REPO_ROOT = Path(__file__).parent
 PYPROJECT_TOML = REPO_ROOT / "pyproject.toml"
 INIT_PY = REPO_ROOT / "src" / "t_prompts" / "__init__.py"
 WIDGETS_PACKAGE_JSON = REPO_ROOT / "widgets" / "package.json"
+VERSION_TS = REPO_ROOT / "widgets" / "src" / "version.ts"
 
 
 class StepCategory(Enum):
@@ -173,7 +174,7 @@ def write_package_json_version(file_path: Path, new_version: str) -> None:
 
 
 def read_current_version() -> None:
-    """Read current version from pyproject.toml, __init__.py, and package.json."""
+    """Read current version from pyproject.toml, __init__.py, package.json, and version.ts."""
     console.rule("[bold blue]Reading Current Version")
 
     pyproject_version = read_version_from_file(PYPROJECT_TOML, r'^(version = ")([^"]+)(")')
@@ -185,11 +186,15 @@ def read_current_version() -> None:
     widgets_version = read_package_json_version(WIDGETS_PACKAGE_JSON)
     console.print(f"  [cyan]widgets/package.json:[/cyan] {widgets_version}")
 
-    if pyproject_version != init_version or pyproject_version != widgets_version:
+    version_ts = read_version_from_file(VERSION_TS, r"(export const VERSION = ')([^']+)(')")
+    console.print(f"  [cyan]widgets/src/version.ts:[/cyan] {version_ts}")
+
+    if pyproject_version != init_version or pyproject_version != widgets_version or pyproject_version != version_ts:
         console.print("[red]✗ ERROR:[/red] Version mismatch!")
         console.print(f"  [yellow]pyproject.toml:[/yellow] {pyproject_version}")
         console.print(f"  [yellow]__init__.py:[/yellow] {init_version}")
         console.print(f"  [yellow]widgets/package.json:[/yellow] {widgets_version}")
+        console.print(f"  [yellow]widgets/src/version.ts:[/yellow] {version_ts}")
         sys.exit(1)
 
     ctx.current_version = pyproject_version
@@ -255,7 +260,7 @@ def build_widgets() -> None:
     """Build JavaScript widgets and verify no uncommitted changes."""
     console.rule("[bold blue]Building JavaScript Widgets")
 
-    run_command(["pnpm", "build"], "Building widgets with pnpm")
+    run_command(["pnpm", "buildPython"], "Building widgets with pnpm")
 
     result = run_command(
         ["git", "status", "--porcelain", "widgets/dist"],
@@ -286,7 +291,7 @@ def run_widget_tests() -> None:
 
 
 def update_version_files() -> None:
-    """Update version in pyproject.toml, __init__.py, and widgets/package.json."""
+    """Update version in pyproject.toml, __init__.py, widgets/package.json, and version.ts."""
     if not ctx.release_version:
         console.print("[red]✗ ERROR:[/red] Cannot update version files: release_version not set")
         console.print("[yellow]Hint:[/yellow] Make sure 'Calculate Release Version' step is selected")
@@ -295,6 +300,7 @@ def update_version_files() -> None:
     write_version_to_file(PYPROJECT_TOML, r'^(version = ")([^"]+)(")', ctx.release_version)
     write_version_to_file(INIT_PY, r'(__version__ = ")([^"]+)(")', ctx.release_version)
     write_package_json_version(WIDGETS_PACKAGE_JSON, ctx.release_version)
+    write_version_to_file(VERSION_TS, r"(export const VERSION = ')([^']+)(')", ctx.release_version)
     console.print(
         f"[green]✓[/green] Updated version to [bold]{ctx.release_version}[/bold] in all files"
     )
@@ -311,7 +317,7 @@ def create_release_commit() -> None:
     console.rule(f"[bold blue]Creating Release Commit: {ctx.release_version}")
 
     run_command(
-        ["git", "add", str(PYPROJECT_TOML), str(INIT_PY), str(WIDGETS_PACKAGE_JSON), "uv.lock"],
+        ["git", "add", str(PYPROJECT_TOML), str(INIT_PY), str(WIDGETS_PACKAGE_JSON), str(VERSION_TS), "uv.lock"],
         "Staging version files and lockfile",
     )
 
@@ -409,6 +415,7 @@ def update_to_dev_version() -> None:
     write_version_to_file(PYPROJECT_TOML, r'^(version = ")([^"]+)(")', ctx.next_dev_version)
     write_version_to_file(INIT_PY, r'(__version__ = ")([^"]+)(")', ctx.next_dev_version)
     write_package_json_version(WIDGETS_PACKAGE_JSON, ctx.next_dev_version)
+    write_version_to_file(VERSION_TS, r"(export const VERSION = ')([^']+)(')", ctx.next_dev_version)
     console.print(
         f"[green]✓[/green] Updated version to [bold]{ctx.next_dev_version}[/bold] in all files"
     )
@@ -425,7 +432,7 @@ def create_dev_commit() -> None:
     console.rule(f"[bold blue]Creating Development Version Commit: {ctx.next_dev_version}")
 
     run_command(
-        ["git", "add", str(PYPROJECT_TOML), str(INIT_PY), str(WIDGETS_PACKAGE_JSON), "uv.lock"],
+        ["git", "add", str(PYPROJECT_TOML), str(INIT_PY), str(WIDGETS_PACKAGE_JSON), str(VERSION_TS), "uv.lock"],
         "Staging version files and lockfile",
     )
 
@@ -463,7 +470,7 @@ STEPS: list[Step] = [
     Step(
         id="read_version",
         name="Read Current Version",
-        description="Read version from pyproject.toml and __init__.py",
+        description="Read version from pyproject.toml, __init__.py, package.json, and version.ts",
         category=StepCategory.VALIDATION,
         action=read_current_version,
     ),
@@ -541,7 +548,7 @@ STEPS: list[Step] = [
     Step(
         id="update_version",
         name="Update Version Files",
-        description="Update version to release version in pyproject.toml, __init__.py, and package.json",
+        description="Update version to release version in pyproject.toml, __init__.py, package.json, and version.ts",
         category=StepCategory.PRE_RELEASE,
         action=update_version_files,
     ),

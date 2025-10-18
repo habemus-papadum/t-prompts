@@ -3,10 +3,11 @@
  *
  * This plugin tracks the mapping between source text positions and rendered DOM elements.
  * It works by intercepting the token stream and adding position metadata to each token,
- * then modifying the renderer to add data attributes to the output HTML.
+ * theIt needs all this run-time infrastructure. But at the same time, don't try writing unit tests for this; it was basically very difficult. What I don't know is if you've changed the logic.n modifying the renderer to add data attributes to the output HTML.
  */
 
 import type MarkdownIt from 'markdown-it';
+import type { RenderRule } from 'markdown-it/lib/renderer';
 
 /**
  * Position range in source text
@@ -48,7 +49,7 @@ export function resetElementIdCounter(): void {
  */
 export function sourcePositionPlugin(md: MarkdownIt, positionMap: ElementPositionMap): void {
   // Store original renderer rules
-  const defaultRenderers: Record<string, MarkdownIt.Renderer.RenderRule> = {};
+  const defaultRenderers: Record<string, RenderRule> = {};
 
   // Override renderer for all token types that generate opening tags
   // NOTE: Only track *_open tokens, not *_close, since only open tags get attributes

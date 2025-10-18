@@ -303,7 +303,7 @@ export function buildCodeView(
   // 9. Return component with operations
   return {
     element: state.element,
-    chunkIdToTopElements: state.chunkIdToTopElements,
+    chunkIdToTopElements,
 
     destroy(): void {
       // Remove event listeners
