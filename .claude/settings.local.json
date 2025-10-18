@@ -61,7 +61,14 @@
       "Bash(pnpm --filter @t-prompts/widgets vitest run:*)",
       "Bash(pnpm --filter @t-prompts/widgets test MarkdownView)",
       "Bash(pnpm --filter @t-prompts/widgets test TreeView)",
-      "Bash(pnpm build:python)"
+      "Bash(pnpm build:python)",
+      "Read(//private/tmp/**)",
+      "Bash(for nb in docs/demos/01-basic.ipynb docs/demos/02-intermediate.ipynb docs/demos/03-ir-visualization.ipynb docs/demos/topics/*.ipynb)",
+      "Bash(git reset HEAD docs/demos/test_with_outputs.ipynb)",
+      "Bash(timeout 60 uv run mkdocs build)",
+      "Bash(bash -n scripts/setup.sh)",
+      "Bash(for script in scripts/*.sh)",
+      "Bash(bash -n \"$script\")"
     ],
     "deny": [],
     "ask": []

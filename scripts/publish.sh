@@ -3,7 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}"
+# Go to repo root (parent of scripts/)
+cd "${SCRIPT_DIR}/.."
 
 rm -rf dist
 

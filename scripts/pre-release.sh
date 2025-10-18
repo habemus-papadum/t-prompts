@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e  # Exit on any error
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$SCRIPT_DIR/.."
+
+# Change to repo root
+cd "$REPO_ROOT"
+
 echo "================================"
 echo "Pre-Release Checks"
 echo "================================"
@@ -31,7 +37,7 @@ uv run ruff check .
 
 echo ""
 echo "6. Update Notebooks (in-place)..."
-./test_notebooks.sh
+"$SCRIPT_DIR/test_notebooks.sh"
 
 echo ""
 echo "7. Commit Updated Notebooks..."

@@ -33,8 +33,10 @@ while [[ "$1" == --* ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MKDOCS_FILE="$SCRIPT_DIR/mkdocs.yml"
+REPO_ROOT="$SCRIPT_DIR/.."
+MKDOCS_FILE="$REPO_ROOT/mkdocs.yml"
 DOCS_DIR="docs"
+NB_SCRIPT="$SCRIPT_DIR/nb.sh"
 
 # Check if mkdocs.yml exists
 if [ ! -f "$MKDOCS_FILE" ]; then
@@ -43,8 +45,8 @@ if [ ! -f "$MKDOCS_FILE" ]; then
 fi
 
 # Check if nb.sh exists and is executable
-if [ ! -x "$SCRIPT_DIR/nb.sh" ]; then
-    echo "Error: nb.sh not found or not executable at $SCRIPT_DIR/nb.sh"
+if [ ! -x "$NB_SCRIPT" ]; then
+    echo "Error: nb.sh not found or not executable at $NB_SCRIPT"
     exit 1
 fi
 
@@ -91,7 +93,7 @@ while IFS= read -r notebook_path; do
     echo "-------------------------------------------------------------------"
 
     # Run the notebook through nb.sh
-    if "$SCRIPT_DIR/nb.sh" $NB_FLAGS "$FULL_PATH"; then
+    if "$NB_SCRIPT" $NB_FLAGS "$FULL_PATH"; then
         echo "✓ PASSED: $notebook_path"
         PASSED=$((PASSED + 1))
     else

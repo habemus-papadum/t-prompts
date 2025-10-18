@@ -47,27 +47,44 @@ brew install pnpm
 
 For other installation methods, see the [pnpm documentation](https://pnpm.io/installation).
 
-## Set Up the Development Environment
+## Quick Setup
 
-Install all dependencies including optional extras:
+The easiest way to set up the development environment is to use the setup script:
 
 ```bash
-uv sync --frozen --all-extras
+./scripts/setup.sh
 ```
 
-This command:
-- Uses `--frozen` to install exact versions from the lockfile
-- Uses `--all-extras` to install all optional dependencies (image support, UI, etc.)
+This script will:
+1. Check for required tools (uv, pnpm)
+2. Install Python dependencies with `uv sync --frozen`
+3. Install pnpm packages with `pnpm install`
+4. Build TypeScript widgets with `pnpm build`
+5. Set up pre-commit hooks for automatic code checks
 
-## Install JavaScript Dependencies
+## Manual Setup
 
-From the repository root, install JavaScript dependencies:
+If you prefer to set up manually, follow these steps:
+
+### Install Python Dependencies
+
+```bash
+uv sync --frozen
+```
+
+This command uses `--frozen` to install exact versions from the lockfile.
+
+**Note**: Pillow (image support) is now included by default in the main dependencies.
+
+### Install JavaScript Dependencies
+
+From the repository root:
 
 ```bash
 pnpm install
 ```
 
-## Build Widgets
+### Build Widgets
 
 Build the JavaScript widgets (required before running tests):
 
@@ -76,6 +93,22 @@ pnpm build
 ```
 
 This will compile TypeScript sources in `widgets/src/` to `widgets/dist/`, which gets bundled with the Python package.
+
+### Set Up Pre-commit Hooks
+
+Pre-commit hooks automatically check code quality and strip notebook outputs:
+
+```bash
+uv run pre-commit install
+```
+
+This sets up hooks that run automatically on `git commit` to:
+- Strip outputs from Jupyter notebooks (prevents large widget bundles in git)
+- Check for trailing whitespace
+- Validate YAML files
+- Prevent committing large files (>1MB)
+
+See `.pre-commit-README.md` for more details.
 
 ## Set Up Visual Testing
 
@@ -184,11 +217,23 @@ t-prompts/
 │   ├── core.py          # Core StructuredPrompt implementation
 │   ├── parsing.py       # Format spec and render hint parsing
 │   ├── text.py          # Text processing (dedenting)
+│   ├── diff.py          # Diff utilities for prompts
+│   ├── widgets/         # Widget rendering and preview
 │   └── exceptions.py    # Custom exceptions
+├── widgets/             # TypeScript widget implementation
+│   ├── src/             # TypeScript source code
+│   ├── dist/            # Compiled JavaScript (bundled with package)
+│   └── test-fixtures/   # Test data
 ├── tests/               # Test suite
 ├── docs/                # Documentation
 │   ├── demos/           # Jupyter notebook tutorials
 │   └── developer/       # Developer documentation
+├── scripts/             # Development and release scripts
+│   ├── setup.sh         # Environment setup script
+│   ├── nb.sh            # Notebook runner
+│   ├── test_notebooks.sh # Test all notebooks
+│   ├── pre-release.sh   # Pre-release checks
+│   └── release.sh       # Release automation
 ├── pyproject.toml       # Project configuration
 └── uv.lock             # Dependency lockfile
 ```

@@ -315,6 +315,28 @@ class StructuredPromptDiff:
     root: NodeDelta
     stats: DiffStats
 
+    def to_widget_data(self) -> dict[str, Any]:
+        """
+        Convert diff to widget data for TypeScript rendering.
+
+        Returns
+        -------
+        dict[str, Any]
+            JSON-serializable dictionary with diff data.
+        """
+        return {
+            "diff_type": "structured",
+            "root": _serialize_node_delta(self.root),
+            "stats": {
+                "nodes_added": self.stats.nodes_added,
+                "nodes_removed": self.stats.nodes_removed,
+                "nodes_modified": self.stats.nodes_modified,
+                "nodes_moved": self.stats.nodes_moved,
+                "text_added": self.stats.text_added,
+                "text_removed": self.stats.text_removed,
+            },
+        }
+
     def to_rich(self, width: int = 120) -> str:
         if not _HAS_RICH:  # pragma: no cover - executed when Rich is unavailable
             return self._fallback_string()
@@ -334,25 +356,13 @@ class StructuredPromptDiff:
         return self.to_rich()
 
     def _repr_html_(self) -> str:
-        stats_html = "".join(
-            f'<span class="tp-diff-pill">{label}: {value}</span>'
-            for label, value in (
-                ("Added", self.stats.nodes_added),
-                ("Removed", self.stats.nodes_removed),
-                ("Modified", self.stats.nodes_modified),
-                ("Moved", self.stats.nodes_moved),
-                ("Δ+", self.stats.text_added),
-                ("Δ-", self.stats.text_removed),
-            )
-        )
-        body = self.root.to_html()
-        html = (
-            f'<div class="tp-diff-view" data-role="tp-diff-structured">'
-            f'<div class="tp-diff-header">Structured prompt diff</div>'
-            f'<div class="tp-diff-summary">{stats_html}</div>'
-            f'<div class="tp-diff-body"><ul class="tp-diff-tree">{body}</ul></div>'
-            "</div>"
-        )
+        """Return HTML representation for Jupyter notebook display."""
+        from .widgets import _render_widget_html
+
+        data = self.to_widget_data()
+        html = _render_widget_html(data, "tp-sp-diff-mount")
+
+        # Include CSS for now (will migrate to TypeScript styles later)
         return _DIFF_STYLE + html
 
     def _fallback_string(self) -> str:
@@ -415,6 +425,36 @@ class RenderedPromptDiff:
     chunk_deltas: list[ChunkDelta]
     per_element: dict[str, ElementRenderChange]
 
+    def to_widget_data(self) -> dict[str, Any]:
+        """
+        Convert diff to widget data for TypeScript rendering.
+
+        Returns
+        -------
+        dict[str, Any]
+            JSON-serializable dictionary with diff data.
+        """
+        return {
+            "diff_type": "rendered",
+            "chunk_deltas": [
+                {
+                    "op": delta.op,
+                    "before": (
+                        {"text": delta.before.text, "element_id": delta.before.element_id}
+                        if delta.before
+                        else None
+                    ),
+                    "after": (
+                        {"text": delta.after.text, "element_id": delta.after.element_id}
+                        if delta.after
+                        else None
+                    ),
+                }
+                for delta in self.chunk_deltas
+            ],
+            "stats": self.stats(),
+        }
+
     def stats(self) -> dict[str, int]:
         inserts = sum(1 for delta in self.chunk_deltas if delta.op == "insert")
         deletes = sum(1 for delta in self.chunk_deltas if delta.op == "delete")
@@ -451,31 +491,13 @@ class RenderedPromptDiff:
         return self.to_rich()
 
     def _repr_html_(self) -> str:
-        totals = self.stats()
-        stats_html = "".join(
-            f'<span class="tp-diff-pill">{label}: {value}</span>'
-            for label, value in (
-                ("Insert", totals["insert"]),
-                ("Delete", totals["delete"]),
-                ("Replace", totals["replace"]),
-                ("Equal", totals["equal"]),
-            )
-        )
-        legend = (
-            '<div class="tp-diff-legend">'
-            '<span><span class="tp-diff-dot insert"></span>Insert</span>'
-            '<span><span class="tp-diff-dot delete"></span>Delete</span>'
-            '<span><span class="tp-diff-dot modify"></span>Replace</span>'
-            "</div>"
-        )
-        body = "".join(delta.to_html() for delta in self.chunk_deltas if delta.op != "equal")
-        html = (
-            f'<div class="tp-diff-view" data-role="tp-diff-rendered">'
-            f'<div class="tp-diff-header">Rendered diff</div>'
-            f'<div class="tp-diff-summary">{stats_html}</div>'
-            f'<div class="tp-diff-body">{legend}<ul class="tp-diff-chunks">{body}</ul></div>'
-            "</div>"
-        )
+        """Return HTML representation for Jupyter notebook display."""
+        from .widgets import _render_widget_html
+
+        data = self.to_widget_data()
+        html = _render_widget_html(data, "tp-rendered-diff-mount")
+
+        # Include CSS for now (will migrate to TypeScript styles later)
         return _DIFF_STYLE + html
 
     def _fallback_string(self) -> str:
@@ -748,3 +770,21 @@ def _chunk_element(delta: ChunkDelta) -> Optional[str]:
 
 def _chunk_signature(chunk: TextChunk | ImageChunk) -> tuple[str, str, str]:
     return (type(chunk).__name__, chunk.element_id, chunk.text)
+
+
+def _serialize_node_delta(delta: NodeDelta) -> dict[str, Any]:
+    """Serialize NodeDelta to JSON-compatible dict."""
+    return {
+        "status": delta.status,
+        "element_type": delta.element_type,
+        "key": delta.key,
+        "before_id": delta.before_id,
+        "after_id": delta.after_id,
+        "before_index": delta.before_index,
+        "after_index": delta.after_index,
+        "attr_changes": {k: list(v) for k, v in delta.attr_changes.items()},
+        "text_edits": [
+            {"op": edit.op, "before": edit.before, "after": edit.after} for edit in delta.text_edits
+        ],
+        "children": [_serialize_node_delta(child) for child in delta.children],
+    }
