@@ -13,6 +13,7 @@ import { createVisibilityMeter } from './VisibilityMeter';
 export interface ToolbarCallbacks {
   onViewModeChange: (mode: ViewMode) => void;
   onScrollSyncToggle?: (enabled: boolean) => void;
+  onDiffToggle?: (enabled: boolean) => void;
 }
 
 export interface ToolbarMetrics {
@@ -22,11 +23,18 @@ export interface ToolbarMetrics {
   chunkSizeMap: Record<string, ChunkSize>;
 }
 
+export interface DiffMetrics {
+  structured: import('../diff-types').StructuredPromptDiffData;
+  rendered: import('../diff-types').RenderedPromptDiffData;
+}
+
 export interface ToolbarOptions {
   currentMode: ViewMode;
+  diffEnabled?: boolean;
   callbacks: ToolbarCallbacks;
   foldingController: FoldingController;
   metrics: ToolbarMetrics;
+  diffData?: DiffMetrics;
 }
 
 export interface ToolbarComponent {
@@ -90,6 +98,18 @@ const icons = {
       '<path d="M8 3.5L11 6.5 10.3 7.2 8.5 5.4V10.6L10.3 8.8 11 9.5 8 12.5 5 9.5 5.7 8.8 7.5 10.6V5.4L5.7 7.2 5 6.5 8 3.5Z"/>';
     return svg;
   },
+  diff: (): SVGElement => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('fill', 'currentColor');
+    // Icon representing diff with +/- symbols
+    svg.innerHTML =
+      '<path d="M3 2h10v1H3V2zm7 3h3v1h-3v3H9V6H6V5h3V2h1v3zm-7 4h10v1H3V9zm0 3h10v1H3v-1z"/>' +
+      '<path d="M11 10h2v1h-2v2h-1v-2H8v-1h2V8h1v2z" fill="none" stroke="currentColor" stroke-width="0.5"/>';
+    return svg;
+  },
 };
 
 /**
@@ -147,7 +167,24 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
 
   rightContainer.appendChild(viewToggle);
 
-  // Add scroll sync button after view toggles
+  // Add diff metrics and toggle if diff data is available
+  if (options.diffData) {
+    const diffMetrics = createDiffMetricsDisplay(options.diffData);
+    rightContainer.appendChild(diffMetrics);
+
+    const diffToggleButton = createDiffToggleButton(options.diffEnabled ?? true);
+    rightContainer.appendChild(diffToggleButton);
+
+    diffToggleButton.addEventListener('click', () => {
+      const newState = !diffToggleButton.classList.contains('active');
+      diffToggleButton.classList.toggle('active', newState);
+      diffToggleButton.setAttribute('aria-pressed', newState ? 'true' : 'false');
+      diffToggleButton.title = newState ? 'Hide diff overlay' : 'Show diff overlay';
+      callbacks.onDiffToggle?.(newState);
+    });
+  }
+
+  // Add scroll sync button
   const scrollSyncButton = createScrollSyncButton(scrollSyncEnabled);
   rightContainer.appendChild(scrollSyncButton);
   const helpFeature = createHelpFeature();
@@ -287,6 +324,53 @@ function createScrollSyncButton(initiallyEnabled: boolean): HTMLButtonElement {
   button.appendChild(icon);
 
   return button;
+}
+
+/**
+ * Create diff toggle button
+ */
+function createDiffToggleButton(initiallyEnabled: boolean): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'tp-toolbar-diff-btn tp-view-toggle-btn';
+  button.setAttribute('aria-pressed', initiallyEnabled ? 'true' : 'false');
+  button.title = initiallyEnabled ? 'Hide diff overlay' : 'Show diff overlay';
+
+  const icon = icons.diff();
+  button.appendChild(icon);
+
+  if (initiallyEnabled) {
+    button.classList.add('active');
+  }
+
+  return button;
+}
+
+function createDiffMetricsDisplay(diffData: DiffMetrics): HTMLElement {
+  const container = document.createElement('div');
+  container.className = 'tp-diff-metrics';
+
+  const { structured, rendered } = diffData;
+
+  // Structured diff stats
+  const structStats = structured.stats;
+  const addedNodes = structStats.nodes_added || 0;
+  const removedNodes = structStats.nodes_removed || 0;
+  const modifiedNodes = structStats.nodes_modified || 0;
+
+  // Rendered diff stats
+  const renderStats = rendered.stats;
+  const insertChunks = renderStats.insert || 0;
+  const deleteChunks = renderStats.delete || 0;
+
+  const metricsText = document.createElement('span');
+  metricsText.className = 'tp-diff-metrics-text';
+  metricsText.textContent = `${addedNodes}+ ${removedNodes}− nodes, ${insertChunks}+ ${deleteChunks}− chunks`;
+  metricsText.title = `Structural: ${addedNodes} added, ${removedNodes} removed, ${modifiedNodes} modified\nRendered: ${insertChunks} inserted, ${deleteChunks} deleted`;
+
+  container.appendChild(metricsText);
+
+  return container;
 }
 
 function createHelpFeature(): HelpFeature {

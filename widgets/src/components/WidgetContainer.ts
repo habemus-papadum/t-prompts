@@ -41,12 +41,28 @@ export interface WidgetContainer extends Component {
 }
 
 /**
+ * Check if widget data includes diff overlay information
+ */
+function hasDiffData(data: WidgetData): boolean {
+  return !!(
+    data.before_prompt_ir &&
+    data.structured_diff &&
+    data.rendered_diff
+  );
+}
+
+/**
  * Build a WidgetContainer component from widget data and metadata
  */
 export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata): WidgetContainer {
   // 1. Create root element
   const element = document.createElement('div');
   element.className = 'tp-widget-output';
+
+  // Enable diff by default if diff data is available
+  if (hasDiffData(data)) {
+    element.classList.add('tp-diff-enabled');
+  }
 
   // 2. Initialize folding controller with chunk sequence
   const initialChunkIds = data.ir?.chunks?.map((chunk) => chunk.id) || [];
@@ -88,6 +104,8 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     foldingController,
     onCollapse: () => collapseTreePanel(),
   });
+  const codeView = buildCodeView(data, metadata, foldingController);
+  const markdownView = buildMarkdownView(data, metadata, foldingController);
 
   const treePanel = document.createElement('div');
   treePanel.className = 'tp-panel tp-tree-panel';
@@ -100,9 +118,6 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   treeResizer.setAttribute('aria-hidden', 'false');
   treeResizer.setAttribute('aria-label', 'Resize tree panel');
   treeResizer.tabIndex = 0;
-
-  const codeView = buildCodeView(data, metadata, foldingController);
-  const markdownView = buildMarkdownView(data, metadata, foldingController);
 
   // 4. Create panels
   const codePanel = document.createElement('div');
@@ -345,6 +360,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   let currentViewMode: ViewMode = 'split';
   let scrollSyncEnabled = true;
   let scrollSyncManager: ScrollSyncManager;
+  const diffDataAvailable = hasDiffData(data);
 
   // 7. View mode setter
   function setViewMode(mode: ViewMode): void {
@@ -374,12 +390,16 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   // 8. Create toolbar
   const toolbarComponent: ToolbarComponent = createToolbar({
     currentMode: currentViewMode,
+    diffEnabled: diffDataAvailable,
     callbacks: {
       onViewModeChange: setViewMode,
       onScrollSyncToggle: (enabled) => {
         scrollSyncEnabled = enabled;
         scrollSyncManager.setEnabled(enabled);
       },
+      onDiffToggle: diffDataAvailable ? (enabled: boolean) => {
+        element.classList.toggle('tp-diff-enabled', enabled);
+      } : undefined,
     },
     foldingController,
     metrics: {
@@ -388,6 +408,10 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
       chunkIds: initialChunkIds,
       chunkSizeMap,
     },
+    diffData: diffDataAvailable ? {
+      structured: data.structured_diff!,
+      rendered: data.rendered_diff!,
+    } : undefined,
   });
   const toolbar = toolbarComponent.element;
 
