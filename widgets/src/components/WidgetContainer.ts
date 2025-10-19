@@ -11,6 +11,7 @@ import type { Component } from './base';
 import type { WidgetData, WidgetMetadata, ViewMode } from '../types';
 import { buildTreeView } from './TreeView';
 import { buildCodeView } from './CodeView';
+import { buildBeforeCodeView } from './BeforeCodeView';
 import { buildMarkdownView } from './MarkdownView';
 import { ScrollSyncManager } from './ScrollSyncManager';
 import { FoldingController } from '../folding/controller';
@@ -68,6 +69,10 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   const initialChunkIds = data.ir?.chunks?.map((chunk) => chunk.id) || [];
   const foldingController = new FoldingController(initialChunkIds);
 
+  // Initialize separate folding controller for before view if diff data available
+  const beforeChunkIds = data.before_prompt_ir?.chunks?.map((chunk) => chunk.id) || [];
+  const beforeFoldingController = hasDiffData(data) ? new FoldingController(beforeChunkIds) : null;
+
   const chunkSizeMap = metadata.chunkSizeMap;
   let totalCharacters = 0;
   let totalPixels = 0;
@@ -104,6 +109,12 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     foldingController,
     onCollapse: () => collapseTreePanel(),
   });
+
+  // Build before view if diff data is available
+  const beforeView = beforeFoldingController
+    ? buildBeforeCodeView(data, metadata, beforeFoldingController)
+    : null;
+
   const codeView = buildCodeView(data, metadata, foldingController);
   const markdownView = buildMarkdownView(data, metadata, foldingController);
 
@@ -119,7 +130,14 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   treeResizer.setAttribute('aria-label', 'Resize tree panel');
   treeResizer.tabIndex = 0;
 
-  // 4. Create panels
+  // 4. Create before panel if available
+  const beforePanel = beforeView ? document.createElement('div') : null;
+  if (beforePanel && beforeView) {
+    beforePanel.className = 'tp-panel tp-before-panel hidden';
+    beforePanel.appendChild(beforeView.element);
+  }
+
+  // 5. Create panels
   const codePanel = document.createElement('div');
   codePanel.className = 'tp-panel tp-code-panel';
   codePanel.appendChild(codeView.element);
@@ -128,7 +146,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   markdownPanel.className = 'tp-panel tp-markdown-panel';
   markdownPanel.appendChild(markdownView.element);
 
-  // 5. Create content area
+  // 6. Create content area
   const splitResizer = document.createElement('div');
   splitResizer.className = 'tp-split-resizer';
   splitResizer.setAttribute('role', 'separator');
@@ -150,6 +168,10 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   contentArea.className = 'tp-content-area';
   contentArea.appendChild(treeContainer);
   contentArea.appendChild(treeResizer);
+  // Add before panel between tree and main split if available
+  if (beforePanel) {
+    contentArea.appendChild(beforePanel);
+  }
   contentArea.appendChild(mainSplit);
 
   let currentTreeWidth = TREE_DEFAULT_WIDTH;
@@ -400,6 +422,9 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
       onDiffToggle: diffDataAvailable ? (enabled: boolean) => {
         element.classList.toggle('tp-diff-enabled', enabled);
       } : undefined,
+      onBeforeToggle: beforePanel ? (show: boolean) => {
+        beforePanel.classList.toggle('hidden', !show);
+      } : undefined,
     },
     foldingController,
     metrics: {
@@ -440,7 +465,9 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   setViewMode(currentViewMode);
 
   // 11. Track views
-  const views: Component[] = [treeView, codeView, markdownView];
+  const views: Component[] = beforeView
+    ? [treeView, beforeView, codeView, markdownView]
+    : [treeView, codeView, markdownView];
 
   expandStrip.addEventListener('click', () => expandTreePanel());
 
