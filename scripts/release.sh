@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env uv run python3
 """Release automation script for t-prompts.
 
 This script automates the release process:
