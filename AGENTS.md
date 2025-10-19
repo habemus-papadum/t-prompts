@@ -4,7 +4,57 @@ This file provides guidance to AI agents when working with code in this reposito
 
 ## Project Overview
 
-This is a Python library called `t-prompts` (package name: `t-prompts`, module name: `t_prompts`) that provides structured prompts using template strings. The project is in early development stage and uses a modern Python toolchain.
+This is a Python library called `t-prompts` (package name: `t-prompts`, module name: `t_prompts`) that provides structured prompts using template strings. The project is in early development stage and uses a modern Python toolchain.  There is also a library of Typescript UI widgets
+
+## Quick Reference
+
+All commands should be run from the project root unless otherwise specified.
+
+### Setup
+```bash
+./scripts/setup.sh                                   # Complete setup (recommended for fresh clones)
+uv sync --frozen                                     # Install Python dependencies only
+pnpm install                                         # Install JavaScript dependencies only
+./scripts/setup-visual-tests.sh                      # Install Playwright Chromium for visual tests
+uv run pre-commit install                            # Set up git hooks
+```
+
+### Testing
+```bash
+uv run pytest                                        # Run all tests (includes visual tests)
+uv run pytest -m "not visual"                        # Run only unit tests (skip visual tests)
+uv run pytest -m visual                              # Run only visual tests
+uv run pytest tests/test_example.py                  # Run specific test file
+uv run pytest tests/test_example.py::test_version    # Run specific test function
+./scripts/test_notebooks.sh                          # Test all demo notebooks (required after notebook changes)
+./scripts/nb.sh docs/demos/01-basic.ipynb            # Run a single notebook
+```
+
+### Code Quality
+```bash
+uv run ruff check .                                  # Check Python code
+uv run ruff format .                                 # Format Python code
+uv run ruff check --fix .                            # Fix auto-fixable Python issues
+pnpm --filter @t-prompts/widgets lint                # Check TypeScript code
+pnpm --filter @t-prompts/widgets typecheck           # Type check TypeScript code
+```
+
+### JavaScript Widgets
+```bash
+pnpm --filter @t-prompts/widgets build:python        # Build widgets for Python integration
+pnpm --filter @t-prompts/widgets test                # Run widget unit tests
+pnpm --filter @t-prompts/widgets test lineWrap       # Run specific widget test
+```
+
+### Documentation
+```bash
+uv run mkdocs serve                                  # Serve docs locally (auto-reload)
+uv run mkdocs build                                  # Build docs (executes notebooks)
+```
+
+### Scratchpad
+- Use `scratchpad/` directory for temporary/test code (already in `.gitignore`)
+- Example: `scratchpad/test_feature.py`, `scratchpad/output.html`
 
 ## Important Rules
 
@@ -35,281 +85,21 @@ If the user needs to make a release, explain the process but let them run the sc
 - `scripts/publish.sh` - Publish to PyPI (called by release.sh)
 - **DO NOT run these manually** - they are part of the release automation
 
-## Development Commands
-
-### Environment Setup
-
-**Quick Setup (Recommended for fresh clones)**:
-```bash
-# Run the setup script - sets up everything in one command
-./scripts/setup.sh
-```
-
-This script will:
-1. Check for required tools (uv, pnpm)
-2. Install Python dependencies with `uv sync --frozen`
-3. Install pnpm packages
-4. Build TypeScript widgets
-5. Set up pre-commit hooks
-
-**Manual Setup**:
-```bash
-# Install Python dependencies (includes dev dependencies)
-uv sync --frozen
-
-# Install pnpm packages
-pnpm install
-
-# Build TypeScript widgets
-pnpm build
-
-# Set up pre-commit hooks
-uv run pre-commit install
-```
-
-**Important for Development**:
-- The `--frozen` flag ensures the lockfile is used without modification, maintaining reproducible builds
-- Pillow (image support) is now included by default in main dependencies
-- Pre-commit hooks automatically strip notebook outputs and check code quality before commits
-
-### Testing
-```bash
-# Install Playwright browsers for visual tests (run once)
-./scripts/setup-visual-tests.sh
-# Or manually: uv run playwright install chromium
-
-# Run all tests (includes visual tests by default)
-uv run pytest
-
-# Run only unit tests (skip visual tests)
-uv run pytest -m "not visual"
-
-# Run only visual tests
-uv run pytest -m visual
-
-# Run a specific test file
-uv run pytest tests/test_example.py
-
-# Run a specific test function
-uv run pytest tests/test_example.py::test_version
-```
-
-**Important**:
-- Visual tests run by default and require Chromium (~280MB) to be installed via Playwright
-- Use `./scripts/setup-visual-tests.sh` to install Chromium after initial setup
-- Visual tests are marked with `@pytest.mark.visual` and test widget rendering in a real browser
-- If Chromium is not installed, visual tests will fail - use `-m "not visual"` to skip them temporarily
-
-### Code Quality
-```bash
-# Check Python code with ruff
-uv run ruff check .
-
-# Format Python code with ruff
-uv run ruff format .
-
-# Fix auto-fixable Python issues
-uv run ruff check --fix .
-
-# Check TypeScript/JavaScript code with eslint
-pnpm --filter @t-prompts/widgets lint
-```
-
-**Important**: When creating or modifying multiple files, always run the appropriate linter before considering your work complete:
-- After Python changes: `uv run ruff check .`
-- After TypeScript/JavaScript changes: `pnpm --filter @t-prompts/widgets lint`
-- This catches formatting issues, line length violations, and style problems early
-
-### Documentation
-```bash
-# Serve documentation locally (auto-reloads on changes)
-uv run mkdocs serve
-
-# Build documentation (executes all notebooks during build)
-uv run mkdocs build
-
-# Test demo notebooks (REQUIRED after any notebook changes)
-./scripts/test_notebooks.sh
-
-# Run a single notebook
-./scripts/nb.sh docs/demos/01-basic.ipynb
-```
-
-**Important**:
-- After making any changes to demo notebooks (files in `docs/demos/*.ipynb`), you MUST run `./scripts/test_notebooks.sh` to verify the notebook executes without errors
-- Notebooks are stored **without outputs** in git (pre-commit hooks automatically strip them)
-- During docs build with `mkdocs build`, notebooks are executed to generate fresh outputs
-- Do not consider notebook changes complete until `./scripts/test_notebooks.sh` passes
-
-### Scratchpad Directory
-
-**Always use `scratchpad/` for temporary/test code**:
-- Located at project root: `scratchpad/`
-- Already in `.gitignore` - won't be committed
-- Use for test scripts, generated HTML files, screenshots, etc.
-- Clean it up periodically, but don't worry about leaving files
-
-```python
-# Example: scratchpad/test_feature.py
-from t_prompts import prompt
-from t_prompts.widgets import Widget, save_widget_html
-
-@prompt
-def test_prompt():
-    return "Hello world"
-
-widget = Widget(test_prompt().compile())
-save_widget_html(widget, "scratchpad/output.html")
-```
-
-### Development Workflows for Visual Widget Changes
-
-When working on visual/UI changes, there are two main workflows:
-
-#### Workflow 1: User as Eyes and Hands (Preferred)
-
-1. **Write code** with unit tests to validate logic
-2. **Build**: `pnpm --filter @t-prompts/widgets build`
-3. **User previews** the changes in browser (user will run Python code or open HTML)
-4. **User provides feedback** via description or screenshot
-5. Iterate on changes
-
-This is the preferred workflow for rapid iteration.
-
-#### Workflow 2: Automated Screenshot Testing (Independent)
-
-If you want to verify visual output without user intervention:
-
-1. **Write code** with unit tests
-2. **Build**: `pnpm --filter @t-prompts/widgets build`
-3. **Create Python test script** in `scratchpad/` directory
-4. **Use widget export utilities** to generate screenshots:
-   ```python
-   from t_prompts import prompt
-   from t_prompts.widgets import Widget, save_widget_html
-
-   @prompt
-   def my_test():
-       return "test content here"
-
-   widget = Widget(my_test().compile())
-   save_widget_html(widget, "scratchpad/output.html")
-   ```
-5. **Run Python code**: `uv run python scratchpad/my_test.py`
-
-Note: Check `src/t_prompts/widgets/preview.py` for additional screenshot/export capabilities.
-
-### JavaScript Widgets
-
-**The project uses pnpm workspaces.** Always use the `--filter` flag to target the correct package from the root directory:
-
-```bash
-# Install JavaScript dependencies (from root)
-pnpm install
-
-# Build widgets (compiles TypeScript to JavaScript)
-pnpm --filter @t-prompts/widgets build
-
-# Run widget tests
-pnpm --filter @t-prompts/widgets test
-
-# Run specific test file
-pnpm --filter @t-prompts/widgets test lineWrap
-
-# Run widget linting
-pnpm --filter @t-prompts/widgets lint
-
-# Type check widgets
-pnpm --filter @t-prompts/widgets typecheck
-```
-
-**DO NOT** `cd` into subdirectories and run pnpm directly. Use `--filter` from the root.
-
-**Important**: The JavaScript build output (`widgets/dist/`) is committed to version control and bundled with the Python package. After modifying widget sources, you MUST:
-1. Write/update unit tests first
-2. Run tests: `pnpm --filter @t-prompts/widgets test`
-3. Run `pnpm --filter @t-prompts/widgets build` to compile
-4. Commit both source and compiled output
-5. CI will fail if compiled output is out of sync with sources
-
-#### Writing Widget Unit Tests
-
-Widget code runs in browsers, but tests use `vitest` with `jsdom` to simulate the DOM.
-
-**Test file location**: `widgets/src/**/*.test.ts` (next to the source file)
-
-**Example test structure**:
-```typescript
-import { describe, it, expect, beforeEach } from 'vitest';
-import { myTransform } from './myTransform';
-
-describe('myTransform', () => {
-  let container: HTMLDivElement;
-
-  beforeEach(() => {
-    // Create fresh DOM for each test
-    container = document.createElement('div');
-  });
-
-  it('should do something', () => {
-    const span = document.createElement('span');
-    span.setAttribute('data-chunk-id', 'chunk1');
-    span.textContent = 'test';
-    container.appendChild(span);
-
-    // Test assertions
-    expect(container.children.length).toBe(1);
-    expect(span.textContent).toBe('test');
-  });
-});
-```
-
-**Key testing patterns**:
-- Use `document.createElement()` to build test DOM structures
-- Use `querySelector` / `querySelectorAll` to inspect results
-- Check classes: `element.classList.contains('class-name')`
-- Check attributes: `element.getAttribute('data-foo')`
-- Check text content: `element.textContent`
-
-
 ## Architecture
 
 ### Project Structure
 - **src/t_prompts/**: Main package source code (src-layout)
+- **widgets/**: TypeScript widgets for Jupyter/browser rendering
+- **tests/**: Unit tests and visual tests
+- **docs/**: Documentation and demo notebooks
+- **scratchpad/**: Temporary/test code (gitignored)
 
 ### Key Constraints
 - **Python Version**: Requires Python 3.14+ for t-strings (string.templatelib)
 - **Dependency Management**: Uses UV exclusively; uv.lock is committed
 - **Build System**: Uses Hatch/Hatchling for building distributions
 - **Documentation Style**: NumPy docstring style (see mkdocs.yml:25)
-
-### Core Types
-TODO
-
-### Design Principles
-
-**Format Spec as Key Label**
-- t-string format spec (`:label`) repurposed as dictionary key, NOT for formatting
-- Key derivation: `format_spec` if non-empty, else `expression`
-- Default `render()` ignores format spec; `render(apply_format_spec=True)` applies heuristically
-- Rationale: t-strings defer format spec application; we prioritize key labeling for provenance
-
-### Implementation Notes
-
-**Python 3.14 t-strings** (core.py imports)
-- Uses `string.templatelib.Template`, `Interpolation`, `convert`
-- Template exposes `.strings` (static segments), `.interpolations` (metadata + values)
-- Each Interpolation has: value, expression, conversion, format_spec
-- Conversions applied via `string.templatelib.convert(value, conversion)` for !s/!r/!a
-
-**Rendering Algorithm** (core.py:297-329)
-- Interleave `Template.strings` with rendered interpolation values
-- For each interpolation:
-  1. Recursively render if value is StructuredPrompt
-  2. Apply conversion (!s/!r/!a) via `convert()`
-  3. Optionally apply format spec if `apply_format_spec=True` and spec looks like formatting
-- Invalid format specs caught and ignored to preserve key semantics
-
+- **Line Length**: 120 characters maximum (Python and TypeScript)
 
 ### Testing Strategy
 
@@ -326,47 +116,140 @@ TODO
 - **Errors** (test_errors.py): Unsupported value types (int/list/dict/object), missing keys, empty expressions, non-nested indexing, TypeError for non-Template
 - **Rendering** (test_rendering.py): f-string equivalence, apply_format_spec behavior, invalid format specs, nested rendering, conversions
 
+**Visual Widget Tests**
+- Located in `tests/visual/` directory
+- Use Playwright to render widgets in Chromium and verify correct rendering
+- Marked with `@pytest.mark.visual` decorator
+- Run by default unless explicitly skipped with `-m "not visual"`
+- Require Chromium to be installed (see Quick Reference for setup command)
+- Take screenshots that can be analyzed for verification
+- Include 14 comprehensive tests covering all widget features
 
 ### Code Standards
 
 **Python (Ruff Configuration)**:
 - Target: Python 3.14
-- **Line length: 120 characters maximum**
 - Linting rules: E (pycodestyle errors), F (pyflakes), W (warnings), I (isort)
 - Type Hints: Use throughout (string.templatelib types + typing)
 - Docstrings: NumPy style, include Parameters, Returns, Raises sections
 
 **TypeScript/JavaScript (ESLint Configuration)**:
-- **Line length: 120 characters maximum** (enforced by Prettier)
 - Use TypeScript throughout widget code
 - Follow existing code style and patterns
 
-### Testing Configuration
+**Testing Configuration**:
 - Test files must start with `test_` prefix
 - Test classes must start with `Test` prefix
 - Test functions must start with `test_` prefix
 - Tests run with `-s` flag (no capture) by default
 - Coverage reporting: use `--cov=src/t_prompts --cov-report=xml --cov-report=term`
 
-**Visual Widget Tests**:
-- Located in `tests/visual/` directory
-- Use Playwright to render widgets in Chromium and verify correct rendering
-- Marked with `@pytest.mark.visual` decorator
-- Run by default unless explicitly skipped with `-m "not visual"`
-- Require Chromium to be installed: `./scripts/setup-visual-tests.sh`
-- Take screenshots that can be analyzed for verification
-TODO -- explain utils and workflows
-- Include 14 comprehensive tests covering all widget features
+## Development Workflows
+
+### Initial Setup
+
+For a fresh clone, run the setup script (see Quick Reference). This handles:
+1. Tool verification (uv, pnpm)
+2. Python dependencies with frozen lockfile
+3. JavaScript dependencies
+4. TypeScript widget build
+5. Pre-commit hook installation
+
+The `--frozen` flag ensures reproducible builds. Pre-commit hooks automatically strip notebook outputs and check code quality before commits.
+
+### Widget Development
+
+**The project uses pnpm workspaces.** Always use `--filter @t-prompts/widgets` from the root directory. Never `cd` into subdirectories.
+
+**Unit Testing Widgets**
+- Widget code runs in browsers, but tests use `vitest` with `jsdom` to simulate the DOM
+- Test file location: `widgets/src/**/*.test.ts` (next to the source file)
+- Use `document.createElement()` to build test DOM structures
+- Check classes with `element.classList.contains('class-name')`
+- Check attributes with `element.getAttribute('data-foo')`
+- See Quick Reference for test commands
+
+**Example test structure**:
+```typescript
+import { describe, it, expect, beforeEach } from 'vitest';
+import { myTransform } from './myTransform';
+
+describe('myTransform', () => {
+  let container: HTMLDivElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+  });
+
+  it('should do something', () => {
+    const span = document.createElement('span');
+    span.setAttribute('data-chunk-id', 'chunk1');
+    span.textContent = 'test';
+    container.appendChild(span);
+
+    expect(container.children.length).toBe(1);
+    expect(span.textContent).toBe('test');
+  });
+});
+```
+
+### Visual Widget Changes
+
+**Workflow 1: User as Eyes and Hands (Preferred)**
+1. Write code with unit tests to validate logic
+2. Build (see Quick Reference for build command)
+3. User previews the changes in browser
+4. User provides feedback via description or screenshot
+5. Iterate on changes
+
+**Workflow 2: Automated Screenshot Testing**
+1. Write code with unit tests
+2. Build (see Quick Reference)
+3. Create Python test script in `scratchpad/` directory:
+   ```python
+   from t_prompts import prompt
+   from t_prompts.widgets import Widget, save_widget_html
+
+   @prompt
+   def my_test():
+       return "test content here"
+
+   widget = Widget(my_test().compile())
+   save_widget_html(widget, "scratchpad/output.html")
+   ```
+4. Run with: `uv run python scratchpad/my_test.py`
+5. Check `src/t_prompts/widgets/preview.py` for additional screenshot/export capabilities
+
+### Documentation Changes
+
+**Demo Notebooks**
+- After making any changes to demo notebooks in `docs/demos/*.ipynb`, you MUST lint
+- Notebooks are stored **without outputs** in git (pre-commit hooks automatically strip them)
+- During docs build, notebooks are executed to generate fresh outputs
+- Do not consider notebook changes docs build
+
+### Code Quality Workflow
+
+When creating or modifying files:
+1. Write/modify code
+2. Run appropriate linter (see Quick Reference)
+3. Fix any issues
+4. Commit
+
+This catches formatting issues, line length violations, and style problems early. Run linters incrementally as you work, not all at the end.
 
 ## Common Pitfalls
 
 ### Code Quality
-- ❌ Don't skip linting after creating/modifying files → ✅ Run `uv run ruff check .` (Python) or `pnpm --filter @t-prompts/widgets lint` (TypeScript)
+- ❌ Don't skip linting after creating/modifying files → ✅ See Quick Reference for linting commands
 - ❌ Don't ignore line length limits (120 chars) → ✅ Break long lines before committing
 - ❌ Don't batch all linting until the end → ✅ Run linters incrementally as you work
 
 ### JavaScript/Widget Development
-- ❌ Don't `cd widgets && pnpm test` → ✅ Use `pnpm --filter @t-prompts/widgets test` from root
+- ❌ Don't `cd widgets && pnpm test` → ✅ Use `pnpm --filter @t-prompts/widgets test` from root (see Quick Reference)
 - ❌ Don't create test files in root → ✅ Use `scratchpad/` directory
-- ❌ Don't modify `widgets/dist/` directly → ✅ Edit `src/` and rebuild
-- ❌ Don't forget to run tests before building → ✅ Test → Build → Preview workflow
+- ❌ Don't modify `widgets/dist/` directly → ✅ Edit `src/` and rebuild (see Quick Reference)
+
+### Testing
+- ❌ Don't skip notebook tests after changes → ✅ Always run notebook test command (see Quick Reference)
+- ❌ Don't forget visual tests need Chromium → ✅ Use setup command from Quick Reference if needed

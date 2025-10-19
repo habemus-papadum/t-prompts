@@ -16,15 +16,19 @@ echo "1. TypeScript Lint..."
 pnpm --filter @t-prompts/widgets lint
 
 echo ""
-echo "2. TypeScript Build..."
+echo "2. TypeScript Type Check..."
+pnpm --filter @t-prompts/widgets typecheck
+
+echo ""
+echo "3. TypeScript Build..."
 pnpm --filter @t-prompts/widgets build:python
 
 echo ""
-echo "3. TypeScript Tests..."
+echo "4. TypeScript Tests..."
 pnpm --filter @t-prompts/widgets test
 
 echo ""
-echo "4. Check Git Status (must be clean)..."
+echo "5. Check Git Status (must be clean)..."
 if [[ -n $(git status --porcelain) ]]; then
   echo "❌ Error: Git working directory is not clean. Please commit or stash changes first."
   exit 1
@@ -32,12 +36,12 @@ fi
 echo "✓ Git working directory is clean"
 
 echo ""
-echo "5. Python Lint..."
+echo "6. Python Lint..."
 uv run ruff check .
 
 
 echo ""
-echo "6. Python Tests..."
+echo "7. Python Tests..."
 uv run pytest
 
 echo ""

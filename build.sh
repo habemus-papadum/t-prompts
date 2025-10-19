@@ -40,10 +40,14 @@ uv sync --frozen
 
 echo ""
 echo "3. Installing pnpm packages..."
-pnpm install --frozen-lockfile
+pnpm install
 
 echo ""
-echo "4. Building TypeScript widgets..."
+echo "4. Type checking TypeScript..."
+pnpm --filter @t-prompts/widgets typecheck
+
+echo ""
+echo "5. Building TypeScript widgets..."
 pnpm --filter @t-prompts/widgets build:python
 
 

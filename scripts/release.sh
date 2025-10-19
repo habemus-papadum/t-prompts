@@ -5,7 +5,7 @@ This script automates the release process:
 1. Verifies git repo is clean
 2. Validates version has -alpha suffix
 3. Calculates release version (strips -alpha)
-4. Runs TypeScript validation (lint, build TypeScript, build for Python, test)
+4. Runs TypeScript validation (lint, typecheck, build TypeScript, build for Python, test)
 5. Runs Python validation (lint, test, docs build)
 6. Updates version files (pyproject.toml, __init__.py, package.json, version.ts) to release version
 7. Updates uv.lock with new version
@@ -282,6 +282,12 @@ def run_widget_linting() -> None:
     run_command(["pnpm", "lint"], "Running pnpm lint")
 
 
+def run_widget_typecheck() -> None:
+    """Run widget type checking with pnpm."""
+    console.rule("[bold blue]Running Widget Type Checking")
+    run_command(["pnpm", "--filter", "@t-prompts/widgets", "typecheck"], "Running pnpm typecheck")
+
+
 def run_widget_tests() -> None:
     """Run widget unit tests with pnpm."""
     console.rule("[bold blue]Running Widget Unit Tests")
@@ -486,13 +492,21 @@ STEPS: list[Step] = [
         category=StepCategory.VALIDATION,
         action=calculate_release_version,
     ),
-    # TypeScript processing (lint, build, build for Python, test)
+    # TypeScript processing (lint, typecheck, build, build for Python, test)
     Step(
         id="widget_linting",
         name="Run Widget Linting",
         description="Check widget code quality with pnpm lint",
         category=StepCategory.VALIDATION,
         action=run_widget_linting,
+        notes="Usually fast (< 10s)",
+    ),
+    Step(
+        id="widget_typecheck",
+        name="Run Widget Type Check",
+        description="Check TypeScript types with pnpm typecheck",
+        category=StepCategory.VALIDATION,
+        action=run_widget_typecheck,
         notes="Usually fast (< 10s)",
     ),
     Step(
