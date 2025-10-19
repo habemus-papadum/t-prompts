@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { buildTreeView } from './TreeView';
-import type { WidgetData, WidgetMetadata, ChunkSize } from '../types';
+import type { WidgetData, WidgetMetadata } from '../types';
 import { FoldingController } from '../folding/controller';
 import type { FoldingClient, FoldingEvent, FoldingState } from '../folding/types';
 import { computeWidgetMetadata } from '../metadata';
+import { createPromptTreeDataSource } from './treeDataSource';
 
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
 global.document = dom.window.document;
@@ -15,6 +16,7 @@ describe('TreeView', () => {
   let metadata: WidgetMetadata;
   let foldingController: FoldingController;
   let controllerHarness: TestFoldingController;
+  let dataSource: ReturnType<typeof createPromptTreeDataSource>;
 
   beforeEach(() => {
     data = {
@@ -44,26 +46,17 @@ describe('TreeView', () => {
       config: { wrapping: true, sourcePrefix: '' },
     };
 
-    metadata = {
-      elementTypeMap: {},
-      elementLocationMap: {},
-      elementLocationDetails: {},
-      chunkSizeMap: {
-        'chunk-a': { character: 11, pixel: 0 } satisfies ChunkSize,
-        'chunk-b': { character: 7, pixel: 0 } satisfies ChunkSize,
-      },
-      chunkLocationMap: {
-        'chunk-a': { elementId: 'elem-static' },
-        'chunk-b': { elementId: 'elem-interp' },
-      },
-    };
+    metadata = computeWidgetMetadata(data);
+    dataSource = createPromptTreeDataSource(data, metadata, {
+      treeShowWhitespace: data.config?.treeShowWhitespace ?? 'default',
+    });
 
     controllerHarness = new TestFoldingController(['chunk-a', 'chunk-b']);
     foldingController = controllerHarness as unknown as FoldingController;
   });
 
   it('renders tree hierarchy with correct structure', () => {
-    const tree = buildTreeView({ data, metadata, foldingController });
+    const tree = buildTreeView({ data, metadata, foldingController, dataSource });
     const root = tree.element;
 
     expect(root.classList.contains('tp-tree-view')).toBe(true);
@@ -94,7 +87,7 @@ describe('TreeView', () => {
   });
 
   it('toggles expansion when row clicked', async () => {
-    const tree = buildTreeView({ data, metadata, foldingController });
+    const tree = buildTreeView({ data, metadata, foldingController, dataSource });
     const itemsContainer = tree.element.querySelector('.tp-tree-items');
     const firstItem = itemsContainer?.querySelector('.tp-tree-item');
     expect(firstItem).toBeTruthy();
@@ -118,7 +111,7 @@ describe('TreeView', () => {
   });
 
   it('handles leaf nodes without toggles', () => {
-    const tree = buildTreeView({ data, metadata, foldingController });
+    const tree = buildTreeView({ data, metadata, foldingController, dataSource });
     const leafItem = tree.element.querySelectorAll('.tp-tree-item')[1];
 
     const toggleButton = leafItem.querySelector('.tp-tree-toggle') as HTMLButtonElement;
@@ -127,7 +120,7 @@ describe('TreeView', () => {
   });
 
   it('updates visibility meter when folding state changes', () => {
-    const tree = buildTreeView({ data, metadata, foldingController });
+    const tree = buildTreeView({ data, metadata, foldingController, dataSource });
     const firstRow = tree.element.querySelector('.tp-tree-row');
     const meter = firstRow?.querySelector('.tp-meter-text--characters');
     expect(meter?.textContent).toBe('18/18ch');
@@ -141,7 +134,12 @@ describe('TreeView', () => {
 
   it('collapses and expands chunks on double click', () => {
     const realController = new FoldingController(['chunk-a', 'chunk-b']);
-    const tree = buildTreeView({ data, metadata, foldingController: realController });
+    const tree = buildTreeView({
+      data,
+      metadata,
+      foldingController: realController,
+      dataSource,
+    });
 
     const firstRow = tree.element.querySelector('.tp-tree-row') as HTMLElement;
     const meter = firstRow.querySelector('.tp-meter-text--characters');
@@ -157,7 +155,7 @@ describe('TreeView', () => {
   });
 
   it('annotates tree rows with element identifiers', () => {
-    const tree = buildTreeView({ data, metadata, foldingController });
+    const tree = buildTreeView({ data, metadata, foldingController, dataSource });
     const firstRow = tree.element.querySelector('.tp-tree-row') as HTMLElement;
     expect(firstRow).toBeTruthy();
     expect(firstRow.getAttribute('data-element-id')).toBe('elem-static');
@@ -212,6 +210,9 @@ describe('TreeView', () => {
     } as WidgetData;
 
     const navMetadata = computeWidgetMetadata(navData);
+    const navDataSource = createPromptTreeDataSource(navData, navMetadata, {
+      treeShowWhitespace: navData.config?.treeShowWhitespace ?? 'default',
+    });
     expect(navMetadata.elementLocationDetails['elem-nav']?.source?.filepath).toBe(
       '/Users/test/project/nav.py'
     );
@@ -219,7 +220,12 @@ describe('TreeView', () => {
       '/Users/test/project/nav.py'
     );
     const navController = new FoldingController(['chunk-nav']);
-    const tree = buildTreeView({ data: navData, metadata: navMetadata, foldingController: navController });
+    const tree = buildTreeView({
+      data: navData,
+      metadata: navMetadata,
+      foldingController: navController,
+      dataSource: navDataSource,
+    });
     document.body.appendChild(tree.element);
 
     await Promise.resolve();

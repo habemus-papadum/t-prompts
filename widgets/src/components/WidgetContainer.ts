@@ -1,12 +1,3 @@
-/**
- * Widget Container Component
- *
- * Top-level container that orchestrates multiple views and toolbars.
- * Currently contains just CodeView, but designed to support:
- * - Toolbar for view switching and controls
- * - Multiple visualization views (tree, table, etc.)
- */
-
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata, ViewMode } from '../types';
 import { buildTreeView } from './TreeView';
@@ -15,63 +6,38 @@ import { buildBeforeCodeView } from './BeforeCodeView';
 import { buildMarkdownView } from './MarkdownView';
 import { ScrollSyncManager } from './ScrollSyncManager';
 import { FoldingController } from '../folding/controller';
-import { createToolbar, updateToolbarMode } from './Toolbar';
-import type { ToolbarComponent } from './Toolbar';
+import { createToolbar, type ToolbarSection } from './Toolbar';
+import { createDiffToolbarSection } from './ToolbarSectionDiff';
+import { createPromptTreeDataSource } from './treeDataSource';
+import { createDiffTreeOverlay } from './DiffTreeOverlay';
+import { buildStructuredPromptShell } from './StructuredPromptShell';
+import { DiffOverlayController } from '../controllers/DiffOverlayController';
+import { getDiffContext } from '../utils/diffContext';
 
-const TREE_DEFAULT_WIDTH = 280;
-const TREE_MIN_WIDTH = 200;
-const TREE_MAX_WIDTH = 480;
-const SPLIT_DEFAULT_RATIO = 0.5;
-const SPLIT_MIN_RATIO = 0.25;
-const SPLIT_MAX_RATIO = 0.75;
+const TREE_WIDTH_KEY_PREFIX = 'tp-tree-width';
+const TREE_COLLAPSED_KEY_PREFIX = 'tp-tree-collapsed';
+const SPLIT_RATIO_KEY_PREFIX = 'tp-split-ratio';
+const DIFF_ENABLED_KEY_PREFIX = 'tp-diff-enabled';
+const BEFORE_VISIBLE_KEY_PREFIX = 'tp-before-visible';
 
-/**
- * Widget container component interface
- */
 export interface WidgetContainer extends Component {
-  // Container-specific
-  views: Component[]; // Child components
+  views: Component[];
   toolbar: HTMLElement;
   contentArea: HTMLElement;
-  foldingController: FoldingController; // Exposed for testing
-  viewMode: ViewMode; // Current view mode
+  foldingController: FoldingController;
+  viewMode: ViewMode;
   scrollSyncManager: ScrollSyncManager;
-
-  // Operations
   setViewMode(mode: ViewMode): void;
 }
 
-/**
- * Check if widget data includes diff overlay information
- */
-function hasDiffData(data: WidgetData): boolean {
-  return !!(
-    data.before_prompt_ir &&
-    data.structured_diff &&
-    data.rendered_diff
-  );
-}
-
-/**
- * Build a WidgetContainer component from widget data and metadata
- */
 export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata): WidgetContainer {
-  // 1. Create root element
-  const element = document.createElement('div');
-  element.className = 'tp-widget-output';
+  const diffContext = getDiffContext(data);
 
-  // Enable diff by default if diff data is available
-  if (hasDiffData(data)) {
-    element.classList.add('tp-diff-enabled');
-  }
-
-  // 2. Initialize folding controller with chunk sequence
-  const initialChunkIds = data.ir?.chunks?.map((chunk) => chunk.id) || [];
+  const initialChunkIds = data.ir?.chunks?.map((chunk) => chunk.id) ?? [];
   const foldingController = new FoldingController(initialChunkIds);
 
-  // Initialize separate folding controller for before view if diff data available
-  const beforeChunkIds = data.before_prompt_ir?.chunks?.map((chunk) => chunk.id) || [];
-  const beforeFoldingController = hasDiffData(data) ? new FoldingController(beforeChunkIds) : null;
+  const beforeChunkIds = diffContext?.beforePrompt.chunks?.map((chunk) => chunk.id) ?? [];
+  const beforeFoldingController = diffContext ? new FoldingController(beforeChunkIds) : null;
 
   const chunkSizeMap = metadata.chunkSizeMap;
   let totalCharacters = 0;
@@ -85,346 +51,42 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     totalPixels += size.pixel ?? 0;
   }
 
-  const treeStorageKey = `tp-tree-collapsed:${data.compiled_ir?.ir_id ?? 'default'}`;
+  const storageSuffix = data.compiled_ir?.ir_id ?? 'default';
+  const treeWidthKey = `${TREE_WIDTH_KEY_PREFIX}:${storageSuffix}`;
+  const treeCollapsedKey = `${TREE_COLLAPSED_KEY_PREFIX}:${storageSuffix}`;
+  const splitRatioKey = `${SPLIT_RATIO_KEY_PREFIX}:${storageSuffix}`;
+  const diffEnabledKey = `${DIFF_ENABLED_KEY_PREFIX}:${storageSuffix}`;
+  const beforeVisibleKey = `${BEFORE_VISIBLE_KEY_PREFIX}:${storageSuffix}`;
 
-  // 3. Build views
-  const treeWidthStorageKey = `tp-tree-width:${data.compiled_ir?.ir_id ?? 'default'}`;
-  const splitRatioStorageKey = `tp-split-ratio:${data.compiled_ir?.ir_id ?? 'default'}`;
+  const treeDataSource = createPromptTreeDataSource(data, metadata, {
+    treeShowWhitespace: data.config?.treeShowWhitespace ?? 'default',
+  });
+  const treeOverlays = diffContext ? [createDiffTreeOverlay(diffContext)] : [];
 
-  const treeContainer = document.createElement('div');
-  treeContainer.className = 'tp-tree-container';
-
-  const expandStrip = document.createElement('button');
-  expandStrip.type = 'button';
-  expandStrip.className = 'tp-tree-expand-strip';
-  expandStrip.textContent = '▸';
-  expandStrip.setAttribute('aria-label', 'Show tree view');
-
-  let collapseTreePanel: () => void = () => {};
-  let expandTreePanel: () => void = () => {};
+  let collapseTree: () => void = () => {};
 
   const treeView = buildTreeView({
     data,
     metadata,
     foldingController,
-    onCollapse: () => collapseTreePanel(),
+    onCollapse: () => collapseTree(),
+    dataSource: treeDataSource,
+    overlays: treeOverlays,
   });
-
-  // Build before view if diff data is available
-  const beforeView = beforeFoldingController
-    ? buildBeforeCodeView(data, metadata, beforeFoldingController)
-    : null;
 
   const codeView = buildCodeView(data, metadata, foldingController);
   const markdownView = buildMarkdownView(data, metadata, foldingController);
+  const beforeView = diffContext && beforeFoldingController
+    ? buildBeforeCodeView(data, metadata, beforeFoldingController)
+    : null;
 
-  const treePanel = document.createElement('div');
-  treePanel.className = 'tp-panel tp-tree-panel';
-  treePanel.appendChild(treeView.element);
+  let scrollSyncManager: ScrollSyncManager | null = null;
 
-  const treeResizer = document.createElement('div');
-  treeResizer.className = 'tp-tree-resizer';
-  treeResizer.setAttribute('role', 'separator');
-  treeResizer.setAttribute('aria-orientation', 'vertical');
-  treeResizer.setAttribute('aria-hidden', 'false');
-  treeResizer.setAttribute('aria-label', 'Resize tree panel');
-  treeResizer.tabIndex = 0;
-
-  // 4. Create before panel if available
-  const beforePanel = beforeView ? document.createElement('div') : null;
-  if (beforePanel && beforeView) {
-    beforePanel.className = 'tp-panel tp-before-panel hidden';
-    beforePanel.appendChild(beforeView.element);
-  }
-
-  // 5. Create panels
-  const codePanel = document.createElement('div');
-  codePanel.className = 'tp-panel tp-code-panel';
-  codePanel.appendChild(codeView.element);
-
-  const markdownPanel = document.createElement('div');
-  markdownPanel.className = 'tp-panel tp-markdown-panel';
-  markdownPanel.appendChild(markdownView.element);
-
-  // 6. Create content area
-  const splitResizer = document.createElement('div');
-  splitResizer.className = 'tp-split-resizer';
-  splitResizer.setAttribute('role', 'separator');
-  splitResizer.setAttribute('aria-orientation', 'vertical');
-  splitResizer.setAttribute('aria-hidden', 'false');
-  splitResizer.setAttribute('aria-label', 'Resize code and markdown views');
-  splitResizer.tabIndex = 0;
-
-  const mainSplit = document.createElement('div');
-  mainSplit.className = 'tp-main-split';
-  mainSplit.appendChild(codePanel);
-  mainSplit.appendChild(splitResizer);
-  mainSplit.appendChild(markdownPanel);
-
-  treeContainer.appendChild(treePanel);
-  treeContainer.appendChild(expandStrip);
-
-  const contentArea = document.createElement('div');
-  contentArea.className = 'tp-content-area';
-  contentArea.appendChild(treeContainer);
-  contentArea.appendChild(treeResizer);
-  // Add before panel between tree and main split if available
-  if (beforePanel) {
-    contentArea.appendChild(beforePanel);
-  }
-  contentArea.appendChild(mainSplit);
-
-  let currentTreeWidth = TREE_DEFAULT_WIDTH;
-  let currentSplitRatio = SPLIT_DEFAULT_RATIO;
-
-  function applyTreeWidth(width: number): void {
-    currentTreeWidth = clamp(width, TREE_MIN_WIDTH, TREE_MAX_WIDTH);
-    treeContainer.style.setProperty('--tp-tree-width', `${currentTreeWidth}px`);
-    treeResizer.setAttribute('aria-valuemin', TREE_MIN_WIDTH.toString());
-    treeResizer.setAttribute('aria-valuemax', TREE_MAX_WIDTH.toString());
-    treeResizer.setAttribute('aria-valuenow', Math.round(currentTreeWidth).toString());
-  }
-
-  function persistTreeWidth(): void {
-    storeNumberInSession(treeWidthStorageKey, Math.round(currentTreeWidth));
-  }
-
-  function updateTreeResizerState(collapsed: boolean): void {
-    treeResizer.classList.toggle('tp-tree-resizer--hidden', collapsed);
-    treeResizer.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
-    treeResizer.tabIndex = collapsed ? -1 : 0;
-  }
-
-  function applySplitRatio(ratio: number): void {
-    currentSplitRatio = clamp(ratio, SPLIT_MIN_RATIO, SPLIT_MAX_RATIO);
-    const percent = `${(currentSplitRatio * 100).toFixed(1)}%`;
-    mainSplit.style.setProperty('--tp-code-width', percent);
-    splitResizer.setAttribute('aria-valuemin', SPLIT_MIN_RATIO.toString());
-    splitResizer.setAttribute('aria-valuemax', SPLIT_MAX_RATIO.toString());
-    splitResizer.setAttribute('aria-valuenow', currentSplitRatio.toFixed(2));
-  }
-
-  function persistSplitRatio(): void {
-    storeNumberInSession(splitRatioStorageKey, Number(currentSplitRatio.toFixed(3)));
-  }
-
-  currentTreeWidth = clamp(
-    readNumberFromSession(treeWidthStorageKey) ?? TREE_DEFAULT_WIDTH,
-    TREE_MIN_WIDTH,
-    TREE_MAX_WIDTH
-  );
-
-  currentSplitRatio = clamp(
-    readNumberFromSession(splitRatioStorageKey) ?? SPLIT_DEFAULT_RATIO,
-    SPLIT_MIN_RATIO,
-    SPLIT_MAX_RATIO
-  );
-
-  applyTreeWidth(currentTreeWidth);
-  applySplitRatio(currentSplitRatio);
-
-  const onTreeResizerPointerDown = (event: PointerEvent): void => {
-    if (treeContainer.classList.contains('tp-tree-container--collapsed')) {
-      return;
-    }
-
-    event.preventDefault();
-    const pointerId = event.pointerId;
-    const startX = event.clientX;
-    const startWidth = currentTreeWidth;
-
-    treeResizer.classList.add('tp-tree-resizer--active');
-    treeResizer.setPointerCapture(pointerId);
-
-    const handleMove = (moveEvent: PointerEvent): void => {
-      const delta = moveEvent.clientX - startX;
-      applyTreeWidth(startWidth + delta);
-    };
-
-    const handleUp = (): void => {
-      treeResizer.classList.remove('tp-tree-resizer--active');
-      try {
-        treeResizer.releasePointerCapture(pointerId);
-      } catch {
-        // ignore release errors
-      }
-      treeResizer.removeEventListener('pointermove', handleMove);
-      treeResizer.removeEventListener('pointerup', handleUp);
-      treeResizer.removeEventListener('pointercancel', handleUp);
-      persistTreeWidth();
-    };
-
-    treeResizer.addEventListener('pointermove', handleMove);
-    treeResizer.addEventListener('pointerup', handleUp);
-    treeResizer.addEventListener('pointercancel', handleUp);
-  };
-
-  const onTreeResizerKeyDown = (event: KeyboardEvent): void => {
-    if (treeContainer.classList.contains('tp-tree-container--collapsed')) {
-      return;
-    }
-
-    const step = event.shiftKey ? 40 : 16;
-    let handled = false;
-
-    switch (event.key) {
-      case 'ArrowLeft':
-        applyTreeWidth(currentTreeWidth - step);
-        handled = true;
-        break;
-      case 'ArrowRight':
-        applyTreeWidth(currentTreeWidth + step);
-        handled = true;
-        break;
-      case 'Home':
-        applyTreeWidth(TREE_MIN_WIDTH);
-        handled = true;
-        break;
-      case 'End':
-        applyTreeWidth(TREE_MAX_WIDTH);
-        handled = true;
-        break;
-      default:
-        break;
-    }
-
-    if (handled) {
-      event.preventDefault();
-      persistTreeWidth();
-    }
-  };
-
-  const onSplitResizerPointerDown = (event: PointerEvent): void => {
-    if (currentViewMode !== 'split') {
-      return;
-    }
-
-    event.preventDefault();
-    const pointerId = event.pointerId;
-    const startX = event.clientX;
-    const containerRect = mainSplit.getBoundingClientRect();
-    const startRatio = currentSplitRatio;
-
-    if (containerRect.width <= 0) {
-      return;
-    }
-
-    splitResizer.classList.add('tp-split-resizer--active');
-    splitResizer.setPointerCapture(pointerId);
-
-    const handleMove = (moveEvent: PointerEvent): void => {
-      const delta = moveEvent.clientX - startX;
-      const nextRatio = startRatio + delta / containerRect.width;
-      applySplitRatio(nextRatio);
-    };
-
-    const handleUp = (): void => {
-      splitResizer.classList.remove('tp-split-resizer--active');
-      try {
-        splitResizer.releasePointerCapture(pointerId);
-      } catch {
-        // ignore release errors
-      }
-      splitResizer.removeEventListener('pointermove', handleMove);
-      splitResizer.removeEventListener('pointerup', handleUp);
-      splitResizer.removeEventListener('pointercancel', handleUp);
-      persistSplitRatio();
-    };
-
-    splitResizer.addEventListener('pointermove', handleMove);
-    splitResizer.addEventListener('pointerup', handleUp);
-    splitResizer.addEventListener('pointercancel', handleUp);
-  };
-
-  const onSplitResizerKeyDown = (event: KeyboardEvent): void => {
-    if (currentViewMode !== 'split') {
-      return;
-    }
-
-    const step = event.shiftKey ? 0.1 : 0.05;
-    let handled = false;
-
-    switch (event.key) {
-      case 'ArrowLeft':
-        applySplitRatio(currentSplitRatio - step);
-        handled = true;
-        break;
-      case 'ArrowRight':
-        applySplitRatio(currentSplitRatio + step);
-        handled = true;
-        break;
-      case 'Home':
-        applySplitRatio(SPLIT_MIN_RATIO);
-        handled = true;
-        break;
-      case 'End':
-        applySplitRatio(SPLIT_MAX_RATIO);
-        handled = true;
-        break;
-      default:
-        break;
-    }
-
-    if (handled) {
-      event.preventDefault();
-      persistSplitRatio();
-    }
-  };
-
-  treeResizer.addEventListener('pointerdown', onTreeResizerPointerDown);
-  treeResizer.addEventListener('keydown', onTreeResizerKeyDown);
-  splitResizer.addEventListener('pointerdown', onSplitResizerPointerDown);
-  splitResizer.addEventListener('keydown', onSplitResizerKeyDown);
-
-  updateTreeResizerState(false);
-
-  // 6. State management
-  let currentViewMode: ViewMode = 'split';
-  let scrollSyncEnabled = true;
-  let scrollSyncManager: ScrollSyncManager;
-  const diffDataAvailable = hasDiffData(data);
-
-  // 7. View mode setter
-  function setViewMode(mode: ViewMode): void {
-    currentViewMode = mode;
-
-    const isCodeOnly = mode === 'code';
-    const isMarkdownOnly = mode === 'markdown';
-    const isSplit = mode === 'split';
-
-    codePanel.classList.toggle('hidden', isMarkdownOnly);
-    markdownPanel.classList.toggle('hidden', isCodeOnly);
-
-    mainSplit.classList.toggle('tp-main-split--code-only', isCodeOnly);
-    mainSplit.classList.toggle('tp-main-split--markdown-only', isMarkdownOnly);
-    mainSplit.classList.toggle('tp-main-split--split', isSplit);
-
-    splitResizer.classList.toggle('tp-split-resizer--hidden', !isSplit);
-    splitResizer.setAttribute('aria-hidden', isSplit ? 'false' : 'true');
-    splitResizer.tabIndex = isSplit ? 0 : -1;
-
-    // Update toolbar active state
-    updateToolbarMode(toolbar, mode);
-
-    scrollSyncManager.handleViewVisibilityChange();
-  }
-
-  // 8. Create toolbar
-  const toolbarComponent: ToolbarComponent = createToolbar({
-    currentMode: currentViewMode,
-    diffEnabled: diffDataAvailable,
+  const toolbar = createToolbar({
+    currentMode: 'split',
     callbacks: {
-      onViewModeChange: setViewMode,
-      onScrollSyncToggle: (enabled) => {
-        scrollSyncEnabled = enabled;
-        scrollSyncManager.setEnabled(enabled);
-      },
-      onDiffToggle: diffDataAvailable ? (enabled: boolean) => {
-        element.classList.toggle('tp-diff-enabled', enabled);
-      } : undefined,
-      onBeforeToggle: beforePanel ? (show: boolean) => {
-        beforePanel.classList.toggle('hidden', !show);
-      } : undefined,
+      onViewModeChange: (mode) => setViewMode(mode),
+      onScrollSyncToggle: (enabled) => scrollSyncManager?.setEnabled(enabled),
     },
     foldingController,
     metrics: {
@@ -433,137 +95,92 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
       chunkIds: initialChunkIds,
       chunkSizeMap,
     },
-    diffData: diffDataAvailable ? {
-      structured: data.structured_diff!,
-      rendered: data.rendered_diff!,
-    } : undefined,
+    sections: [],
   });
-  const toolbar = toolbarComponent.element;
 
-  // 9. Assemble
-  element.appendChild(toolbar);
-  element.appendChild(contentArea);
+  const shell = buildStructuredPromptShell({
+    renderTree: () => treeView,
+    renderAfter: () => codeView,
+    renderMarkdown: () => markdownView,
+    renderBefore: beforeView ? () => beforeView : undefined,
+    toolbar,
+    defaultViewMode: 'split',
+    storageKeys: {
+      treeWidth: treeWidthKey,
+      splitRatio: splitRatioKey,
+      treeCollapsed: treeCollapsedKey,
+    },
+    onTreeCollapse: (): void => treeView.update(),
+    onTreeExpand: (): void => treeView.update(),
+  });
+
+  collapseTree = (): void => shell.collapseTree();
+
+  const diffController = diffContext
+    ? new DiffOverlayController({
+        root: shell.element,
+        defaultEnabled: true,
+        storageKeys: {
+          diffEnabled: diffEnabledKey,
+          beforeVisible: beforeVisibleKey,
+        },
+        onDiffChange: () => scrollSyncManager?.markDirty('diff-toggle'),
+        onBeforeChange: (visible) => shell.setBeforeVisible(visible),
+      })
+    : null;
+
+  let diffSection: ToolbarSection | null = null;
+  if (diffController && diffContext) {
+    const section = createDiffToolbarSection({
+      controller: diffController,
+      diffContext,
+      showBeforeToggle: Boolean(beforeView),
+    });
+    const rightContainer = shell.toolbar.querySelector('.tp-toolbar-right') ?? shell.toolbar;
+    section.mount(rightContainer as HTMLElement);
+    diffSection = section;
+    shell.setBeforeVisible(diffController.isBeforeVisible());
+  }
 
   scrollSyncManager = new ScrollSyncManager({
     controller: foldingController,
     codeView,
     markdownView,
-    codePanel,
-    markdownPanel,
+    codePanel: shell.codePanel,
+    markdownPanel: shell.markdownPanel,
   });
 
-  toolbarComponent.setScrollSyncEnabled(scrollSyncEnabled);
+  toolbar.setScrollSyncEnabled(true);
 
-  const handleAssetLoad = (): void => {
-    scrollSyncManager.markDirty('asset-load');
-  };
-
-  codePanel.addEventListener('load', handleAssetLoad, true);
-  markdownPanel.addEventListener('load', handleAssetLoad, true);
-
-  // 10. Initialize view mode
-  setViewMode(currentViewMode);
-
-  // 11. Track views
-  const views: Component[] = beforeView
-    ? [treeView, beforeView, codeView, markdownView]
-    : [treeView, codeView, markdownView];
-
-  expandStrip.addEventListener('click', () => expandTreePanel());
-
-  collapseTreePanel = (): void => {
-    treeContainer.classList.add('tp-tree-container--collapsed');
-    expandStrip.classList.add('tp-tree-expand-strip--visible');
-    treeResizer.classList.remove('tp-tree-resizer--active');
-    updateTreeResizerState(true);
-    try {
-      window.sessionStorage.setItem(treeStorageKey, '1');
-    } catch {
-      // ignore storage errors (e.g., sandboxed environments)
-    }
-  };
-
-  expandTreePanel = (): void => {
-    treeContainer.classList.remove('tp-tree-container--collapsed');
-    expandStrip.classList.remove('tp-tree-expand-strip--visible');
-    updateTreeResizerState(false);
-    applyTreeWidth(currentTreeWidth);
-    try {
-      window.sessionStorage.setItem(treeStorageKey, '0');
-    } catch {
-      // ignore storage errors
-    }
-  };
-
-  if (shouldCollapseTreePanel(treeStorageKey)) {
-    collapseTreePanel();
-  } else {
-    expandTreePanel();
+  function setViewMode(mode: ViewMode): void {
+    shell.setViewMode(mode);
+    scrollSyncManager?.handleViewVisibilityChange();
   }
 
-  // 12. Return component
+  const assetLoadHandler = (): void => {
+    scrollSyncManager?.markDirty('asset-load');
+  };
+
+  shell.codePanel.addEventListener('load', assetLoadHandler, true);
+  shell.markdownPanel.addEventListener('load', assetLoadHandler, true);
+
+  const views = beforeView ? [treeView, beforeView, codeView, markdownView] : [treeView, codeView, markdownView];
+
   return {
-    element,
+    element: shell.element,
     views,
-    toolbar,
-    contentArea,
+    toolbar: shell.toolbar,
+    contentArea: shell.contentArea,
     foldingController,
-    viewMode: currentViewMode,
-    scrollSyncManager,
-
+    viewMode: 'split',
+    scrollSyncManager: scrollSyncManager!,
     setViewMode,
-
     destroy(): void {
-      // Cleanup all views
-      views.forEach((view) => view.destroy());
-      toolbarComponent.destroy();
-      scrollSyncManager.destroy();
-      treeResizer.removeEventListener('pointerdown', onTreeResizerPointerDown);
-      treeResizer.removeEventListener('keydown', onTreeResizerKeyDown);
-      splitResizer.removeEventListener('pointerdown', onSplitResizerPointerDown);
-      splitResizer.removeEventListener('keydown', onSplitResizerKeyDown);
-      codePanel.removeEventListener('load', handleAssetLoad, true);
-      markdownPanel.removeEventListener('load', handleAssetLoad, true);
-      element.remove();
+      shell.codePanel.removeEventListener('load', assetLoadHandler, true);
+      shell.markdownPanel.removeEventListener('load', assetLoadHandler, true);
+      diffSection?.destroy();
+      scrollSyncManager?.destroy();
+      shell.destroy();
     },
   };
-}
-
-function shouldCollapseTreePanel(storageKey: string): boolean {
-  try {
-    return window.sessionStorage.getItem(storageKey) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function clamp(value: number, minValue: number, maxValue: number): number {
-  if (value < minValue) {
-    return minValue;
-  }
-  if (value > maxValue) {
-    return maxValue;
-  }
-  return value;
-}
-
-function readNumberFromSession(key: string): number | null {
-  try {
-    const raw = window.sessionStorage.getItem(key);
-    if (raw === null) {
-      return null;
-    }
-    const parsed = Number.parseFloat(raw);
-    return Number.isFinite(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function storeNumberInSession(key: string, value: number): void {
-  try {
-    window.sessionStorage.setItem(key, value.toString());
-  } catch {
-    // ignore storage errors
-  }
 }

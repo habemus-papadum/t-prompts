@@ -8,6 +8,23 @@
 export type ViewMode = 'code' | 'markdown' | 'split';
 
 // Widget data structures
+export interface DiffContextPayload {
+  before_prompt_ir: IRData;
+  structured_diff: import('./diff-types').StructuredPromptDiffData;
+  rendered_diff: import('./diff-types').RenderedPromptDiffData;
+}
+
+export interface DiffContext {
+  beforePrompt: IRData;
+  afterPrompt: IRData;
+  structured: import('./diff-types').StructuredPromptDiffData;
+  rendered: import('./diff-types').RenderedPromptDiffData;
+  beforeChunkMap: Record<string, ChunkData>;
+  afterChunkMap: Record<string, ChunkData>;
+  beforeElementChunks: Record<string, string[]>;
+  afterElementChunks: Record<string, string[]>;
+}
+
 export interface WidgetData {
   compiled_ir?: CompiledIRData;
   ir?: IRData;
@@ -17,6 +34,7 @@ export interface WidgetData {
   before_prompt_ir?: IRData;
   structured_diff?: import('./diff-types').StructuredPromptDiffData;
   rendered_diff?: import('./diff-types').RenderedPromptDiffData;
+  diff_context?: DiffContextPayload;
 }
 
 export interface ConfigData {

@@ -6,7 +6,7 @@
  */
 
 import type { Component } from './base';
-import type { WidgetData, WidgetMetadata, ElementData, ChunkSize } from '../types';
+import type { WidgetData, WidgetMetadata, ChunkSize } from '../types';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingClient } from '../folding/types';
 import { createVisibilityMeter, type VisibilityMeter } from './VisibilityMeter';
@@ -15,6 +15,7 @@ import {
   isPrimaryModifierActive,
   type NavigationActivation,
 } from '../utils/chunkNavigation';
+import type { TreeDataSource, TreeNodeDescriptor } from './treeDataSource';
 
 export interface TreeView extends Component {
   element: HTMLElement;
@@ -26,17 +27,8 @@ interface TreeViewOptions {
   metadata: WidgetMetadata;
   foldingController: FoldingController;
   onCollapse?: () => void;
-}
-
-interface ElementTreeNode {
-  id: string;
-  type: string;
-  key: string;
-  ownChunkIds: string[];
-  allChunkIds: string[];
-  totalCharacters: number;
-  totalPixels: number;
-  children: ElementTreeNode[];
+  dataSource: TreeDataSource;
+  overlays?: TreeOverlay[];
 }
 
 interface TreeItemComponent {
@@ -61,10 +53,13 @@ const ICON_FOR_TYPE: Record<string, string> = {
 
 const MAX_KEY_LENGTH = 15;
 
+export interface TreeOverlay {
+  decorate?(node: TreeNodeDescriptor, row: HTMLElement): void;
+}
+
 export function buildTreeView(options: TreeViewOptions): TreeView {
-  const { data, metadata, foldingController, onCollapse } = options;
+  const { data, metadata, foldingController, onCollapse, dataSource, overlays = [] } = options;
   const chunkSizeMap = metadata.chunkSizeMap ?? {};
-  const treeShowWhitespace = data.config?.treeShowWhitespace ?? 'default';
 
   const rootElement = document.createElement('div');
   rootElement.className = 'tp-tree-view';
@@ -94,11 +89,11 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
   itemsContainer.className = 'tp-tree-items';
   rootElement.appendChild(itemsContainer);
 
-  const elementTree = buildElementTree(data, chunkSizeMap, treeShowWhitespace);
+  const elementTree = dataSource.getRoots();
   const flatItems: TreeItemComponent[] = [];
 
   for (const node of elementTree) {
-    const item = createTreeItem(node, 0, chunkSizeMap, foldingController);
+    const item = createTreeItem(node, 0, chunkSizeMap, foldingController, overlays);
     collectItems(item, flatItems);
     itemsContainer.appendChild(item.element);
   }
@@ -138,129 +133,12 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
   };
 }
 
-function buildElementTree(
-  data: WidgetData,
-  chunkSizeMap: Record<string, ChunkSize>,
-  treeShowWhitespace: 'default' | 'always' | 'never'
-): ElementTreeNode[] {
-  const rootElements = data.source_prompt?.children ?? [];
-  const chunks = data.ir?.chunks ?? [];
-  const chunkMap = new Map<string, string[]>();
-  const chunkTextMap = new Map<string, string>();
-
-  for (const chunk of chunks) {
-    if (!chunk.element_id) {
-      continue;
-    }
-    if (!chunkMap.has(chunk.element_id)) {
-      chunkMap.set(chunk.element_id, []);
-    }
-    chunkMap.get(chunk.element_id)!.push(chunk.id);
-
-    // Store chunk text for static elements
-    if (chunk.text !== undefined) {
-      chunkTextMap.set(chunk.id, chunk.text);
-    }
-  }
-
-  function visit(element: ElementData): ElementTreeNode | null {
-    const ownChunkIds = chunkMap.get(element.id) ?? [];
-
-    // For static elements, use the text content as the key
-    let key: string;
-    if (element.type === 'static' && ownChunkIds.length > 0) {
-      // Concatenate all chunk texts for this element
-      const texts = ownChunkIds
-        .map(chunkId => chunkTextMap.get(chunkId) ?? '')
-        .filter(text => text !== undefined);
-      const fullText = texts.join('');
-
-      // Check if this is whitespace-only
-      const isWhitespaceOnly = fullText.trim().length === 0;
-
-      if (isWhitespaceOnly) {
-        // Handle based on config
-        if (treeShowWhitespace === 'never') {
-          return null; // Exclude from tree
-        } else if (treeShowWhitespace === 'default' && fullText.length > 0) {
-          return null; // Exclude whitespace-only by default
-        }
-
-        // Render whitespace with special characters
-        key = renderWhitespace(fullText);
-      } else {
-        key = fullText || String(element.key);
-      }
-    } else {
-      key = String(element.key);
-    }
-
-    const children = (element.children ?? [])
-      .map((child) => visit(child))
-      .filter((node): node is ElementTreeNode => node !== null);
-
-    const allChunkIdSet = new Set<string>(ownChunkIds);
-    for (const child of children) {
-      for (const childChunkId of child.allChunkIds) {
-        allChunkIdSet.add(childChunkId);
-      }
-    }
-
-    let totalCharacters = 0;
-    let totalPixels = 0;
-    for (const chunkId of allChunkIdSet) {
-      const size = chunkSizeMap[chunkId];
-      if (!size) {
-        continue;
-      }
-      totalCharacters += size.character ?? 0;
-      totalPixels += size.pixel ?? 0;
-    }
-
-    // Filter out static elements with zero content by default
-    if (element.type === 'static' && treeShowWhitespace !== 'always' && totalCharacters === 0 && totalPixels === 0) {
-      return null;
-    }
-
-    return {
-      id: element.id,
-      type: element.type,
-      key,
-      ownChunkIds,
-      allChunkIds: Array.from(allChunkIdSet),
-      totalCharacters,
-      totalPixels,
-      children,
-    };
-  }
-
-  return rootElements
-    .map((element) => visit(element))
-    .filter((node): node is ElementTreeNode => node !== null);
-}
-
-/**
- * Render whitespace with visual indicators:
- * - ¶ for newlines
- * - □ for spaces
- * - Empty string gets special indicator
- */
-function renderWhitespace(text: string): string {
-  if (text.length === 0) {
-    return '(empty)';
-  }
-
-  return text
-    .replace(/\n/g, '¶')
-    .replace(/ /g, '□')
-    .replace(/\t/g, '⇥');
-}
-
 function createTreeItem(
-  node: ElementTreeNode,
+  node: TreeNodeDescriptor,
   depth: number,
   chunkSizeMap: Record<string, ChunkSize>,
-  foldingController: FoldingController
+  foldingController: FoldingController,
+  overlays: TreeOverlay[]
 ): TreeItemComponent {
   const element = document.createElement('div');
   element.className = 'tp-tree-item tp-tree-item--collapsed';
@@ -270,6 +148,10 @@ function createTreeItem(
   row.className = 'tp-tree-row';
   row.setAttribute('data-element-id', node.id);
   element.appendChild(row);
+
+  for (const overlay of overlays) {
+    overlay.decorate?.(node, row);
+  }
 
   const toggleButton = document.createElement('button');
   toggleButton.type = 'button';
@@ -304,7 +186,7 @@ function createTreeItem(
   element.appendChild(childrenContainer);
 
   const childItems = node.children.map((child) => {
-    const childItem = createTreeItem(child, depth + 1, chunkSizeMap, foldingController);
+    const childItem = createTreeItem(child, depth + 1, chunkSizeMap, foldingController, overlays);
     childrenContainer.appendChild(childItem.element);
     return childItem;
   });

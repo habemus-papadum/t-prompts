@@ -58,7 +58,7 @@ describe('Toolbar', () => {
     toolbar.destroy();
   });
 
-  it('toggles help popover when help button is clicked', () => {
+  it('shows help tooltip on hover', () => {
     const toolbar = createToolbar({
       currentMode: 'split',
       callbacks: {
@@ -77,23 +77,18 @@ describe('Toolbar', () => {
 
     document.body.appendChild(toolbar.element);
 
-    const helpButton = toolbar.element.querySelector('.tp-help-button') as HTMLButtonElement | null;
-    const popover = toolbar.element.querySelector('.tp-help-popover') as HTMLElement | null;
+    const helpContainer = toolbar.element.querySelector('.tp-toolbar-help') as HTMLElement | null;
+    const tooltip = helpContainer?.querySelector('.tp-toolbar-tooltip') as HTMLElement | null;
 
-    expect(helpButton).not.toBeNull();
-    expect(popover).not.toBeNull();
-    expect(popover?.hidden).toBe(true);
-    expect(helpButton?.getAttribute('aria-expanded')).toBe('false');
+    expect(helpContainer).not.toBeNull();
+    expect(tooltip).not.toBeNull();
+    expect(tooltip?.classList.contains('visible')).toBe(false);
 
-    helpButton?.click();
+    helpContainer?.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    expect(tooltip?.classList.contains('visible')).toBe(true);
 
-    expect(popover?.hidden).toBe(false);
-    expect(helpButton?.getAttribute('aria-expanded')).toBe('true');
-
-    document.body.click();
-
-    expect(popover?.hidden).toBe(true);
-    expect(helpButton?.getAttribute('aria-expanded')).toBe('false');
+    helpContainer?.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    expect(tooltip?.classList.contains('visible')).toBe(false);
 
     toolbar.destroy();
   });

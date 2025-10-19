@@ -818,6 +818,11 @@ class CompiledIR:
         data["before_prompt_ir"] = before.ir().toJSON()
         data["structured_diff"] = structured_diff.to_widget_data()
         data["rendered_diff"] = rendered_diff.to_widget_data()
+        data["diff_context"] = {
+            "before_prompt_ir": data["before_prompt_ir"],
+            "structured_diff": data["structured_diff"],
+            "rendered_diff": data["rendered_diff"],
+        }
 
         # Render to HTML
         html = _render_widget_html(data, "tp-widget-mount")

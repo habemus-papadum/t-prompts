@@ -200,6 +200,65 @@ def test_js_prelude_returns_script_tag():
     assert "</script>" in prelude
 
 
+def _extract_widget_payload(html: str) -> dict:
+    """Extract the embedded widget JSON payload from an HTML string."""
+
+    start = html.find('<script data-role="tp-widget-data"')
+    if start == -1:
+        msg = "Widget HTML is missing embedded data script tag"
+        raise AssertionError(msg)
+
+    start = html.find(">", start) + 1
+    end = html.find("</script>", start)
+    if end == -1:
+        msg = "Widget HTML script tag is not properly terminated"
+        raise AssertionError(msg)
+
+    return json.loads(html[start:end])
+
+
+def test_widget_data_excludes_diff_context_by_default():
+    """Compiled widget data should omit diff payloads unless explicitly requested."""
+
+    task = "translate"
+    prompt_obj = prompt(t"Task: {task:t}")
+    compiled = prompt_obj.ir().compile()
+
+    data = compiled.widget_data()
+
+    assert "diff_context" not in data
+    assert "before_prompt_ir" not in data
+    assert "structured_diff" not in data
+    assert "rendered_diff" not in data
+
+
+def test_widget_with_diff_includes_explicit_diff_context():
+    """widget_with_diff should embed the unified diff context payload in HTML."""
+
+    name = "Ada"
+    before = prompt(t"Hello {name:user}\n")
+    name = "Ada"
+    after = prompt(t"Hello there {name:user}!\n")
+
+    compiled = after.ir().compile()
+    widget = compiled.widget_with_diff(before)
+
+    html = widget._repr_html_()
+    data = _extract_widget_payload(html)
+
+    assert "diff_context" in data
+    diff_context = data["diff_context"]
+
+    # Backward compatibility fields should mirror the diff context entries
+    assert data["before_prompt_ir"] == diff_context["before_prompt_ir"]
+    assert data["structured_diff"] == diff_context["structured_diff"]
+    assert data["rendered_diff"] == diff_context["rendered_diff"]
+
+    # Sanity check that chunk metadata is populated
+    assert diff_context["before_prompt_ir"]["chunks"], "before diff chunks should be present"
+    assert data["ir"]["chunks"], "after diff chunks should be present"
+
+
 def test_js_prelude_has_cache_busting():
     """Test that js_prelude() includes cache-busting hash in ID."""
     from t_prompts import js_prelude
