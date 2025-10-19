@@ -69,7 +69,8 @@
       "Bash(bash -n scripts/setup.sh)",
       "Bash(for script in scripts/*.sh)",
       "Bash(bash -n \"$script\")",
-      "Bash(pnpm approve-builds)"
+      "Bash(pnpm approve-builds)",
+      "Bash(pnpm --filter @t-prompts/widgets build:python)"
     ],
     "deny": [],
     "ask": []

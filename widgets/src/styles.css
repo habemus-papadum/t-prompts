@@ -417,7 +417,7 @@
   overflow: auto;
   padding: var(--tp-spacing);
   min-width: 0; /* Allow flex shrinking */
-  max-height: 80lh; /* Maximum 80 line-heights per panel */
+  max-height: 40lh; /* Maximum 40 line-heights per panel */
 }
 
 .tp-panel:not(:last-child) {
@@ -477,7 +477,7 @@
   flex: 0 0 var(--tp-tree-width, 280px);
   min-width: 220px;
   max-width: 480px;
-  max-height: 80lh; /* Maximum 80 line-heights, same as content panels */
+  max-height: 40lh; /* Maximum 40 line-heights, same as content panels */
   border-right: 1px solid var(--tp-color-border);
   overflow: hidden;
   padding: 0;
