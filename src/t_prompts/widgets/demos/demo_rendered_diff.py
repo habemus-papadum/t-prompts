@@ -12,7 +12,7 @@ Or use in a notebook:
     create_rendered_diff_demo()
 """
 
-from t_prompts import dedent, prompt, diff_rendered_prompts
+from t_prompts import dedent, diff_rendered_prompts
 from t_prompts.widgets import run_preview
 
 

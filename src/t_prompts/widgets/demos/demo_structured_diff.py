@@ -12,7 +12,7 @@ Or use in a notebook:
     create_structured_diff_demo()
 """
 
-from t_prompts import dedent, prompt, diff_structured_prompts
+from t_prompts import dedent, diff_structured_prompts, prompt
 from t_prompts.widgets import run_preview
 
 
