@@ -6,13 +6,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { buildMarkdownView } from './MarkdownView';
 import type { WidgetData, WidgetMetadata } from '../types';
 import { computeWidgetMetadata } from '../metadata';
+import type { StructuredPromptDiffData, RenderedPromptDiffData } from '../diff-types';
+import { buildDiffOverlayModel } from '../diff-overlay';
 import { FoldingController } from '../folding/controller';
 import { JSDOM } from 'jsdom';
 import demo01Data from '../../test-fixtures/demo-01.json';
 import tablesData from '../../test-fixtures/tables.json';
 
 // Setup JSDOM
-const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', { url: 'http://localhost' });
 global.document = dom.window.document;
 global.window = dom.window as unknown as Window & typeof globalThis;
 
@@ -835,5 +837,140 @@ describe('MarkdownView', () => {
       openSpy.mockRestore();
       view.destroy();
     });
+  });
+});
+
+describe('MarkdownView diff overlays', () => {
+  it('marks markdown chunks with diff classes', () => {
+    const diffData: WidgetData = {
+      compiled_ir: {
+        ir_id: 'ir-md',
+        subtree_map: {
+          'elem-heading': ['chunk-heading'],
+          'elem-body': ['chunk-body'],
+        },
+        num_elements: 2,
+      },
+      ir: {
+        chunks: [
+          {
+            id: 'chunk-heading',
+            text: '# Title\n',
+            element_id: 'elem-heading',
+            type: 'TextChunk',
+            metadata: {},
+          },
+          {
+            id: 'chunk-body',
+            text: 'New paragraph with **diff** content.',
+            element_id: 'elem-body',
+            type: 'TextChunk',
+            metadata: {},
+          },
+        ],
+        source_prompt_id: 'prompt-md',
+        id: 'ir-md',
+        metadata: {},
+      },
+      source_prompt: {
+        prompt_id: 'prompt-md',
+        children: [
+          {
+            id: 'elem-heading',
+            type: 'static',
+            key: '# Title',
+            children: [],
+          },
+          {
+            id: 'elem-body',
+            type: 'static',
+            key: 'Body',
+            children: [],
+          },
+        ],
+      },
+      config: { wrapping: true, sourcePrefix: '' },
+    };
+
+    const structuredDiff: StructuredPromptDiffData = {
+      diff_type: 'structured',
+      root: {
+        status: 'equal',
+        element_type: 'prompt',
+        key: 'root',
+        before_id: 'prompt-before',
+        after_id: 'prompt-after',
+        before_index: 0,
+        after_index: 0,
+        attr_changes: {},
+        text_edits: [],
+        children: [
+          {
+            status: 'modified',
+            element_type: 'static',
+            key: 'Body',
+            before_id: 'elem-body-before',
+            after_id: 'elem-body',
+            before_index: 1,
+            after_index: 1,
+            attr_changes: {},
+            text_edits: [
+              { op: 'replace', before: 'Old paragraph.', after: 'New paragraph with **diff** content.' },
+            ],
+            children: [],
+          },
+        ],
+      },
+      stats: {
+        nodes_added: 0,
+        nodes_removed: 0,
+        nodes_modified: 1,
+        nodes_moved: 0,
+        text_added: 12,
+        text_removed: 3,
+      },
+      metrics: {
+        struct_edit_count: 1,
+        struct_span_chars: 12,
+        struct_char_ratio: 0.3,
+        struct_order_score: 0.9,
+      },
+    };
+
+    const renderedDiff: RenderedPromptDiffData = {
+      diff_type: 'rendered',
+      chunk_deltas: [
+        {
+          op: 'replace',
+          before: { text: 'Old paragraph.', element_id: 'elem-body' },
+          after: { text: 'New paragraph with **diff** content.', element_id: 'elem-body' },
+        },
+      ],
+      stats: { insert: 0, delete: 0, replace: 1, equal: 0 },
+      metrics: {
+        render_token_delta: 1,
+        render_non_ws_delta: 1,
+        render_ws_delta: 0,
+        render_chunk_drift: 0,
+      },
+    };
+
+    diffData.structured_diff = structuredDiff;
+    diffData.rendered_diff = renderedDiff;
+
+    const metadata = computeWidgetMetadata(diffData);
+    const controller = new FoldingController(['chunk-heading', 'chunk-body']);
+    const diffModel = buildDiffOverlayModel(diffData);
+    const view = buildMarkdownView(diffData, metadata, controller, diffModel);
+
+    view.setDiffMode?.(true);
+
+    const bodyElement = view.element.querySelector('[data-chunk-id="chunk-body"]');
+    expect(bodyElement?.getAttribute('data-diff-op')).toBe('replace');
+
+    const ghostContainer = view.element.querySelector('.tp-diff-ghost-container');
+    expect(ghostContainer).toBeFalsy();
+
+    view.destroy();
   });
 });

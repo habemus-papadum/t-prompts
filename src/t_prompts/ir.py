@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 if TYPE_CHECKING:
+    from .diff import RenderedPromptDiff, StructuredPromptDiff
     from .element import Element
     from .structured_prompt import StructuredPrompt
     from .widgets.config import WidgetConfig
@@ -409,7 +410,14 @@ class IntermediateRepresentation:
         """Return a helpful debug representation."""
         return f"IntermediateRepresentation(chunks={len(self._chunks)})"
 
-    def widget(self, config: Optional["WidgetConfig"] = None) -> "Widget":
+    def widget(
+        self,
+        config: Optional["WidgetConfig"] = None,
+        *,
+        prior_ir: Optional["IntermediateRepresentation"] = None,
+        structured_diff: Optional["StructuredPromptDiff" | dict[str, Any]] = None,
+        rendered_diff: Optional["RenderedPromptDiff" | dict[str, Any]] = None,
+    ) -> "Widget":
         """
         Create a Widget for Jupyter notebook display.
 
@@ -435,7 +443,12 @@ class IntermediateRepresentation:
         >>> widget = ir.widget(WidgetConfig(wrapping=False))
         """
         compiled = self.compile()
-        return compiled.widget(config)
+        return compiled.widget(
+            config,
+            prior_ir=prior_ir,
+            structured_diff=structured_diff,
+            rendered_diff=rendered_diff,
+        )
 
     def _repr_html_(self) -> str:
         """
@@ -698,7 +711,14 @@ class CompiledIR:
         """Return a helpful debug representation."""
         return f"CompiledIR(chunks={len(self._chunks)}, elements={len(self._subtree_chunks)})"
 
-    def widget_data(self, config: Optional["WidgetConfig"] = None) -> dict[str, Any]:
+    def widget_data(
+        self,
+        config: Optional["WidgetConfig"] = None,
+        *,
+        prior_ir: Optional["IntermediateRepresentation"] = None,
+        structured_diff: Optional["StructuredPromptDiff" | dict[str, Any]] = None,
+        rendered_diff: Optional["RenderedPromptDiff" | dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Get the widget data dictionary (JSON) without rendering HTML.
 
@@ -709,6 +729,17 @@ class CompiledIR:
         ----------
         config : WidgetConfig | None, optional
             Widget configuration. If None, uses the package default config.
+
+        Parameters
+        ----------
+        config : WidgetConfig | None, optional
+            Widget configuration. If None, uses the package default config.
+        prior_ir : IntermediateRepresentation | None, optional
+            IR for the prior prompt when visualizing diffs.
+        structured_diff : StructuredPromptDiff | dict | None, optional
+            Structured diff payload to include in the widget data.
+        rendered_diff : RenderedPromptDiff | dict | None, optional
+            Rendered diff payload to include in the widget data.
 
         Returns
         -------
@@ -730,7 +761,7 @@ class CompiledIR:
             config = get_default_widget_config()
 
         # Create combined JSON data with compiled IR, IR, source prompt, and config
-        return {
+        data = {
             "compiled_ir": self.toJSON(),
             "ir": self._ir.toJSON(),
             "source_prompt": self._ir.source_prompt.toJSON(),
@@ -740,7 +771,29 @@ class CompiledIR:
             },
         }
 
-    def widget(self, config: Optional["WidgetConfig"] = None) -> "Widget":
+        if prior_ir is not None:
+            data["prior_prompt_ir"] = prior_ir.toJSON()
+
+        if structured_diff is not None:
+            data["structured_diff"] = (
+                structured_diff.to_widget_data() if hasattr(structured_diff, "to_widget_data") else structured_diff
+            )
+
+        if rendered_diff is not None:
+            data["rendered_diff"] = (
+                rendered_diff.to_widget_data() if hasattr(rendered_diff, "to_widget_data") else rendered_diff
+            )
+
+        return data
+
+    def widget(
+        self,
+        config: Optional["WidgetConfig"] = None,
+        *,
+        prior_ir: Optional["IntermediateRepresentation"] = None,
+        structured_diff: Optional["StructuredPromptDiff" | dict[str, Any]] = None,
+        rendered_diff: Optional["RenderedPromptDiff" | dict[str, Any]] = None,
+    ) -> "Widget":
         """
         Create a Widget for Jupyter notebook display.
 
@@ -748,6 +801,12 @@ class CompiledIR:
         ----------
         config : WidgetConfig | None, optional
             Widget configuration. If None, uses the package default config.
+        prior_ir : IntermediateRepresentation | None, optional
+            IR for the prior prompt when visualizing diffs.
+        structured_diff : StructuredPromptDiff | dict | None, optional
+            Structured diff payload to include in the widget data.
+        rendered_diff : RenderedPromptDiff | dict | None, optional
+            Rendered diff payload to include in the widget data.
 
         Returns
         -------
@@ -766,7 +825,12 @@ class CompiledIR:
         from .widgets import Widget, _render_widget_html
 
         # Get the widget data
-        data = self.widget_data(config)
+        data = self.widget_data(
+            config,
+            prior_ir=prior_ir,
+            structured_diff=structured_diff,
+            rendered_diff=rendered_diff,
+        )
 
         # Render to HTML
         html = _render_widget_html(data, "tp-widget-mount")

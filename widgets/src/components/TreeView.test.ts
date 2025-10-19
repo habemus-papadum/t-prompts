@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { buildTreeView } from './TreeView';
 import type { WidgetData, WidgetMetadata, ChunkSize } from '../types';
+import type { StructuredPromptDiffData, RenderedPromptDiffData } from '../diff-types';
+import { buildDiffOverlayModel } from '../diff-overlay';
 import { FoldingController } from '../folding/controller';
 import type { FoldingClient, FoldingEvent, FoldingState } from '../folding/types';
 import { computeWidgetMetadata } from '../metadata';
@@ -239,6 +241,133 @@ describe('TreeView', () => {
 
     openSpy.mockRestore();
     tree.destroy();
+  });
+
+  it('annotates rows with diff metadata when diff model provided', () => {
+    const structuredDiff: StructuredPromptDiffData = {
+      diff_type: 'structured',
+      root: {
+        status: 'equal',
+        element_type: 'prompt',
+        key: 'root',
+        before_id: 'prompt-before',
+        after_id: 'prompt-after',
+        before_index: 0,
+        after_index: 0,
+        attr_changes: {},
+        text_edits: [],
+        children: [
+          {
+            status: 'modified',
+            element_type: 'static',
+            key: 'Analyze this prompt',
+            before_id: 'elem-static-before',
+            after_id: 'elem-static',
+            before_index: 0,
+            after_index: 0,
+            attr_changes: {},
+            text_edits: [
+              {
+                op: 'replace',
+                before: 'Hello world',
+                after: 'Hello diff world',
+              },
+            ],
+            children: [
+              {
+                status: 'deleted',
+                element_type: 'interpolation',
+                key: 'old',
+                before_id: 'elem-old',
+                after_id: null,
+                before_index: 0,
+                after_index: null,
+                attr_changes: {},
+                text_edits: [],
+                children: [],
+              },
+              {
+                status: 'inserted',
+                element_type: 'interpolation',
+                key: 'query',
+                before_id: null,
+                after_id: 'elem-interp',
+                before_index: null,
+                after_index: 0,
+                attr_changes: {},
+                text_edits: [],
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+      stats: {
+        nodes_added: 1,
+        nodes_removed: 1,
+        nodes_modified: 1,
+        nodes_moved: 0,
+        text_added: 5,
+        text_removed: 5,
+      },
+      metrics: {
+        struct_edit_count: 3,
+        struct_span_chars: 10,
+        struct_char_ratio: 0.5,
+        struct_order_score: 0.8,
+      },
+    };
+
+    const renderedDiff: RenderedPromptDiffData = {
+      diff_type: 'rendered',
+      chunk_deltas: [
+        {
+          op: 'replace',
+          before: { text: 'Hello world', element_id: 'elem-static' },
+          after: { text: 'Hello diff world', element_id: 'elem-static' },
+        },
+        {
+          op: 'insert',
+          before: null,
+          after: { text: 'Dynamic', element_id: 'elem-interp' },
+        },
+        {
+          op: 'delete',
+          before: { text: 'Old chunk', element_id: 'elem-old' },
+          after: null,
+        },
+      ],
+      stats: { insert: 1, delete: 1, replace: 1, equal: 0 },
+      metrics: {
+        render_token_delta: 2,
+        render_non_ws_delta: 2,
+        render_ws_delta: 0,
+        render_chunk_drift: 0.2,
+      },
+    };
+
+    const diffData: WidgetData = {
+      ...data,
+      structured_diff: structuredDiff,
+      rendered_diff: renderedDiff,
+    };
+
+    const diffModel = buildDiffOverlayModel(diffData);
+    expect(diffModel).toBeTruthy();
+
+    const tree = buildTreeView({ data: diffData, metadata, foldingController, diffModel: diffModel! });
+    tree.setDiffMode?.(true);
+
+    const firstRow = tree.element.querySelector('.tp-tree-row');
+    expect(firstRow?.getAttribute('data-diff-status')).toBe('modified');
+    const diffBadge = firstRow?.querySelector('.tp-tree-diff-pill');
+    expect(diffBadge?.textContent).toBe('Δ');
+
+    const summary = tree.element.querySelector('.tp-tree-diff-summary');
+    expect(summary?.textContent).toContain('+1');
+
+    const removedSection = tree.element.querySelector('.tp-tree-removed-section');
+    expect(removedSection?.hidden).toBe(false);
   });
 });
 

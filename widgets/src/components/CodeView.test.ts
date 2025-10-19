@@ -7,6 +7,8 @@ import type { Component } from '../components/base';
 import { FoldingController } from '../folding/controller';
 import { computeWidgetMetadata } from '../metadata';
 import type { WidgetData } from '../types';
+import type { StructuredPromptDiffData, RenderedPromptDiffData } from '../diff-types';
+import { buildDiffOverlayModel } from '../diff-overlay';
 
 type WidgetHostElement = HTMLDivElement & { _widgetComponent?: WidgetContainer };
 
@@ -144,6 +146,178 @@ describe('CodeView image truncation', () => {
     expect(imageSpan).toBeTruthy();
     expect(imageSpan?.textContent).toBe('![PNG 50x50](...)');
     expect(imageSpan?.hasAttribute('title')).toBe(false);
+  });
+});
+
+describe('CodeView diff overlays', () => {
+  it('applies diff classes and ghost chunks when enabled', () => {
+    const diffData: WidgetData = {
+      compiled_ir: {
+        ir_id: 'ir-diff',
+        subtree_map: {
+          'elem-static': ['chunk-static'],
+          'elem-interp': ['chunk-interp'],
+        },
+        num_elements: 2,
+      },
+      ir: {
+        chunks: [
+          {
+            type: 'TextChunk',
+            text: 'Hello diff world',
+            element_id: 'elem-static',
+            id: 'chunk-static',
+            metadata: {},
+          },
+          {
+            type: 'TextChunk',
+            text: 'Dynamic',
+            element_id: 'elem-interp',
+            id: 'chunk-interp',
+            metadata: {},
+          },
+        ],
+        source_prompt_id: 'prompt-diff',
+        id: 'ir-diff',
+        metadata: {},
+      },
+      source_prompt: {
+        prompt_id: 'prompt-diff',
+        children: [
+          {
+            id: 'elem-static',
+            type: 'static',
+            key: 'Hello diff world',
+            children: [
+              {
+                id: 'elem-interp',
+                type: 'interpolation',
+                key: 'query',
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+      config: { wrapping: true, sourcePrefix: '' },
+    };
+
+    const structuredDiff: StructuredPromptDiffData = {
+      diff_type: 'structured',
+      root: {
+        status: 'equal',
+        element_type: 'prompt',
+        key: 'root',
+        before_id: 'prompt-before',
+        after_id: 'prompt-after',
+        before_index: 0,
+        after_index: 0,
+        attr_changes: {},
+        text_edits: [],
+        children: [
+          {
+            status: 'modified',
+            element_type: 'static',
+            key: 'Hello diff world',
+            before_id: 'elem-static-before',
+            after_id: 'elem-static',
+            before_index: 0,
+            after_index: 0,
+            attr_changes: {},
+            text_edits: [
+              { op: 'replace', before: 'Hello world', after: 'Hello diff world' },
+            ],
+            children: [
+              {
+                status: 'deleted',
+                element_type: 'interpolation',
+                key: 'old',
+                before_id: 'elem-old',
+                after_id: null,
+                before_index: 0,
+                after_index: null,
+                attr_changes: {},
+                text_edits: [],
+                children: [],
+              },
+              {
+                status: 'inserted',
+                element_type: 'interpolation',
+                key: 'query',
+                before_id: null,
+                after_id: 'elem-interp',
+                before_index: null,
+                after_index: 0,
+                attr_changes: {},
+                text_edits: [],
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+      stats: {
+        nodes_added: 1,
+        nodes_removed: 1,
+        nodes_modified: 1,
+        nodes_moved: 0,
+        text_added: 5,
+        text_removed: 5,
+      },
+      metrics: {
+        struct_edit_count: 2,
+        struct_span_chars: 10,
+        struct_char_ratio: 0.5,
+        struct_order_score: 0.6,
+      },
+    };
+
+    const renderedDiff: RenderedPromptDiffData = {
+      diff_type: 'rendered',
+      chunk_deltas: [
+        {
+          op: 'replace',
+          before: { text: 'Hello world', element_id: 'elem-static' },
+          after: { text: 'Hello diff world', element_id: 'elem-static' },
+        },
+        {
+          op: 'insert',
+          before: null,
+          after: { text: 'Dynamic', element_id: 'elem-interp' },
+        },
+        {
+          op: 'delete',
+          before: { text: 'Old chunk', element_id: 'elem-old' },
+          after: null,
+        },
+      ],
+      stats: { insert: 1, delete: 1, replace: 1, equal: 0 },
+      metrics: {
+        render_token_delta: 2,
+        render_non_ws_delta: 2,
+        render_ws_delta: 0,
+        render_chunk_drift: 0.1,
+      },
+    };
+
+    diffData.structured_diff = structuredDiff;
+    diffData.rendered_diff = renderedDiff;
+
+    const metadata = computeWidgetMetadata(diffData);
+    const foldingController = new FoldingController(['chunk-static', 'chunk-interp']);
+    const diffModel = buildDiffOverlayModel(diffData);
+    const codeView = buildCodeView(diffData, metadata, foldingController, diffModel);
+
+    codeView.setDiffMode?.(true);
+
+    const interpElement = codeView.element.querySelector('[data-chunk-id="chunk-interp"]');
+    expect(interpElement?.getAttribute('data-diff-op')).toBe('insert');
+
+    const ghostContainer = codeView.element.querySelector('.tp-diff-ghost-container');
+    expect(ghostContainer).toBeTruthy();
+    expect((ghostContainer as HTMLElement).hidden).toBe(false);
+
+    codeView.destroy();
   });
 });
 

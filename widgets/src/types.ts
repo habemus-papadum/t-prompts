@@ -2,6 +2,8 @@
  * Shared type definitions for widget components
  */
 
+import type { StructuredPromptDiffData, RenderedPromptDiffData } from './diff-types';
+
 /**
  * View mode for the widget display
  */
@@ -13,6 +15,9 @@ export interface WidgetData {
   ir?: IRData;
   source_prompt?: PromptData;
   config?: ConfigData;
+  prior_prompt_ir?: IRData | null;
+  structured_diff?: StructuredPromptDiffData | null;
+  rendered_diff?: RenderedPromptDiffData | null;
 }
 
 export interface ConfigData {

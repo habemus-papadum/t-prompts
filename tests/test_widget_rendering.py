@@ -2,7 +2,7 @@
 
 import json
 
-from t_prompts import prompt
+from t_prompts import diff_rendered_prompts, diff_structured_prompts, prompt
 
 
 def test_structured_prompt_has_repr_html():
@@ -198,6 +198,28 @@ def test_js_prelude_returns_script_tag():
     assert "<script" in prelude
     assert "tp-widget-bundle" in prelude
     assert "</script>" in prelude
+
+
+def test_widget_data_accepts_diff_payloads():
+    before = prompt(t"Hello")
+    after = prompt(t"Hello world")
+
+    structured = diff_structured_prompts(before, after)
+    rendered = diff_rendered_prompts(before, after)
+
+    prior_ir = before.ir()
+    compiled = after.ir().compile()
+
+    data = compiled.widget_data(
+        prior_ir=prior_ir,
+        structured_diff=structured,
+        rendered_diff=rendered,
+    )
+
+    assert "prior_prompt_ir" in data
+    assert data["prior_prompt_ir"]["id"] == prior_ir.id
+    assert data["structured_diff"]["diff_type"] == "structured"
+    assert data["rendered_diff"]["diff_type"] == "rendered"
 
 
 def test_js_prelude_has_cache_busting():

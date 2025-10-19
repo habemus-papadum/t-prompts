@@ -7,6 +7,8 @@
 
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata, ElementData, ChunkSize } from '../types';
+import type { DiffOverlayModel, DeletedNodeInfo, TextChangeSummary } from '../diff-overlay';
+import type { DiffStatus, DiffStats } from '../diff-types';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingClient } from '../folding/types';
 import { createVisibilityMeter, type VisibilityMeter } from './VisibilityMeter';
@@ -19,6 +21,7 @@ import {
 export interface TreeView extends Component {
   element: HTMLElement;
   update(): void;
+  setDiffMode?(enabled: boolean): void;
 }
 
 interface TreeViewOptions {
@@ -26,6 +29,7 @@ interface TreeViewOptions {
   metadata: WidgetMetadata;
   foldingController: FoldingController;
   onCollapse?: () => void;
+  diffModel?: DiffOverlayModel | null;
 }
 
 interface ElementTreeNode {
@@ -49,6 +53,7 @@ interface TreeItemComponent {
   visibilityMeter: VisibilityMeter;
   updateVisibility(): void;
   toggle(): void;
+  applyDiff(enabled: boolean): void;
 }
 
 const ICON_FOR_TYPE: Record<string, string> = {
@@ -62,7 +67,7 @@ const ICON_FOR_TYPE: Record<string, string> = {
 const MAX_KEY_LENGTH = 15;
 
 export function buildTreeView(options: TreeViewOptions): TreeView {
-  const { data, metadata, foldingController, onCollapse } = options;
+  const { data, metadata, foldingController, onCollapse, diffModel = null } = options;
   const chunkSizeMap = metadata.chunkSizeMap ?? {};
   const treeShowWhitespace = data.config?.treeShowWhitespace ?? 'default';
 
@@ -88,6 +93,16 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
   });
   header.appendChild(collapseButton);
 
+  const diffSummary = document.createElement('div');
+  diffSummary.className = 'tp-tree-diff-summary';
+  diffSummary.hidden = true;
+  if (diffModel?.structured?.stats) {
+    const summaryText = formatDiffSummary(diffModel.structured.stats);
+    diffSummary.textContent = summaryText;
+    diffSummary.dataset.textDelta = formatTextDelta(diffModel.structured.stats);
+  }
+  header.appendChild(diffSummary);
+
   rootElement.appendChild(header);
 
   const itemsContainer = document.createElement('div');
@@ -98,9 +113,16 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
   const flatItems: TreeItemComponent[] = [];
 
   for (const node of elementTree) {
-    const item = createTreeItem(node, 0, chunkSizeMap, foldingController);
+    const item = createTreeItem(node, 0, chunkSizeMap, foldingController, diffModel);
     collectItems(item, flatItems);
     itemsContainer.appendChild(item.element);
+  }
+
+  let removedSection: HTMLElement | null = null;
+  if (diffModel && diffModel.deletedNodes.length > 0) {
+    removedSection = buildRemovedSection(diffModel.deletedNodes);
+    removedSection.hidden = true;
+    itemsContainer.appendChild(removedSection);
   }
 
   const foldingClient: FoldingClient = {
@@ -125,9 +147,26 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
     elementTargets: metadata.elementLocationDetails,
   });
 
+  function setDiffMode(enabled: boolean): void {
+    if (!diffModel) {
+      return;
+    }
+
+    rootElement.classList.toggle('tp-tree-view--diff', enabled);
+    diffSummary.hidden = !enabled;
+    if (removedSection) {
+      removedSection.hidden = !enabled;
+    }
+
+    for (const item of flatItems) {
+      item.applyDiff(enabled);
+    }
+  }
+
   return {
     element: rootElement,
     update,
+    setDiffMode,
 
     destroy(): void {
       rootElement.remove();
@@ -260,7 +299,8 @@ function createTreeItem(
   node: ElementTreeNode,
   depth: number,
   chunkSizeMap: Record<string, ChunkSize>,
-  foldingController: FoldingController
+  foldingController: FoldingController,
+  diffModel: DiffOverlayModel | null
 ): TreeItemComponent {
   const element = document.createElement('div');
   element.className = 'tp-tree-item tp-tree-item--collapsed';
@@ -299,12 +339,28 @@ function createTreeItem(
   visibilityMeter.element.classList.add('tp-tree-meter');
   row.appendChild(visibilityMeter.element);
 
+  let diffBadge: HTMLSpanElement | null = null;
+  let diffStatus: DiffStatus | null = null;
+  let textSummary: TextChangeSummary | undefined;
+  if (diffModel) {
+    diffBadge = document.createElement('span');
+    diffBadge.className = 'tp-tree-diff-pill';
+    diffBadge.hidden = true;
+    row.appendChild(diffBadge);
+
+    const diffInfo = diffModel.elementStatuses.get(node.id);
+    if (diffInfo) {
+      diffStatus = diffInfo.status;
+      textSummary = diffModel.textChanges.get(node.id);
+    }
+  }
+
   const childrenContainer = document.createElement('div');
   childrenContainer.className = 'tp-tree-children';
   element.appendChild(childrenContainer);
 
   const childItems = node.children.map((child) => {
-    const childItem = createTreeItem(child, depth + 1, chunkSizeMap, foldingController);
+    const childItem = createTreeItem(child, depth + 1, chunkSizeMap, foldingController, diffModel);
     childrenContainer.appendChild(childItem.element);
     return childItem;
   });
@@ -338,6 +394,40 @@ function createTreeItem(
         if (item.toggleButton) {
           item.toggleButton.textContent = '▸';
         }
+      }
+    },
+    applyDiff(enabled: boolean): void {
+      if (!diffBadge) {
+        for (const childItem of childItems) {
+          childItem.applyDiff(enabled);
+        }
+        return;
+      }
+
+      const hasTextChange = Boolean(textSummary && (textSummary.added > 0 || textSummary.removed > 0));
+      const effectiveStatus: DiffStatus | null = diffStatus && diffStatus !== 'equal'
+        ? diffStatus
+        : hasTextChange
+          ? 'modified'
+          : null;
+
+      if (!enabled || !effectiveStatus) {
+        diffBadge.hidden = true;
+        diffBadge.removeAttribute('data-status');
+        diffBadge.title = '';
+        row.classList.remove('tp-tree-row--diff');
+        row.removeAttribute('data-diff-status');
+      } else {
+        diffBadge.hidden = false;
+        diffBadge.textContent = diffStatusToSymbol(effectiveStatus);
+        diffBadge.setAttribute('data-status', effectiveStatus);
+        diffBadge.title = buildDiffTooltip(effectiveStatus, textSummary);
+        row.classList.add('tp-tree-row--diff');
+        row.setAttribute('data-diff-status', effectiveStatus);
+      }
+
+      for (const childItem of childItems) {
+        childItem.applyDiff(enabled);
       }
     },
   };
@@ -454,4 +544,81 @@ function collapseChunkIds(chunkIds: string[], foldingController: FoldingControll
       console.error('Failed to collapse chunk IDs', targets, error);
     }
   }
+}
+
+function diffStatusToSymbol(status: DiffStatus): string {
+  switch (status) {
+    case 'inserted':
+      return '+';
+    case 'deleted':
+      return '−';
+    case 'moved':
+      return '↷';
+    case 'modified':
+      return 'Δ';
+    case 'equal':
+    default:
+      return '';
+  }
+}
+
+function buildDiffTooltip(status: DiffStatus, summary?: TextChangeSummary): string {
+  const baseMap: Record<DiffStatus, string> = {
+    inserted: 'Added node',
+    deleted: 'Removed node',
+    modified: 'Modified node',
+    moved: 'Moved node',
+    equal: 'Unchanged node',
+  };
+
+  const base = baseMap[status] ?? 'Node change';
+  if (summary && (summary.added > 0 || summary.removed > 0)) {
+    return `${base} (+${summary.added} / -${summary.removed} chars)`;
+  }
+  return base;
+}
+
+function formatDiffSummary(stats: DiffStats): string {
+  const parts = [`+${stats.nodes_added}`, `−${stats.nodes_removed}`, `Δ${stats.nodes_modified}`];
+  if (stats.nodes_moved) {
+    parts.push(`↷${stats.nodes_moved}`);
+  }
+  return parts.join(' · ');
+}
+
+function formatTextDelta(stats: DiffStats): string {
+  if (stats.text_added === 0 && stats.text_removed === 0) {
+    return '0';
+  }
+  return `+${stats.text_added} / -${stats.text_removed}`;
+}
+
+function buildRemovedSection(nodes: DeletedNodeInfo[]): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'tp-tree-removed-section';
+
+  const title = document.createElement('div');
+  title.className = 'tp-tree-removed-title';
+  title.textContent = 'Removed';
+  section.appendChild(title);
+
+  const list = document.createElement('div');
+  list.className = 'tp-tree-removed-items';
+
+  for (const node of nodes) {
+    const item = document.createElement('div');
+    item.className = 'tp-tree-removed-item';
+    const badge = document.createElement('span');
+    badge.className = 'tp-tree-ghost-icon';
+    badge.textContent = '−';
+    const label = document.createElement('span');
+    label.className = 'tp-tree-ghost-label';
+    label.textContent = node.label;
+    item.appendChild(badge);
+    item.appendChild(label);
+    list.appendChild(item);
+  }
+
+  section.appendChild(list);
+  return section;
 }

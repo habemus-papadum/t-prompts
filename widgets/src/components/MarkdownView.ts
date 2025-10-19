@@ -7,6 +7,8 @@
 
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata } from '../types';
+import type { DiffOverlayModel } from '../diff-overlay';
+import type { ChunkOp } from '../diff-types';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingEvent, FoldingClient } from '../folding/types';
 import MarkdownIt from 'markdown-it';
@@ -42,6 +44,7 @@ export interface MarkdownView extends Component {
    * Collapsed chunks will return their visible indicator instead of the hidden body.
    */
   getLayoutElements(chunkId: string): HTMLElement[] | undefined;
+  setDiffMode?(enabled: boolean): void;
 }
 
 const COLLAPSED_CLASS = 'tp-markdown-collapsed';
@@ -59,7 +62,8 @@ const INLINE_CHUNK_CLASS = 'tp-markdown-chunk';
 export function buildMarkdownView(
   data: WidgetData,
   metadata: WidgetMetadata,
-  foldingController: FoldingController
+  foldingController: FoldingController,
+  diffModel?: DiffOverlayModel | null
 ): MarkdownView {
   // 1. Create initial DOM structure
   const element = document.createElement('div');
@@ -93,6 +97,22 @@ export function buildMarkdownView(
     chunkTargets: metadata.chunkLocationMap,
     elementTargets: metadata.elementLocationDetails,
   });
+
+  const chunkIdToElementId = new Map<string, string>();
+  for (const chunk of data.ir?.chunks ?? []) {
+    chunkIdToElementId.set(chunk.id, chunk.element_id);
+  }
+
+  const diffController = diffModel
+    ? createMarkdownDiffController({
+        container: element,
+        chunkElements: chunkIdToElements,
+        chunkStatuses: diffModel.chunkStatuses,
+        ghostChunks: diffModel.ghostChunks,
+        textChanges: diffModel.textChanges,
+        chunkToElement: chunkIdToElementId,
+      })
+    : null;
 
   function clearCollapsedMarkers(): void {
     collapsedAnchors.clear();
@@ -215,6 +235,9 @@ export function buildMarkdownView(
       const connected = elements.filter((el) => el.isConnected);
       return connected.length > 0 ? connected : elements;
     },
+    setDiffMode(enabled: boolean): void {
+      diffController?.apply(enabled);
+    },
 
     destroy(): void {
       // Unregister from folding controller
@@ -222,6 +245,7 @@ export function buildMarkdownView(
 
       // Cleanup DOM and data
       navigationActivation?.disconnect();
+      diffController?.destroy();
       element.remove();
       chunkIdToElements.clear();
       collapsedAnchors.clear();
@@ -1651,4 +1675,74 @@ function splitInlineNode(
   }
 
   inlineNode.removeAttribute('data-md-inline-id');
+}
+
+interface MarkdownDiffController {
+  apply(enabled: boolean): void;
+  destroy(): void;
+}
+
+interface MarkdownDiffOptions {
+  container: HTMLElement;
+  chunkElements: Map<string, HTMLElement[]>;
+  chunkStatuses: Map<string, ChunkOp>;
+  ghostChunks: { op: Extract<ChunkOp, 'delete' | 'replace'>; text: string; elementId: string | null }[];
+  textChanges: Map<string, { added: number; removed: number }>;
+  chunkToElement: Map<string, string>;
+}
+
+function createMarkdownDiffController(options: MarkdownDiffOptions): MarkdownDiffController {
+  const { container, chunkElements, chunkStatuses, ghostChunks, textChanges, chunkToElement } = options;
+  let ghostContainer: HTMLElement | null = null;
+
+  if (ghostChunks.length > 0) {
+    ghostContainer = document.createElement('div');
+    ghostContainer.className = 'tp-diff-ghost-container tp-diff-ghost-container--markdown';
+    ghostContainer.hidden = true;
+
+    for (const ghost of ghostChunks) {
+      const item = document.createElement('div');
+      item.className = 'tp-diff-ghost-chunk';
+      item.setAttribute('data-op', ghost.op);
+      item.textContent = ghost.text;
+      ghostContainer.appendChild(item);
+    }
+
+    container.appendChild(ghostContainer);
+  }
+
+  function apply(enabled: boolean): void {
+    for (const [chunkId, elements] of chunkElements.entries()) {
+      const op = chunkStatuses.get(chunkId);
+      const elementId = chunkToElement.get(chunkId);
+      const summary = elementId ? textChanges.get(elementId) : undefined;
+
+      for (const chunkElement of elements) {
+        if (!enabled || !op) {
+          chunkElement.classList.remove('tp-markdown-diff');
+          chunkElement.removeAttribute('data-diff-op');
+          chunkElement.removeAttribute('data-diff-summary');
+        } else {
+          chunkElement.classList.add('tp-markdown-diff');
+          chunkElement.setAttribute('data-diff-op', op);
+          if (summary && (summary.added > 0 || summary.removed > 0)) {
+            chunkElement.setAttribute('data-diff-summary', `+${summary.added} / -${summary.removed}`);
+          } else {
+            chunkElement.removeAttribute('data-diff-summary');
+          }
+        }
+      }
+    }
+
+    if (ghostContainer) {
+      ghostContainer.hidden = !enabled;
+    }
+  }
+
+  return {
+    apply,
+    destroy(): void {
+      ghostContainer?.remove();
+    },
+  };
 }

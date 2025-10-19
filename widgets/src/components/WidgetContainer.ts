@@ -16,6 +16,7 @@ import { ScrollSyncManager } from './ScrollSyncManager';
 import { FoldingController } from '../folding/controller';
 import { createToolbar, updateToolbarMode } from './Toolbar';
 import type { ToolbarComponent } from './Toolbar';
+import { buildDiffOverlayModel } from '../diff-overlay';
 
 const TREE_DEFAULT_WIDTH = 280;
 const TREE_MIN_WIDTH = 200;
@@ -53,6 +54,8 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   const foldingController = new FoldingController(initialChunkIds);
 
   const chunkSizeMap = metadata.chunkSizeMap;
+  const diffModel = buildDiffOverlayModel(data);
+  let diffEnabled = diffModel !== null;
   let totalCharacters = 0;
   let totalPixels = 0;
   for (const chunkId of initialChunkIds) {
@@ -87,6 +90,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     metadata,
     foldingController,
     onCollapse: () => collapseTreePanel(),
+    diffModel,
   });
 
   const treePanel = document.createElement('div');
@@ -101,8 +105,8 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   treeResizer.setAttribute('aria-label', 'Resize tree panel');
   treeResizer.tabIndex = 0;
 
-  const codeView = buildCodeView(data, metadata, foldingController);
-  const markdownView = buildMarkdownView(data, metadata, foldingController);
+  const codeView = buildCodeView(data, metadata, foldingController, diffModel ?? undefined);
+  const markdownView = buildMarkdownView(data, metadata, foldingController, diffModel ?? undefined);
 
   // 4. Create panels
   const codePanel = document.createElement('div');
@@ -376,7 +380,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     currentMode: currentViewMode,
     callbacks: {
       onViewModeChange: setViewMode,
-      onScrollSyncToggle: (enabled) => {
+      onScrollSyncToggle: (enabled): void => {
         scrollSyncEnabled = enabled;
         scrollSyncManager.setEnabled(enabled);
       },
@@ -388,6 +392,15 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
       chunkIds: initialChunkIds,
       chunkSizeMap,
     },
+    diff: diffModel
+      ? {
+          enabled: diffEnabled,
+          onToggle: (next): void => {
+            applyDiffMode(next);
+          },
+          stats: diffModel.structured?.stats ?? null,
+        }
+      : undefined,
   });
   const toolbar = toolbarComponent.element;
 
@@ -412,8 +425,20 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   codePanel.addEventListener('load', handleAssetLoad, true);
   markdownPanel.addEventListener('load', handleAssetLoad, true);
 
+  function applyDiffMode(enabled: boolean): void {
+    diffEnabled = enabled;
+    element.classList.toggle('tp-widget-output--diff', enabled);
+    treeView.setDiffMode?.(enabled);
+    codeView.setDiffMode?.(enabled);
+    markdownView.setDiffMode?.(enabled);
+    toolbarComponent.setDiffEnabled?.(enabled);
+  }
+
   // 10. Initialize view mode
   setViewMode(currentViewMode);
+  if (diffModel) {
+    applyDiffMode(diffEnabled);
+  }
 
   // 11. Track views
   const views: Component[] = [treeView, codeView, markdownView];
