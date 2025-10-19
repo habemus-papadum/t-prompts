@@ -11,7 +11,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  build-widgets:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,30 +28,19 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
 
       - name: Setup
         run: ./scripts/setup.sh
 
       - name: Run linting
         run: pnpm lint
+
+      - name: Build Widgets
+        run: pnpm --filter @t-prompts/widgets build:python
 
       - name: Run tests with coverage
         run: pnpm --filter @t-prompts/widgets test:coverage
@@ -99,13 +88,6 @@ jobs:
           publish_dir: ./badges
           publish_branch: typescript-coverage-badge
           keep_files: false
-
-  test:
-    needs: build-widgets
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
       - name: Install Playwright Browsers
         run: uv run playwright install --with-deps chromium
