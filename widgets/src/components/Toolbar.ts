@@ -63,7 +63,9 @@ const icons = {
     svg.setAttribute('height', '16');
     svg.setAttribute('viewBox', '0 0 16 16');
     svg.setAttribute('fill', 'currentColor');
-    svg.innerHTML = '<path d="M14 3H2c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1h12c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM9 11H7.5V7.5l-1.5 2-1.5-2V11H3V5h1.5l1.5 2 1.5-2H9v6zm4.5-2h-1.5V7h-1l2-2.5L15 7h-1v2h-.5z"/>';
+    // Document icon with lines representing rendered/formatted view
+    svg.innerHTML =
+      '<path d="M4 1.5v13h8v-13H4zm7 12H5v-11h6v11z"/><path d="M6 4h4v1H6V4zm0 2h4v1H6V6zm0 2h3v1H6V8z"/>';
     return svg;
   },
   split: (): SVGElement => {
@@ -72,7 +74,9 @@ const icons = {
     svg.setAttribute('height', '16');
     svg.setAttribute('viewBox', '0 0 16 16');
     svg.setAttribute('fill', 'currentColor');
-    svg.innerHTML = '<path d="M1 3h6v10H1V3zm1 1v8h4V4H2zm7-1h6v10H9V3zm1 1v8h4V4h-4z"/>';
+    // Vertical divider with panels - clearer split view representation
+    svg.innerHTML =
+      '<path d="M1 2h6v12H1V2zm1 1v10h4V3H2zm6-1h6v12H9V2zm1 1v10h4V3h-4z"/><rect x="7.5" y="2" width="1" height="12"/>';
     return svg;
   },
   sync: (): SVGElement => {
@@ -81,8 +85,9 @@ const icons = {
     svg.setAttribute('height', '16');
     svg.setAttribute('viewBox', '0 0 16 16');
     svg.setAttribute('fill', 'currentColor');
+    // Vertical arrows representing scroll sync
     svg.innerHTML =
-      '<path d="M3.5 3.5H7l-.72-.72.72-.78L9.75 4.75 7 7.5l-.72-.78L7 6H3.5A3.5 3.5 0 0 0 3.5 13h1v1h-1A4.5 4.5 0 0 1 3.5 3.5zm9 9H9l.72.72-.72.78L6.25 11.25 9 8.5l.72.78L9 10h3.5a3.5 3.5 0 0 0 0-7h-1V2h1a4.5 4.5 0 0 1 0 9z"/>';
+      '<path d="M8 3.5L11 6.5 10.3 7.2 8.5 5.4V10.6L10.3 8.8 11 9.5 8 12.5 5 9.5 5.7 8.8 7.5 10.6V5.4L5.7 7.2 5 6.5 8 3.5Z"/>';
     return svg;
   },
 };
@@ -118,8 +123,7 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
 
   let scrollSyncEnabled = true;
 
-  const scrollSyncButton = createScrollSyncButton(scrollSyncEnabled);
-  rightContainer.appendChild(scrollSyncButton);
+  // Add visibility meter first (leftmost in right container)
   rightContainer.appendChild(visibilityMeter.element);
 
   const viewToggle = document.createElement('div');
@@ -142,6 +146,10 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
   viewToggle.appendChild(splitBtn);
 
   rightContainer.appendChild(viewToggle);
+
+  // Add scroll sync button after view toggles
+  const scrollSyncButton = createScrollSyncButton(scrollSyncEnabled);
+  rightContainer.appendChild(scrollSyncButton);
   const helpFeature = createHelpFeature();
   rightContainer.appendChild(helpFeature.container);
   toolbar.appendChild(rightContainer);
