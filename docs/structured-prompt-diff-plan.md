@@ -96,6 +96,19 @@
 - **Visual Noise**: Offer compact styling and collapse options for large deletion sets.
 
 ## Open Questions
-- Should diff toggle default to on when diff data present? (Current assumption: on.)
+- Should diff toggle default to on when diff data present? (Current assumption: on.).
+ANSWER: YES
 - Do we need granular filters (e.g., hide moves)? Possibly future enhancement.
+ANSWER: Not now
 - How should we handle conflicting diff spans? Consider fallback to inline text diff view.
+ANSWER: TBD
+
+Additional comments
+When Diffs are available, consider provding the diff metrics for both as a subtool bar/narrow header ; these should be probably be made into reusable widgets -- they should be based on the metrics in the current StructuredDiff and RenderedDiff Widgets.
+
+StructuredDiff and RenderedDiff Widgets are narrow debugging tools -- aside from the metrics, they are not good foundations / visual representations for this work -- this work seekd to weave diff information into the existinf display.
+
+Visual feedback and observation is important during planning and at the end of various steps.
+Consider using playwright based screen captures to observe the actual visual appearance. the
+instructions for playwright are in the AGENTS.md.  You can create scratch scripts in /scratchpad.
+Refer to src/t_prompts/widgets for examples of such script that create images.
