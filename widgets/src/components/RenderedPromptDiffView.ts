@@ -83,6 +83,9 @@ export function buildRenderedPromptDiffView(
   chunkList.className = 'tp-diff-chunks';
 
   for (const delta of data.chunk_deltas) {
+    if (delta.op === 'equal') {
+      continue;
+    }
     chunkList.appendChild(renderChunkDelta(delta));
   }
 
@@ -109,22 +112,33 @@ function renderChunkDelta(delta: ChunkDelta): HTMLElement {
   const textDiv = document.createElement('div');
   textDiv.className = 'tp-diff-chunk-text';
 
-  let content = '';
-
   if (delta.op === 'equal') {
     const text = delta.after?.text ?? delta.before?.text ?? '';
-    content = text;
+    textDiv.textContent = text;
   } else if (delta.op === 'insert') {
-    content = `+ ${delta.after?.text || ''}`;
+    textDiv.classList.add('tp-diff-ins');
+    textDiv.textContent = `+ ${delta.after?.text || ''}`;
   } else if (delta.op === 'delete') {
-    content = `- ${delta.before?.text || ''}`;
+    textDiv.classList.add('tp-diff-del');
+    textDiv.textContent = `- ${delta.before?.text || ''}`;
   } else if (delta.op === 'replace') {
     const beforeText = delta.before?.text || '';
     const afterText = delta.after?.text || '';
-    content = `- ${beforeText}\n+ ${afterText}`;
+
+    const deleteSpan = document.createElement('span');
+    deleteSpan.className = 'tp-diff-del';
+    deleteSpan.textContent = `- ${beforeText}`;
+
+    const insertSpan = document.createElement('span');
+    insertSpan.className = 'tp-diff-ins';
+    insertSpan.textContent = `+ ${afterText}`;
+
+    textDiv.textContent = '';
+    textDiv.appendChild(deleteSpan);
+    textDiv.appendChild(document.createTextNode('\n'));
+    textDiv.appendChild(insertSpan);
   }
 
-  textDiv.textContent = content;
   li.appendChild(textDiv);
 
   return li;

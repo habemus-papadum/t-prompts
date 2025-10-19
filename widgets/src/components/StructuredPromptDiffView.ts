@@ -84,7 +84,7 @@ function renderNodeDelta(delta: NodeDelta): HTMLElement {
   // Node title
   const title = document.createElement('div');
   title.className = 'tp-diff-node-title';
-  title.textContent = `${delta.element_type} · ${String(delta.key)}`;
+  title.textContent = `${delta.element_type} · ${formatNodeKey(delta.key)}`;
   li.appendChild(title);
 
   // Metadata
@@ -161,4 +161,11 @@ function renderTextEdit(edit: TextEdit): HTMLElement {
   }
 
   return span;
+}
+
+function formatNodeKey(key: NodeDelta['key']): string {
+  if (key === null || key === undefined) {
+    return 'None';
+  }
+  return String(key);
 }
