@@ -13,6 +13,7 @@ interface ScrollSyncOptions {
   markdownView: MarkdownView;
   codePanel: HTMLElement;
   markdownPanel: HTMLElement;
+  debug?: boolean;
 }
 
 interface ChunkLayoutEntry {
@@ -99,8 +100,10 @@ export class ScrollSyncManager implements FoldingClient {
   private activeSource: ViewKind | null = null;
   private releaseHandle: number | null = null;
   private pendingRecalc: number | null = null;
+  private syncPending = false;
   private dirtyReasons = new Set<DirtyReason>();
   private lastLogicalPosition: LogicalPosition | null = null;
+  private debug = false;
 
   private caches: { code: ChunkLayoutCache; markdown: ChunkLayoutCache } = {
     code: createEmptyCache(),
@@ -113,12 +116,20 @@ export class ScrollSyncManager implements FoldingClient {
     this.markdownView = options.markdownView;
     this.codePanel = options.codePanel;
     this.markdownPanel = options.markdownPanel;
+    this.debug = options.debug ?? false;
 
     this.observe();
   }
 
   get isEnabled(): boolean {
     return this.enabled;
+  }
+
+  setDebug(enabled: boolean): void {
+    this.debug = enabled;
+    if (enabled) {
+      console.log('[ScrollSyncManager] Debug mode enabled');
+    }
   }
 
   markDirty(reason: DirtyReason): void {
@@ -226,11 +237,23 @@ export class ScrollSyncManager implements FoldingClient {
     }
 
     if (typeof MutationObserver !== 'undefined') {
-      this.mutationObserver = new MutationObserver(() => {
-        this.markDirty('mutation');
+      this.mutationObserver = new MutationObserver((mutations) => {
+        // Ignore mutations during active scrolling to prevent layout thrashing
+        if (this.activeSource !== null) {
+          return;
+        }
+
+        // Only care about structural changes (childList), not attribute changes
+        // This prevents excessive cache rebuilds from minor DOM updates
+        const hasStructuralChange = mutations.some((m) => m.type === 'childList');
+        if (hasStructuralChange) {
+          this.markDirty('mutation');
+        }
       });
 
-      const options: MutationObserverInit = { childList: true, subtree: true, attributes: true };
+      // Only watch for structural changes (childList), not attributes
+      // attributes: true was causing excessive cache rebuilds during scroll
+      const options: MutationObserverInit = { childList: true, subtree: true };
       this.mutationObserver.observe(this.codePanel, options);
       this.mutationObserver.observe(this.markdownPanel, options);
     }
@@ -380,18 +403,38 @@ export class ScrollSyncManager implements FoldingClient {
     }
 
     if (this.programmaticScroll.get(source)) {
+      if (this.debug) {
+        const panel = source === 'code' ? this.codePanel : this.markdownPanel;
+        console.log(`[handleScroll] ${source} @ ${panel.scrollTop.toFixed(1)} - IGNORED (programmatic)`);
+      }
       return;
     }
 
     const target: ViewKind = source === 'code' ? 'markdown' : 'code';
 
     if (this.activeSource && this.activeSource !== source) {
+      if (this.debug) {
+        console.log(`[handleScroll] ${source} - IGNORED (activeSource=${this.activeSource})`);
+      }
       return;
+    }
+
+    if (this.debug) {
+      const panel = source === 'code' ? this.codePanel : this.markdownPanel;
+      console.log(`[handleScroll] ${source} @ ${panel.scrollTop.toFixed(1)}, syncPending=${this.syncPending}`);
     }
 
     this.activeSource = source;
 
-    this.syncFrom(source, target);
+    // Throttle: only sync once per frame to prevent excessive operations
+    // during rapid scroll events (especially from mouse wheel)
+    if (!this.syncPending) {
+      this.syncPending = true;
+      requestFrame(() => {
+        this.syncPending = false;
+        this.syncFrom(source, target);
+      });
+    }
 
     if (this.releaseHandle !== null) {
       cancelFrame(this.releaseHandle);
@@ -511,11 +554,28 @@ export class ScrollSyncManager implements FoldingClient {
   private setPanelScrollTop(kind: ViewKind, value: number): void {
     const panel = kind === 'code' ? this.codePanel : this.markdownPanel;
 
+    if (this.debug) {
+      console.log(`[setPanelScrollTop] ${kind} → ${value.toFixed(1)}`);
+    }
+
     this.programmaticScroll.set(kind, true);
 
     requestFrame(() => {
       panel.scrollTop = value;
-      this.programmaticScroll.set(kind, false);
+
+      // Wait TWO frames before clearing the flag to ensure the scroll event
+      // has fired and been processed. This prevents a race condition where
+      // the flag is cleared before the scroll event fires, which would cause
+      // the sync manager to think the programmatic scroll is a user scroll,
+      // creating a feedback loop.
+      requestFrame(() => {
+        requestFrame(() => {
+          this.programmaticScroll.set(kind, false);
+          if (this.debug) {
+            console.log(`[setPanelScrollTop] ${kind} flag cleared after ${value.toFixed(1)}`);
+          }
+        });
+      });
     });
   }
 
