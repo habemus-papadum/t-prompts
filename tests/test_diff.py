@@ -148,3 +148,63 @@ def test_structured_prompt_diff_handles_various_sizes(builder):
     diff = diff_structured_prompts(before, after)
     assert diff.root is not None
     assert isinstance(diff.stats.nodes_added, int)
+
+
+def test_rendered_diff_widget_data_matches_operations():
+    """Rendered diff widget payload should preserve chunk operations and text."""
+
+    item1 = prompt(t"- one\n")
+    item2 = prompt(t"- two\n")
+    items_before = [item1, item2]
+    before = prompt(t"Header\n{items_before:list}\n")
+
+    item1_updated = prompt(t"- one\n")
+    item3 = prompt(t"- three\n")
+    items_after = [item1_updated, item3]
+    after = prompt(t"Header\n{items_after:list}\nTail\n")
+
+    diff = diff_rendered_prompts(before, after)
+    widget_data = diff.to_widget_data()
+
+    assert widget_data["diff_type"] == "rendered"
+    ops = [delta["op"] for delta in widget_data["chunk_deltas"]]
+    assert ops.count("insert") == 1
+    assert ops.count("replace") == 1
+    assert ops.count("equal") >= 1
+
+    tail_insert = next(delta for delta in widget_data["chunk_deltas"] if delta["op"] == "insert")
+    assert tail_insert["before"] is None
+    assert tail_insert["after"]["text"].strip().startswith("Tail")
+
+    replace_delta = next(delta for delta in widget_data["chunk_deltas"] if delta["op"] == "replace")
+    assert replace_delta["before"]["text"].strip() == "- two"
+    assert replace_delta["after"]["text"].strip() == "- three"
+
+    assert widget_data["stats"] == diff.stats()
+
+
+def test_structured_diff_widget_data_serializes_text_edits_and_attr_changes():
+    """Structured diff widget payload keeps None keys and listifies attr changes."""
+
+    value = "alpha"
+    before = prompt(t"Value: {value!r}")
+    value = "alpha"
+    after = prompt(t"Value: {value!s}!\n")
+
+    diff = diff_structured_prompts(before, after)
+    widget_data = diff.to_widget_data()
+
+    assert widget_data["diff_type"] == "structured"
+    assert widget_data["root"]["key"] is None
+
+    interpolation = next(
+        child for child in widget_data["root"]["children"] if child["element_type"] == "TextInterpolation"
+    )
+    assert interpolation["attr_changes"]["conversion"] == ["r", "s"]
+
+    static_nodes = [child for child in widget_data["root"]["children"] if child["element_type"] == "Static"]
+    assert any(edit["op"] == "insert" for node in static_nodes for edit in node["text_edits"])
+
+    for node in widget_data["root"]["children"]:
+        for change in node["attr_changes"].values():
+            assert isinstance(change, list)
