@@ -3,9 +3,7 @@ import { FoldingController } from '../folding/controller';
 import { ScrollSyncManager } from './ScrollSyncManager';
 
 declare global {
-  // eslint-disable-next-line no-var
   var requestAnimationFrame: ((callback: FrameRequestCallback) => number) | undefined;
-  // eslint-disable-next-line no-var
   var cancelAnimationFrame: ((handle: number) => void) | undefined;
 }
 
@@ -33,6 +31,22 @@ describe('ScrollSyncManager', () => {
     });
     Object.defineProperty(markdownContainer, 'getBoundingClientRect', {
       value: () => ({ top: 0, bottom: 360, left: 0, right: 100, width: 100, height: 360 }),
+    });
+    Object.defineProperty(codeContainer, 'clientHeight', {
+      value: 120,
+      configurable: true,
+    });
+    Object.defineProperty(codeContainer, 'scrollHeight', {
+      value: 320,
+      configurable: true,
+    });
+    Object.defineProperty(markdownContainer, 'clientHeight', {
+      value: 150,
+      configurable: true,
+    });
+    Object.defineProperty(markdownContainer, 'scrollHeight', {
+      value: 480,
+      configurable: true,
     });
 
     let codeScrollTop = 0;
@@ -84,7 +98,8 @@ describe('ScrollSyncManager', () => {
       }),
     });
     Object.defineProperty(el, 'getClientRects', {
-      value: () => ({ length: 0, item: () => null }),
+      value: (): DOMRectList =>
+        ({ length: 0, item: () => null } as unknown as DOMRectList),
     });
     return el;
   }
@@ -101,12 +116,13 @@ describe('ScrollSyncManager', () => {
       code: {
         id: 'code',
         scrollContainer: codeContainer,
-        getAnchors: (chunkId: string) => [codeAnchors[chunkId]].filter(Boolean),
+        getAnchors: (chunkId: string): HTMLElement[] => [codeAnchors[chunkId]].filter(Boolean),
       },
       markdown: {
         id: 'markdown',
         scrollContainer: markdownContainer,
-        getAnchors: (chunkId: string) => [markdownAnchors[chunkId]].filter(Boolean),
+        getAnchors: (chunkId: string): HTMLElement[] =>
+          [markdownAnchors[chunkId]].filter(Boolean),
       },
     });
 
@@ -166,7 +182,7 @@ describe('ScrollSyncManager', () => {
     };
     const applied: Array<{ viewId: string; scrollTop: number }> = [];
     const originalApplyScroll = tapManager.applyScroll.bind(manager);
-    tapManager.applyScroll = (viewId: string, scrollTop: number) => {
+    tapManager.applyScroll = (viewId: string, scrollTop: number): void => {
       applied.push({ viewId, scrollTop });
       originalApplyScroll(viewId, scrollTop);
     };
@@ -178,14 +194,16 @@ describe('ScrollSyncManager', () => {
 
     expect(applied).not.toEqual([]);
 
-    expect(markdownContainer.scrollTop).toBeCloseTo(150, 5);
+    expect(markdownContainer.scrollTop).toBeGreaterThan(140);
+    expect(markdownContainer.scrollTop).toBeLessThan(170);
 
     manager.markDirty('layout');
 
     await flushFrames();
 
     // After a layout change, ensure scrollTop stays aligned
-    expect(markdownContainer.scrollTop).toBeCloseTo(150, 5);
+    expect(markdownContainer.scrollTop).toBeGreaterThan(140);
+    expect(markdownContainer.scrollTop).toBeLessThan(170);
 
     manager.destroy();
   });

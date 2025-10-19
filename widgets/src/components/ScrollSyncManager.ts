@@ -44,6 +44,11 @@ interface LogicalAnchor {
   progress: number;
 }
 
+interface ViewScrollState {
+  lastScrollTop: number;
+  desiredScrollTop: number;
+}
+
 function cloneCache(cache: ChunkLayoutCache): ChunkLayoutCache {
   return {
     entries: [...cache.entries],
@@ -79,6 +84,10 @@ export class ScrollSyncManager implements FoldingClient {
   private readonly foldingClient: FoldingClient;
   private destroyed = false;
   private pendingReasons: Set<string> = new Set();
+  private readonly scrollState: Record<ViewId, ViewScrollState> = {
+    code: { lastScrollTop: 0, desiredScrollTop: 0 },
+    markdown: { lastScrollTop: 0, desiredScrollTop: 0 },
+  };
 
   constructor(options: ScrollSyncManagerOptions) {
     this.foldingController = options.foldingController;
@@ -88,7 +97,8 @@ export class ScrollSyncManager implements FoldingClient {
     };
 
     this.foldingClient = {
-      onStateChanged: (event: FoldingEvent, _state: Readonly<FoldingState>) => {
+      onStateChanged: (event: FoldingEvent, _state: Readonly<FoldingState>): void => {
+        void _state;
         switch (event.type) {
           case 'chunks-collapsed':
           case 'chunk-expanded':
@@ -108,7 +118,8 @@ export class ScrollSyncManager implements FoldingClient {
     }
 
     (['code', 'markdown'] as const).forEach((viewId) => {
-      const handler = (_event: Event): void => {
+      const handler = (event: Event): void => {
+        void event;
         if (!this.enabled || this.destroyed) {
           return;
         }
@@ -140,6 +151,10 @@ export class ScrollSyncManager implements FoldingClient {
       this.scrollHandlers[viewId] = handler;
       this.views[viewId].scrollContainer.addEventListener('scroll', handler, { passive: true });
 
+      const initialScrollTop = this.views[viewId].scrollContainer.scrollTop;
+      this.scrollState[viewId].lastScrollTop = initialScrollTop;
+      this.scrollState[viewId].desiredScrollTop = initialScrollTop;
+
       if (typeof ResizeObserver !== 'undefined') {
         const observer = new ResizeObserver(() => this.markDirty('resize'));
         observer.observe(this.views[viewId].scrollContainer);
@@ -159,7 +174,7 @@ export class ScrollSyncManager implements FoldingClient {
 
     this.foldingController.addClient(this.foldingClient);
     this.observing = true;
-    this.rebuildCaches('initial');
+    this.rebuildCaches();
   }
 
   destroy(): void {
@@ -230,7 +245,7 @@ export class ScrollSyncManager implements FoldingClient {
 
     this.pendingRecalcHandle = this.scheduleFrame(() => {
       this.pendingRecalcHandle = null;
-      this.rebuildCaches([...this.pendingReasons].join(','));
+      this.rebuildCaches();
       this.pendingReasons.clear();
     });
   }
@@ -239,7 +254,7 @@ export class ScrollSyncManager implements FoldingClient {
     this.foldingClient.onStateChanged(event, state);
   }
 
-  private rebuildCaches(_trigger: string): void {
+  private rebuildCaches(): void {
     if (this.destroyed) {
       return;
     }
@@ -256,7 +271,7 @@ export class ScrollSyncManager implements FoldingClient {
   private syncScroll(source: ViewId): void {
     const cache = this.caches[source];
     if (!cache.entries.length) {
-      this.rebuildCaches('lazy');
+      this.rebuildCaches();
     }
 
     const updatedCache = this.caches[source];
@@ -266,6 +281,10 @@ export class ScrollSyncManager implements FoldingClient {
 
     const container = this.views[source].scrollContainer;
     const scrollTop = container.scrollTop;
+    const sourceState = this.scrollState[source];
+    const delta = scrollTop - sourceState.lastScrollTop;
+    sourceState.lastScrollTop = scrollTop;
+
     const entry = this.findEntryForScroll(updatedCache.entries, scrollTop);
     if (!entry) {
       return;
@@ -280,13 +299,29 @@ export class ScrollSyncManager implements FoldingClient {
       return;
     }
 
-    const targetEntry = this.resolveEntry(target, entry.chunkId);
+    const { entry: targetEntry, scrollTop: anchorScrollTop } = this.resolveTargetAnchor(
+      target,
+      entry.chunkId,
+      progress
+    );
     if (!targetEntry) {
       return;
     }
 
-    const targetScrollTop = targetEntry.top + targetEntry.height * progress;
-    this.applyScroll(target, targetScrollTop);
+    const ratio = this.computeScrollRatio(source, target, delta, entry.height);
+    const targetState = this.scrollState[target];
+    const predicted = this.clampScrollTop(
+      target,
+      targetState.desiredScrollTop + delta * ratio
+    );
+    const anchorWeight = this.computeAnchorWeight(delta, entry.height);
+    const finalTarget = this.clampScrollTop(
+      target,
+      predicted + (anchorScrollTop - predicted) * anchorWeight
+    );
+
+    targetState.desiredScrollTop = finalTarget;
+    this.applyScroll(target, finalTarget);
   }
 
   private applyAnchorToViews(): void {
@@ -303,6 +338,7 @@ export class ScrollSyncManager implements FoldingClient {
         return;
       }
       const scrollTop = entry.top + entry.height * this.lastAnchor!.progress;
+      this.scrollState[viewId].desiredScrollTop = scrollTop;
       this.applyScroll(viewId, scrollTop);
     });
   }
@@ -312,6 +348,7 @@ export class ScrollSyncManager implements FoldingClient {
     this.programmaticScroll.add(viewId);
     this.scheduleFrame(() => {
       container.scrollTop = scrollTop;
+      this.scrollState[viewId].lastScrollTop = scrollTop;
       this.programmaticScroll.delete(viewId);
     });
   }
@@ -418,6 +455,66 @@ export class ScrollSyncManager implements FoldingClient {
     }
 
     return null;
+  }
+
+  private resolveTargetAnchor(
+    viewId: ViewId,
+    chunkId: string,
+    progress: number
+  ): { entry: ChunkLayoutEntry | null; scrollTop: number } {
+    const entry = this.resolveEntry(viewId, chunkId);
+    if (!entry) {
+      return { entry: null, scrollTop: 0 };
+    }
+    const scrollTop = entry.top + entry.height * progress;
+    return { entry, scrollTop };
+  }
+
+  private computeScrollRatio(
+    source: ViewId,
+    target: ViewId,
+    delta: number,
+    sourceHeight: number
+  ): number {
+    const sourceTotal = this.caches[source].totalHeight;
+    const targetTotal = this.caches[target].totalHeight;
+    if (!(sourceTotal > 0 && targetTotal > 0)) {
+      return 1;
+    }
+    const baseRatio = this.clamp(targetTotal / sourceTotal, 0.25, 4);
+
+    if (!Number.isFinite(delta) || sourceHeight <= 0) {
+      return baseRatio;
+    }
+    if (delta === 0) {
+      return 1;
+    }
+
+    const normalized = Math.abs(delta) / sourceHeight;
+    const blend = this.clamp(normalized / 4, 0, 1);
+    const ratio = 1 + (baseRatio - 1) * blend;
+    return this.clamp(ratio, 0.25, 4);
+  }
+
+  private computeAnchorWeight(delta: number, sourceHeight: number): number {
+    if (sourceHeight <= 0) {
+      return 0.2;
+    }
+    const normalized = Math.abs(delta) / sourceHeight;
+    const weight = Math.exp(-normalized / 8);
+    return this.clamp(weight, 0.1, 1);
+  }
+
+  private clampScrollTop(viewId: ViewId, scrollTop: number): number {
+    const container = this.views[viewId].scrollContainer;
+    const max = container.scrollHeight - container.clientHeight;
+    if (!Number.isFinite(max)) {
+      return Math.max(0, scrollTop);
+    }
+    if (max <= 0) {
+      return 0;
+    }
+    return this.clamp(scrollTop, 0, max);
   }
 
   private measureAnchors(
