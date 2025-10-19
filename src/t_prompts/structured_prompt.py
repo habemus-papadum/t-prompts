@@ -630,7 +630,8 @@ class StructuredPrompt(Element, Mapping[str, InterpolationType]):
         new_template = Template(*template_args)
 
         # Capture source location at clone() call site
-        clone_source_location = _capture_source_location()
+        # Skip 2 frames: _capture_source_location + clone
+        clone_source_location = _capture_source_location(skip_frames=2)
 
         # Create new StructuredPrompt with cloned template
         cloned_prompt = StructuredPrompt(
@@ -701,6 +702,7 @@ def prompt(
     trim_empty_leading: bool = True,
     trim_trailing: bool = True,
     capture_source_location: bool = True,
+    _source_location: Optional[SourceLocation] = None,
     **opts,
 ) -> StructuredPrompt:
     """
@@ -768,8 +770,14 @@ def prompt(
     if not isinstance(template, Template):
         raise TypeError("prompt(...) requires a t-string Template")
 
-    # Capture source location if enabled
-    source_location = _capture_source_location() if capture_source_location else None
+    # Use provided source location (from wrapper like dedent) or capture it
+    if _source_location is not None:
+        source_location = _source_location
+    elif capture_source_location:
+        # Skip 2 frames: _capture_source_location + prompt
+        source_location = _capture_source_location(skip_frames=2)
+    else:
+        source_location = None
 
     # Apply dedenting/trimming if any are enabled
     if dedent or trim_leading or trim_empty_leading or trim_trailing:
@@ -846,6 +854,13 @@ def dedent(
     Task: translate to French
     Please respond.
     """
+    # Capture source location here (caller of dedent) if not explicitly disabled
+    capture = opts.get('capture_source_location', True)
+    if capture:
+        # Skip 2 frames: _capture_source_location + dedent
+        source_loc = _capture_source_location(skip_frames=2)
+        opts['_source_location'] = source_loc
+
     return prompt(
         template,
         dedent=True,

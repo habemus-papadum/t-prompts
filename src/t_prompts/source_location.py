@@ -76,51 +76,51 @@ class SourceLocation:
         }
 
 
-def _capture_source_location() -> Optional[SourceLocation]:
+def _capture_source_location(skip_frames: int = 1) -> Optional[SourceLocation]:
     """
     Capture source code location information from the call stack.
 
-    Walks up the stack to find the first frame outside this library
-    (the actual user code that called prompt()). Only uses information
-    directly available from the stack frame without reading source files.
+    Skips a fixed number of frames to reach the caller's code. This simple
+    approach works reliably regardless of where the calling code is located
+    (user code, demos, library helpers, etc.).
+
+    Parameters
+    ----------
+    skip_frames : int
+        Number of frames to skip (default 1: skip _capture_source_location itself).
+        Callers should typically pass 2 to skip both _capture_source_location and
+        the immediate caller (e.g., prompt() or clone()).
 
     Returns
     -------
     SourceLocation | None
         Source location if available, None if unavailable.
     """
-    # Walk up the stack to find the first non-library frame
     frame = inspect.currentframe()
     if frame is None:
         return None
 
-    # Get the directory of this library to identify internal frames
-    library_dir = str(Path(__file__).parent.resolve())
-
     try:
-        # Skip frames until we're out of this library
-        while frame is not None:
-            frame_file = frame.f_code.co_filename
-
-            # Check if we're outside the library
-            if not frame_file.startswith(library_dir):
-                # Found user code frame - extract info directly from frame
-                filename = Path(frame_file).name
-                filepath = str(Path(frame_file).resolve())
-                lineno = frame.f_lineno
-
-                return SourceLocation(
-                    filename=filename,
-                    filepath=filepath,
-                    line=lineno,
-                )
-
+        # Skip the specified number of frames
+        for _ in range(skip_frames):
+            if frame.f_back is None:
+                return None
             frame = frame.f_back
+
+        # Extract info directly from the target frame
+        frame_file = frame.f_code.co_filename
+        filename = Path(frame_file).name
+        filepath = str(Path(frame_file).resolve())
+        lineno = frame.f_lineno
+
+        return SourceLocation(
+            filename=filename,
+            filepath=filepath,
+            line=lineno,
+        )
     finally:
         # Clean up frame references to avoid reference cycles
         del frame
-
-    return None
 
 
 def _serialize_source_location(source_location: Optional[SourceLocation]) -> Optional[dict[str, Any]]:
