@@ -255,6 +255,16 @@
   line-height: 1.4;
 }
 
+.tp-chunk-modifier-active [data-tp-nav="true"] {
+  cursor: pointer;
+}
+
+.tp-chunk-modifier-active [data-tp-nav="true"]:hover {
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+  text-decoration-style: solid;
+}
+
 
 .tp-meter-entry {
   display: inline-flex;

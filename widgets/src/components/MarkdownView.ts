@@ -20,6 +20,7 @@ import {
   type ElementPositionMap,
 } from './MarkdownView.plugin';
 import type { InlinePositionMap } from './MarkdownView.plugin';
+import { activateChunkNavigation, type NavigationActivation } from '../utils/chunkNavigation';
 
 /**
  * Position range in the markdown source text
@@ -51,7 +52,7 @@ const INLINE_CHUNK_CLASS = 'tp-markdown-chunk';
  */
 export function buildMarkdownView(
   data: WidgetData,
-  _metadata: WidgetMetadata,
+  metadata: WidgetMetadata,
   foldingController: FoldingController
 ): MarkdownView {
   // 1. Create initial DOM structure
@@ -79,6 +80,12 @@ export function buildMarkdownView(
     inlinePositions,
     chunkIdToElements
   );
+
+  const navigationActivation: NavigationActivation | undefined = activateChunkNavigation(element, {
+    enable: data.config?.enableEditorLinks ?? true,
+    chunkTargets: metadata.chunkLocationMap,
+    elementTargets: metadata.elementLocationDetails,
+  });
 
   function clearCollapsedMarkers(): void {
     const collapsedElements = element.querySelectorAll(`.${COLLAPSED_CLASS}`);
@@ -176,6 +183,7 @@ export function buildMarkdownView(
       foldingController.removeClient(foldingClient);
 
       // Cleanup DOM and data
+      navigationActivation?.disconnect();
       element.remove();
       chunkIdToElements.clear();
     },

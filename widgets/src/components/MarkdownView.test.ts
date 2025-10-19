@@ -2,9 +2,10 @@
  * Tests for MarkdownView component
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { buildMarkdownView } from './MarkdownView';
 import type { WidgetData, WidgetMetadata } from '../types';
+import { computeWidgetMetadata } from '../metadata';
 import { FoldingController } from '../folding/controller';
 import { JSDOM } from 'jsdom';
 import demo01Data from '../../test-fixtures/demo-01.json';
@@ -37,7 +38,9 @@ describe('MarkdownView', () => {
     metadata = {
       elementTypeMap: {},
       elementLocationMap: {},
+      elementLocationDetails: {},
       chunkSizeMap: {},
+      chunkLocationMap: {},
     };
 
     foldingController = new FoldingController(['chunk1', 'chunk2', 'chunk3']);
@@ -561,6 +564,151 @@ describe('MarkdownView', () => {
       elements.forEach((el) => {
         expect(el.classList.contains('tp-markdown-collapsed')).toBe(false);
       });
+    });
+  });
+
+  describe('navigation', () => {
+    const chunkId = 'chunk-nav';
+    const elementId = 'element-nav';
+    const sourcePath = '/Users/test/project/src/markdown.py';
+    const creationPath = '/Users/test/project/src/builders.py';
+
+    function createNavigationData(enableEditorLinks = true): WidgetData {
+      return {
+        ir: {
+          chunks: [
+            {
+              id: chunkId,
+              type: 'TextChunk',
+              text: '# Heading\n\n',
+              element_id: elementId,
+              metadata: {},
+            },
+          ],
+          source_prompt_id: 'prompt-nav',
+          id: 'ir-nav',
+          metadata: {},
+        },
+        compiled_ir: {
+          ir_id: 'ir-nav',
+          subtree_map: { [elementId]: [chunkId] },
+          num_elements: 1,
+        },
+        source_prompt: {
+          prompt_id: 'prompt-nav',
+          children: [
+            {
+              id: elementId,
+              type: 'static',
+              key: 'heading',
+              source_location: {
+                filename: 'markdown.py',
+                filepath: sourcePath,
+                line: 8,
+              },
+              creation_location: {
+                filename: 'builders.py',
+                filepath: creationPath,
+                line: 2,
+              },
+            },
+          ],
+        },
+        config: {
+          wrapping: true,
+          sourcePrefix: '/Users/test/project',
+          enableEditorLinks,
+        },
+      } as WidgetData;
+    }
+
+    it('opens source location on modifier click', async () => {
+      const navData = createNavigationData();
+      const navMetadata = computeWidgetMetadata(navData);
+      expect(navMetadata.chunkLocationMap[chunkId]?.source?.filepath).toBe(sourcePath);
+      expect(navMetadata.chunkLocationMap[chunkId]?.source).toMatchObject({ filepath: sourcePath });
+      expect(navMetadata.chunkLocationMap[chunkId]?.elementId).toBe(elementId);
+      expect(navMetadata.elementLocationDetails[elementId]?.source?.filepath).toBe(sourcePath);
+      const controller = new FoldingController([chunkId]);
+      const view = buildMarkdownView(navData, navMetadata, controller);
+      document.body.appendChild(view.element);
+
+      await Promise.resolve();
+
+      const target = view.element.querySelector<HTMLElement>(`[data-chunk-id="${chunkId}"]`);
+      expect(target).toBeTruthy();
+      expect(target?.getAttribute('data-chunk-id')).toBe(chunkId);
+      expect(target?.getAttribute('data-tp-nav')).toBe('true');
+
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+
+      target?.dispatchEvent(
+        new window.MouseEvent('click', { bubbles: true, ctrlKey: true, metaKey: true, button: 0 })
+      );
+
+      expect(openSpy).toHaveBeenCalledWith(`vscode://file/${sourcePath}:8`);
+
+      openSpy.mockRestore();
+      view.destroy();
+    });
+
+    it('opens creation location when shift modifier is held', async () => {
+      const navData = createNavigationData();
+      const navMetadata = computeWidgetMetadata(navData);
+      expect(navMetadata.chunkLocationMap[chunkId]?.creation?.filepath).toBe(creationPath);
+      expect(navMetadata.chunkLocationMap[chunkId]?.creation).toMatchObject({ filepath: creationPath });
+      expect(navMetadata.chunkLocationMap[chunkId]?.elementId).toBe(elementId);
+      const controller = new FoldingController([chunkId]);
+      const view = buildMarkdownView(navData, navMetadata, controller);
+      document.body.appendChild(view.element);
+
+      await Promise.resolve();
+
+      const target = view.element.querySelector<HTMLElement>(`[data-chunk-id="${chunkId}"]`);
+      expect(target).toBeTruthy();
+      expect(target?.getAttribute('data-chunk-id')).toBe(chunkId);
+      expect(target?.getAttribute('data-tp-nav')).toBe('true');
+
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+
+      target?.dispatchEvent(
+        new window.MouseEvent('click', {
+          bubbles: true,
+          ctrlKey: true,
+          metaKey: true,
+          shiftKey: true,
+          button: 0,
+        })
+      );
+
+      expect(openSpy).toHaveBeenCalledWith(`vscode://file/${creationPath}:2`);
+
+      openSpy.mockRestore();
+      view.destroy();
+    });
+
+    it('does not navigate when disabled via config', async () => {
+      const navData = createNavigationData(false);
+      const navMetadata = computeWidgetMetadata(navData);
+      const controller = new FoldingController([chunkId]);
+      const view = buildMarkdownView(navData, navMetadata, controller);
+      document.body.appendChild(view.element);
+
+      await Promise.resolve();
+
+      const target = view.element.querySelector<HTMLElement>(`[data-chunk-id="${chunkId}"]`);
+      expect(target).toBeTruthy();
+
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+
+      target?.dispatchEvent(
+        new window.MouseEvent('click', { bubbles: true, ctrlKey: true, metaKey: true, button: 0 })
+      );
+
+      expect(openSpy).not.toHaveBeenCalled();
+
+      openSpy.mockRestore();
+      view.destroy();
     });
   });
 });

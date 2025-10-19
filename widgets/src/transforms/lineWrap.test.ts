@@ -27,6 +27,9 @@ describe('lineWrap transform', () => {
     mockMetadata = {
       elementTypeMap: {},
       elementLocationMap: {},
+      elementLocationDetails: {},
+      chunkSizeMap: {},
+      chunkLocationMap: {},
     };
   });
 

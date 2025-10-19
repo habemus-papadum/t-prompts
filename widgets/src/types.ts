@@ -19,6 +19,7 @@ export interface ConfigData {
   wrapping: boolean;
   sourcePrefix: string;
   treeShowWhitespace?: 'default' | 'always' | 'never';  // How to handle whitespace-only static elements
+  enableEditorLinks?: boolean;
 }
 
 export interface CompiledIRData {
@@ -55,6 +56,11 @@ export interface ElementData {
   [key: string]: unknown;
 }
 
+export interface ElementLocationDetails {
+  source?: SourceLocationData | null;
+  creation?: SourceLocationData | null;
+}
+
 export interface ChunkData {
   type: string;
   text?: string;
@@ -86,5 +92,11 @@ export interface ChunkSize {
 export interface WidgetMetadata {
   elementTypeMap: Record<string, string>;
   elementLocationMap: Record<string, string>;
+  elementLocationDetails: Record<string, ElementLocationDetails>;
   chunkSizeMap: Record<string, ChunkSize>;
+  chunkLocationMap: Record<string, {
+    elementId: string;
+    source?: SourceLocationData | null;
+    creation?: SourceLocationData | null;
+  }>;
 }

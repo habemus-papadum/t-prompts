@@ -16,6 +16,7 @@ import { applyTransform_ImageHoverPreview } from '../transforms/imageHoverPrevie
 import { applyTransform_MarkBoundaries } from '../transforms/boundaries';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingEvent, FoldingClient } from '../folding/types';
+import { activateChunkNavigation, type NavigationActivation } from '../utils/chunkNavigation';
 
 /**
  * Code view component interface
@@ -54,6 +55,12 @@ export function buildCodeView(
   state = applyTransform_LineWrap(state);
   state = applyTransform_ImageHoverPreview(state);
   state = applyTransform_MarkBoundaries(state);
+
+  const navigationActivation: NavigationActivation | undefined = activateChunkNavigation(element, {
+    enable: data.config?.enableEditorLinks ?? true,
+    chunkTargets: metadata.chunkLocationMap,
+    elementTargets: metadata.elementLocationDetails,
+  });
 
 
   // 4. Selection tracking with debouncing
@@ -323,6 +330,7 @@ export function buildCodeView(
       // Cleanup DOM and data
       element.remove();
       chunkIdToTopElements.clear();
+      navigationActivation?.disconnect();
     },
   };
 }

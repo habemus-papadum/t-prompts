@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { initWidget } from '../index';
 import type { WidgetContainer } from '../components/WidgetContainer';
+import { buildCodeView } from './CodeView';
 import type { CodeView } from '../components/CodeView';
 import type { Component } from '../components/base';
+import { FoldingController } from '../folding/controller';
+import { computeWidgetMetadata } from '../metadata';
+import type { WidgetData } from '../types';
 
 type WidgetHostElement = HTMLDivElement & { _widgetComponent?: WidgetContainer };
 
@@ -140,6 +144,140 @@ describe('CodeView image truncation', () => {
     expect(imageSpan).toBeTruthy();
     expect(imageSpan?.textContent).toBe('![PNG 50x50](...)');
     expect(imageSpan?.hasAttribute('title')).toBe(false);
+  });
+});
+
+describe('CodeView navigation', () => {
+  const chunkId = 'chunk-nav';
+  const elementId = 'element-nav';
+  const sourcePath = '/Users/test/project/src/app.py';
+  const creationPath = '/Users/test/project/src/factory.py';
+
+  function createWidgetData(enableEditorLinks = true): WidgetData {
+    return {
+      ir: {
+        chunks: [
+          {
+            id: chunkId,
+            type: 'TextChunk',
+            text: 'Hello world',
+            element_id: elementId,
+            metadata: {},
+          },
+        ],
+        source_prompt_id: 'prompt-nav',
+        id: 'ir-nav',
+        metadata: {},
+      },
+      compiled_ir: {
+        ir_id: 'ir-nav',
+        subtree_map: { [elementId]: [chunkId] },
+        num_elements: 1,
+      },
+      source_prompt: {
+        prompt_id: 'prompt-nav',
+        children: [
+          {
+            id: elementId,
+            type: 'static',
+            key: 'greeting',
+            source_location: {
+              filename: 'app.py',
+              filepath: sourcePath,
+              line: 12,
+            },
+            creation_location: {
+              filename: 'factory.py',
+              filepath: creationPath,
+              line: 4,
+            },
+          },
+        ],
+      },
+      config: {
+        wrapping: true,
+        sourcePrefix: '/Users/test/project',
+        enableEditorLinks,
+      },
+    } as WidgetData;
+  }
+
+  it('opens source location on primary modifier click', async () => {
+    const data = createWidgetData();
+    const metadata = computeWidgetMetadata(data);
+    const foldingController = new FoldingController([chunkId]);
+    const view = buildCodeView(data, metadata, foldingController);
+    document.body.appendChild(view.element);
+
+    await Promise.resolve();
+
+    const chunkElement = view.element.querySelector<HTMLElement>(`[data-chunk-id="${chunkId}"]`);
+    expect(chunkElement).toBeTruthy();
+
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+
+    chunkElement?.dispatchEvent(
+      new window.MouseEvent('click', { bubbles: true, ctrlKey: true, metaKey: true, button: 0 })
+    );
+
+    expect(openSpy).toHaveBeenCalledWith(`vscode://file/${sourcePath}:12`);
+
+    openSpy.mockRestore();
+    view.destroy();
+  });
+
+  it('opens creation location when shift modifier is held', async () => {
+    const data = createWidgetData();
+    const metadata = computeWidgetMetadata(data);
+    const foldingController = new FoldingController([chunkId]);
+    const view = buildCodeView(data, metadata, foldingController);
+    document.body.appendChild(view.element);
+
+    await Promise.resolve();
+
+    const chunkElement = view.element.querySelector<HTMLElement>(`[data-chunk-id="${chunkId}"]`);
+    expect(chunkElement).toBeTruthy();
+
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+
+    chunkElement?.dispatchEvent(
+      new window.MouseEvent('click', {
+        bubbles: true,
+        ctrlKey: true,
+        metaKey: true,
+        shiftKey: true,
+        button: 0,
+      })
+    );
+
+    expect(openSpy).toHaveBeenCalledWith(`vscode://file/${creationPath}:4`);
+
+    openSpy.mockRestore();
+    view.destroy();
+  });
+
+  it('disables navigation when editor links are turned off', async () => {
+    const data = createWidgetData(false);
+    const metadata = computeWidgetMetadata(data);
+    const foldingController = new FoldingController([chunkId]);
+    const view = buildCodeView(data, metadata, foldingController);
+    document.body.appendChild(view.element);
+
+    await Promise.resolve();
+
+    const chunkElement = view.element.querySelector<HTMLElement>(`[data-chunk-id="${chunkId}"]`);
+    expect(chunkElement).toBeTruthy();
+
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+
+    chunkElement?.dispatchEvent(
+      new window.MouseEvent('click', { bubbles: true, ctrlKey: true, metaKey: true, button: 0 })
+    );
+
+    expect(openSpy).not.toHaveBeenCalled();
+
+    openSpy.mockRestore();
+    view.destroy();
   });
 });
 

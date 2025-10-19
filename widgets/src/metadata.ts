@@ -13,6 +13,7 @@ import type {
   SourceLocationData,
   ChunkSize,
   IRData,
+  ElementLocationDetails,
 } from './types';
 
 /**
@@ -81,15 +82,30 @@ function formatSourceLocation(
  * For elements with both source_location and creation_location (nested prompts),
  * the format is: "source.py:84 (created: other.py:42)"
  */
-function buildElementLocationMap(
+function buildElementLocationMetadata(
   promptData: PromptData | null,
   sourcePrefix: string
-): Record<string, string> {
-  const map: Record<string, string> = {};
+): {
+  displayMap: Record<string, string>;
+  detailMap: Record<string, ElementLocationDetails>;
+} {
+  const displayMap: Record<string, string> = {};
+  const detailMap: Record<string, ElementLocationDetails> = {};
 
   if (!promptData) {
-    return map;
+    return { displayMap, detailMap };
   }
+
+  const cloneLocation = (location: SourceLocationData | null | undefined): SourceLocationData | null => {
+    if (!location) {
+      return null;
+    }
+    return {
+      filename: location.filename ?? null,
+      filepath: location.filepath ?? null,
+      line: location.line ?? null,
+    };
+  };
 
   function walkElements(elements: ElementData[]): void {
     for (const element of elements) {
@@ -102,15 +118,28 @@ function buildElementLocationMap(
       // Build location string
       if (sourceLoc && creationLoc && sourceLoc !== creationLoc) {
         // Both locations exist and differ (nested prompt case)
-        map[element.id] = `${sourceLoc} (created: ${creationLoc})`;
+        displayMap[element.id] = `${sourceLoc} (created: ${creationLoc})`;
       } else if (sourceLoc) {
         // Just source location
-        map[element.id] = sourceLoc;
+        displayMap[element.id] = sourceLoc;
       } else if (creationLoc) {
         // Just creation location (shouldn't happen normally)
-        map[element.id] = creationLoc;
+        displayMap[element.id] = creationLoc;
       }
       // If neither exists, no entry in map
+
+      const details: ElementLocationDetails = {};
+      const sourceClone = cloneLocation(element.source_location);
+      const creationClone = cloneLocation(element.creation_location);
+      if (sourceClone) {
+        details.source = sourceClone;
+      }
+      if (creationClone) {
+        details.creation = creationClone;
+      }
+      if (details.source || details.creation) {
+        detailMap[element.id] = details;
+      }
 
       // Recursively process nested elements
       if (element.children) {
@@ -121,7 +150,7 @@ function buildElementLocationMap(
 
   // Start walking from the root prompt's children
   walkElements(promptData.children);
-  return map;
+  return { displayMap, detailMap };
 }
 
 /**
@@ -197,6 +226,43 @@ function buildChunkSizeMap(irData: IRData | null): Record<string, ChunkSize> {
   return map;
 }
 
+function buildChunkLocationMap(
+  irData: IRData | null,
+  elementLocationDetails: Record<string, ElementLocationDetails>
+): Record<
+  string,
+  {
+    elementId: string;
+    source?: SourceLocationData | null;
+    creation?: SourceLocationData | null;
+  }
+> {
+  const map: Record<
+    string,
+    {
+      elementId: string;
+      source?: SourceLocationData | null;
+      creation?: SourceLocationData | null;
+    }
+  > = {};
+
+  if (!irData || !irData.chunks) {
+    return map;
+  }
+
+  for (const chunk of irData.chunks) {
+    const elementId = chunk.element_id;
+    const elementDetails = elementLocationDetails[elementId];
+    map[chunk.id] = {
+      elementId,
+      source: elementDetails?.source ?? null,
+      creation: elementDetails?.creation ?? null,
+    };
+  }
+
+  return map;
+}
+
 /**
  * Compute all widget metadata from widget data.
  * This centralizes all map-building logic and creates view-agnostic metadata
@@ -208,9 +274,15 @@ function buildChunkSizeMap(irData: IRData | null): Record<string, ChunkSize> {
 export function computeWidgetMetadata(data: WidgetData): WidgetMetadata {
   const sourcePrefix = data.config?.sourcePrefix || '';
 
+  const { displayMap, detailMap } = buildElementLocationMetadata(data.source_prompt || null, sourcePrefix);
+
+  const chunkLocationMap = buildChunkLocationMap(data.ir || null, detailMap);
+
   return {
     elementTypeMap: buildElementTypeMap(data.source_prompt || null),
-    elementLocationMap: buildElementLocationMap(data.source_prompt || null, sourcePrefix),
+    elementLocationMap: displayMap,
+    elementLocationDetails: detailMap,
     chunkSizeMap: buildChunkSizeMap(data.ir || null),
+    chunkLocationMap,
   };
 }

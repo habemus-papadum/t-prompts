@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { buildTreeView } from './TreeView';
 import type { WidgetData, WidgetMetadata, ChunkSize } from '../types';
 import { FoldingController } from '../folding/controller';
 import type { FoldingClient, FoldingEvent, FoldingState } from '../folding/types';
+import { computeWidgetMetadata } from '../metadata';
 
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
 global.document = dom.window.document;
@@ -46,9 +47,14 @@ describe('TreeView', () => {
     metadata = {
       elementTypeMap: {},
       elementLocationMap: {},
+      elementLocationDetails: {},
       chunkSizeMap: {
         'chunk-a': { character: 11, pixel: 0 } satisfies ChunkSize,
         'chunk-b': { character: 7, pixel: 0 } satisfies ChunkSize,
+      },
+      chunkLocationMap: {
+        'chunk-a': { elementId: 'elem-static' },
+        'chunk-b': { elementId: 'elem-interp' },
       },
     };
 
@@ -148,6 +154,91 @@ describe('TreeView', () => {
     firstRow.dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true }));
     expect(realController.isCollapsed('chunk-a')).toBe(false);
     expect(meter?.textContent).toBe('18/18ch');
+  });
+
+  it('annotates tree rows with element identifiers', () => {
+    const tree = buildTreeView({ data, metadata, foldingController });
+    const firstRow = tree.element.querySelector('.tp-tree-row') as HTMLElement;
+    expect(firstRow).toBeTruthy();
+    expect(firstRow.getAttribute('data-element-id')).toBe('elem-static');
+  });
+
+  it('opens source location on modifier click without toggling', async () => {
+    const navData: WidgetData = {
+      ir: {
+        chunks: [
+          {
+            id: 'chunk-nav',
+            type: 'TextChunk',
+            text: 'Hello tree',
+            element_id: 'elem-nav',
+            metadata: {},
+          },
+        ],
+        source_prompt_id: 'prompt-nav',
+        id: 'ir-tree',
+        metadata: {},
+      },
+      compiled_ir: {
+        ir_id: 'ir-tree',
+        subtree_map: { 'elem-nav': ['chunk-nav'] },
+        num_elements: 1,
+      },
+      source_prompt: {
+        prompt_id: 'prompt-nav',
+        children: [
+          {
+            id: 'elem-nav',
+            type: 'static',
+            key: 'greeting',
+            source_location: {
+              filename: 'nav.py',
+              filepath: '/Users/test/project/nav.py',
+              line: 5,
+            },
+            creation_location: {
+              filename: 'factory.py',
+              filepath: '/Users/test/project/factory.py',
+              line: 3,
+            },
+          },
+        ],
+      },
+      config: {
+        wrapping: true,
+        sourcePrefix: '/Users/test/project',
+        enableEditorLinks: true,
+      },
+    } as WidgetData;
+
+    const navMetadata = computeWidgetMetadata(navData);
+    expect(navMetadata.elementLocationDetails['elem-nav']?.source?.filepath).toBe(
+      '/Users/test/project/nav.py'
+    );
+    expect(navMetadata.chunkLocationMap['chunk-nav']?.source?.filepath).toBe(
+      '/Users/test/project/nav.py'
+    );
+    const navController = new FoldingController(['chunk-nav']);
+    const tree = buildTreeView({ data: navData, metadata: navMetadata, foldingController: navController });
+    document.body.appendChild(tree.element);
+
+    await Promise.resolve();
+
+    const row = tree.element.querySelector('.tp-tree-row') as HTMLElement;
+    expect(row).toBeTruthy();
+    expect(row.getAttribute('data-tp-nav')).toBe('true');
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+
+    row.dispatchEvent(
+      new window.MouseEvent('click', { bubbles: true, ctrlKey: true, metaKey: true, button: 0 })
+    );
+
+    expect(openSpy).toHaveBeenCalledWith('vscode://file//Users/test/project/nav.py:5');
+    const parentItem = row.closest('.tp-tree-item');
+    expect(parentItem?.classList.contains('tp-tree-item--expanded')).toBe(false);
+
+    openSpy.mockRestore();
+    tree.destroy();
   });
 });
 

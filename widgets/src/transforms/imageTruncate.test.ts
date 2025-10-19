@@ -12,7 +12,9 @@ describe('applyTransform_ImageTruncate', () => {
       metadata: {
         elementTypeMap: {},
         elementLocationMap: {},
+        elementLocationDetails: {},
         chunkSizeMap: {},
+        chunkLocationMap: {},
       },
     } as TransformState;
   }

@@ -10,6 +10,11 @@ import type { WidgetData, WidgetMetadata, ElementData, ChunkSize } from '../type
 import type { FoldingController } from '../folding/controller';
 import type { FoldingClient } from '../folding/types';
 import { createVisibilityMeter, type VisibilityMeter } from './VisibilityMeter';
+import {
+  activateChunkNavigation,
+  isPrimaryModifierActive,
+  type NavigationActivation,
+} from '../utils/chunkNavigation';
 
 export interface TreeView extends Component {
   element: HTMLElement;
@@ -114,6 +119,12 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
 
   update();
 
+  const navigationActivation: NavigationActivation | undefined = activateChunkNavigation(rootElement, {
+    enable: data.config?.enableEditorLinks ?? true,
+    chunkTargets: metadata.chunkLocationMap,
+    elementTargets: metadata.elementLocationDetails,
+  });
+
   return {
     element: rootElement,
     update,
@@ -122,6 +133,7 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
       rootElement.remove();
       flatItems.length = 0;
       foldingController.removeClient(foldingClient);
+      navigationActivation?.disconnect();
     },
   };
 }
@@ -256,6 +268,7 @@ function createTreeItem(
 
   const row = document.createElement('div');
   row.className = 'tp-tree-row';
+  row.setAttribute('data-element-id', node.id);
   element.appendChild(row);
 
   const toggleButton = document.createElement('button');
@@ -339,7 +352,11 @@ function createTreeItem(
   // Track pending single-click to debounce against double-click
   let clickTimeout: number | null = null;
 
-  row.addEventListener('click', () => {
+  row.addEventListener('click', (event) => {
+    if (isPrimaryModifierActive(event)) {
+      return;
+    }
+
     if (node.children.length === 0) {
       return;
     }
@@ -357,6 +374,10 @@ function createTreeItem(
   });
 
   row.addEventListener('dblclick', (event) => {
+    if (isPrimaryModifierActive(event)) {
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
 
