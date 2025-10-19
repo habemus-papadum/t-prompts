@@ -68,7 +68,8 @@
       "Bash(timeout 60 uv run mkdocs build)",
       "Bash(bash -n scripts/setup.sh)",
       "Bash(for script in scripts/*.sh)",
-      "Bash(bash -n \"$script\")"
+      "Bash(bash -n \"$script\")",
+      "Bash(pnpm approve-builds)"
     ],
     "deny": [],
     "ask": []

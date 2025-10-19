@@ -44,7 +44,7 @@ pnpm install
 
 echo ""
 echo "4. Building TypeScript widgets..."
-pnpm build
+pnpm --filter @t-prompts/widgets build:python
 
 echo ""
 echo "5. Setting up pre-commit hooks..."

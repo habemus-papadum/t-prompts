@@ -16,6 +16,13 @@ import { FoldingController } from '../folding/controller';
 import { createToolbar, updateToolbarMode } from './Toolbar';
 import type { ToolbarComponent } from './Toolbar';
 
+const TREE_DEFAULT_WIDTH = 280;
+const TREE_MIN_WIDTH = 200;
+const TREE_MAX_WIDTH = 480;
+const SPLIT_DEFAULT_RATIO = 0.5;
+const SPLIT_MIN_RATIO = 0.25;
+const SPLIT_MAX_RATIO = 0.75;
+
 /**
  * Widget container component interface
  */
@@ -58,6 +65,9 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   const treeStorageKey = `tp-tree-collapsed:${data.compiled_ir?.ir_id ?? 'default'}`;
 
   // 3. Build views
+  const treeWidthStorageKey = `tp-tree-width:${data.compiled_ir?.ir_id ?? 'default'}`;
+  const splitRatioStorageKey = `tp-split-ratio:${data.compiled_ir?.ir_id ?? 'default'}`;
+
   const treeContainer = document.createElement('div');
   treeContainer.className = 'tp-tree-container';
 
@@ -81,8 +91,13 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   treePanel.className = 'tp-panel tp-tree-panel';
   treePanel.appendChild(treeView.element);
 
-  treeContainer.appendChild(treePanel);
-  treeContainer.appendChild(expandStrip);
+  const treeResizer = document.createElement('div');
+  treeResizer.className = 'tp-tree-resizer';
+  treeResizer.setAttribute('role', 'separator');
+  treeResizer.setAttribute('aria-orientation', 'vertical');
+  treeResizer.setAttribute('aria-hidden', 'false');
+  treeResizer.setAttribute('aria-label', 'Resize tree panel');
+  treeResizer.tabIndex = 0;
 
   const codeView = buildCodeView(data, metadata, foldingController);
   const markdownView = buildMarkdownView(data, metadata, foldingController);
@@ -97,11 +112,232 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   markdownPanel.appendChild(markdownView.element);
 
   // 5. Create content area
+  const splitResizer = document.createElement('div');
+  splitResizer.className = 'tp-split-resizer';
+  splitResizer.setAttribute('role', 'separator');
+  splitResizer.setAttribute('aria-orientation', 'vertical');
+  splitResizer.setAttribute('aria-hidden', 'false');
+  splitResizer.setAttribute('aria-label', 'Resize code and markdown views');
+  splitResizer.tabIndex = 0;
+
+  const mainSplit = document.createElement('div');
+  mainSplit.className = 'tp-main-split';
+  mainSplit.appendChild(codePanel);
+  mainSplit.appendChild(splitResizer);
+  mainSplit.appendChild(markdownPanel);
+
+  treeContainer.appendChild(treePanel);
+  treeContainer.appendChild(expandStrip);
+
   const contentArea = document.createElement('div');
   contentArea.className = 'tp-content-area';
   contentArea.appendChild(treeContainer);
-  contentArea.appendChild(codePanel);
-  contentArea.appendChild(markdownPanel);
+  contentArea.appendChild(treeResizer);
+  contentArea.appendChild(mainSplit);
+
+  let currentTreeWidth = TREE_DEFAULT_WIDTH;
+  let currentSplitRatio = SPLIT_DEFAULT_RATIO;
+
+  function applyTreeWidth(width: number): void {
+    currentTreeWidth = clamp(width, TREE_MIN_WIDTH, TREE_MAX_WIDTH);
+    treeContainer.style.setProperty('--tp-tree-width', `${currentTreeWidth}px`);
+    treeResizer.setAttribute('aria-valuemin', TREE_MIN_WIDTH.toString());
+    treeResizer.setAttribute('aria-valuemax', TREE_MAX_WIDTH.toString());
+    treeResizer.setAttribute('aria-valuenow', Math.round(currentTreeWidth).toString());
+  }
+
+  function persistTreeWidth(): void {
+    storeNumberInSession(treeWidthStorageKey, Math.round(currentTreeWidth));
+  }
+
+  function updateTreeResizerState(collapsed: boolean): void {
+    treeResizer.classList.toggle('tp-tree-resizer--hidden', collapsed);
+    treeResizer.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+    treeResizer.tabIndex = collapsed ? -1 : 0;
+  }
+
+  function applySplitRatio(ratio: number): void {
+    currentSplitRatio = clamp(ratio, SPLIT_MIN_RATIO, SPLIT_MAX_RATIO);
+    const percent = `${(currentSplitRatio * 100).toFixed(1)}%`;
+    mainSplit.style.setProperty('--tp-code-width', percent);
+    splitResizer.setAttribute('aria-valuemin', SPLIT_MIN_RATIO.toString());
+    splitResizer.setAttribute('aria-valuemax', SPLIT_MAX_RATIO.toString());
+    splitResizer.setAttribute('aria-valuenow', currentSplitRatio.toFixed(2));
+  }
+
+  function persistSplitRatio(): void {
+    storeNumberInSession(splitRatioStorageKey, Number(currentSplitRatio.toFixed(3)));
+  }
+
+  currentTreeWidth = clamp(
+    readNumberFromSession(treeWidthStorageKey) ?? TREE_DEFAULT_WIDTH,
+    TREE_MIN_WIDTH,
+    TREE_MAX_WIDTH
+  );
+
+  currentSplitRatio = clamp(
+    readNumberFromSession(splitRatioStorageKey) ?? SPLIT_DEFAULT_RATIO,
+    SPLIT_MIN_RATIO,
+    SPLIT_MAX_RATIO
+  );
+
+  applyTreeWidth(currentTreeWidth);
+  applySplitRatio(currentSplitRatio);
+
+  const onTreeResizerPointerDown = (event: PointerEvent): void => {
+    if (treeContainer.classList.contains('tp-tree-container--collapsed')) {
+      return;
+    }
+
+    event.preventDefault();
+    const pointerId = event.pointerId;
+    const startX = event.clientX;
+    const startWidth = currentTreeWidth;
+
+    treeResizer.classList.add('tp-tree-resizer--active');
+    treeResizer.setPointerCapture(pointerId);
+
+    const handleMove = (moveEvent: PointerEvent): void => {
+      const delta = moveEvent.clientX - startX;
+      applyTreeWidth(startWidth + delta);
+    };
+
+    const handleUp = (): void => {
+      treeResizer.classList.remove('tp-tree-resizer--active');
+      try {
+        treeResizer.releasePointerCapture(pointerId);
+      } catch {
+        // ignore release errors
+      }
+      treeResizer.removeEventListener('pointermove', handleMove);
+      treeResizer.removeEventListener('pointerup', handleUp);
+      treeResizer.removeEventListener('pointercancel', handleUp);
+      persistTreeWidth();
+    };
+
+    treeResizer.addEventListener('pointermove', handleMove);
+    treeResizer.addEventListener('pointerup', handleUp);
+    treeResizer.addEventListener('pointercancel', handleUp);
+  };
+
+  const onTreeResizerKeyDown = (event: KeyboardEvent): void => {
+    if (treeContainer.classList.contains('tp-tree-container--collapsed')) {
+      return;
+    }
+
+    const step = event.shiftKey ? 40 : 16;
+    let handled = false;
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        applyTreeWidth(currentTreeWidth - step);
+        handled = true;
+        break;
+      case 'ArrowRight':
+        applyTreeWidth(currentTreeWidth + step);
+        handled = true;
+        break;
+      case 'Home':
+        applyTreeWidth(TREE_MIN_WIDTH);
+        handled = true;
+        break;
+      case 'End':
+        applyTreeWidth(TREE_MAX_WIDTH);
+        handled = true;
+        break;
+      default:
+        break;
+    }
+
+    if (handled) {
+      event.preventDefault();
+      persistTreeWidth();
+    }
+  };
+
+  const onSplitResizerPointerDown = (event: PointerEvent): void => {
+    if (currentViewMode !== 'split') {
+      return;
+    }
+
+    event.preventDefault();
+    const pointerId = event.pointerId;
+    const startX = event.clientX;
+    const containerRect = mainSplit.getBoundingClientRect();
+    const startRatio = currentSplitRatio;
+
+    if (containerRect.width <= 0) {
+      return;
+    }
+
+    splitResizer.classList.add('tp-split-resizer--active');
+    splitResizer.setPointerCapture(pointerId);
+
+    const handleMove = (moveEvent: PointerEvent): void => {
+      const delta = moveEvent.clientX - startX;
+      const nextRatio = startRatio + delta / containerRect.width;
+      applySplitRatio(nextRatio);
+    };
+
+    const handleUp = (): void => {
+      splitResizer.classList.remove('tp-split-resizer--active');
+      try {
+        splitResizer.releasePointerCapture(pointerId);
+      } catch {
+        // ignore release errors
+      }
+      splitResizer.removeEventListener('pointermove', handleMove);
+      splitResizer.removeEventListener('pointerup', handleUp);
+      splitResizer.removeEventListener('pointercancel', handleUp);
+      persistSplitRatio();
+    };
+
+    splitResizer.addEventListener('pointermove', handleMove);
+    splitResizer.addEventListener('pointerup', handleUp);
+    splitResizer.addEventListener('pointercancel', handleUp);
+  };
+
+  const onSplitResizerKeyDown = (event: KeyboardEvent): void => {
+    if (currentViewMode !== 'split') {
+      return;
+    }
+
+    const step = event.shiftKey ? 0.1 : 0.05;
+    let handled = false;
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        applySplitRatio(currentSplitRatio - step);
+        handled = true;
+        break;
+      case 'ArrowRight':
+        applySplitRatio(currentSplitRatio + step);
+        handled = true;
+        break;
+      case 'Home':
+        applySplitRatio(SPLIT_MIN_RATIO);
+        handled = true;
+        break;
+      case 'End':
+        applySplitRatio(SPLIT_MAX_RATIO);
+        handled = true;
+        break;
+      default:
+        break;
+    }
+
+    if (handled) {
+      event.preventDefault();
+      persistSplitRatio();
+    }
+  };
+
+  treeResizer.addEventListener('pointerdown', onTreeResizerPointerDown);
+  treeResizer.addEventListener('keydown', onTreeResizerKeyDown);
+  splitResizer.addEventListener('pointerdown', onSplitResizerPointerDown);
+  splitResizer.addEventListener('keydown', onSplitResizerKeyDown);
+
+  updateTreeResizerState(false);
 
   // 6. State management
   let currentViewMode: ViewMode = 'split';
@@ -110,18 +346,20 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   function setViewMode(mode: ViewMode): void {
     currentViewMode = mode;
 
-    // Update panel visibility
-    if (mode === 'code') {
-      codePanel.classList.remove('hidden');
-      markdownPanel.classList.add('hidden');
-    } else if (mode === 'markdown') {
-      codePanel.classList.add('hidden');
-      markdownPanel.classList.remove('hidden');
-    } else {
-      // split
-      codePanel.classList.remove('hidden');
-      markdownPanel.classList.remove('hidden');
-    }
+    const isCodeOnly = mode === 'code';
+    const isMarkdownOnly = mode === 'markdown';
+    const isSplit = mode === 'split';
+
+    codePanel.classList.toggle('hidden', isMarkdownOnly);
+    markdownPanel.classList.toggle('hidden', isCodeOnly);
+
+    mainSplit.classList.toggle('tp-main-split--code-only', isCodeOnly);
+    mainSplit.classList.toggle('tp-main-split--markdown-only', isMarkdownOnly);
+    mainSplit.classList.toggle('tp-main-split--split', isSplit);
+
+    splitResizer.classList.toggle('tp-split-resizer--hidden', !isSplit);
+    splitResizer.setAttribute('aria-hidden', isSplit ? 'false' : 'true');
+    splitResizer.tabIndex = isSplit ? 0 : -1;
 
     // Update toolbar active state
     updateToolbarMode(toolbar, mode);
@@ -158,6 +396,8 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   collapseTreePanel = (): void => {
     treeContainer.classList.add('tp-tree-container--collapsed');
     expandStrip.classList.add('tp-tree-expand-strip--visible');
+    treeResizer.classList.remove('tp-tree-resizer--active');
+    updateTreeResizerState(true);
     try {
       window.sessionStorage.setItem(treeStorageKey, '1');
     } catch {
@@ -168,6 +408,8 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   expandTreePanel = (): void => {
     treeContainer.classList.remove('tp-tree-container--collapsed');
     expandStrip.classList.remove('tp-tree-expand-strip--visible');
+    updateTreeResizerState(false);
+    applyTreeWidth(currentTreeWidth);
     try {
       window.sessionStorage.setItem(treeStorageKey, '0');
     } catch {
@@ -196,6 +438,10 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
       // Cleanup all views
       views.forEach((view) => view.destroy());
       toolbarComponent.destroy();
+      treeResizer.removeEventListener('pointerdown', onTreeResizerPointerDown);
+      treeResizer.removeEventListener('keydown', onTreeResizerKeyDown);
+      splitResizer.removeEventListener('pointerdown', onSplitResizerPointerDown);
+      splitResizer.removeEventListener('keydown', onSplitResizerKeyDown);
       element.remove();
     },
   };
@@ -206,5 +452,36 @@ function shouldCollapseTreePanel(storageKey: string): boolean {
     return window.sessionStorage.getItem(storageKey) === '1';
   } catch {
     return false;
+  }
+}
+
+function clamp(value: number, minValue: number, maxValue: number): number {
+  if (value < minValue) {
+    return minValue;
+  }
+  if (value > maxValue) {
+    return maxValue;
+  }
+  return value;
+}
+
+function readNumberFromSession(key: string): number | null {
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (raw === null) {
+      return null;
+    }
+    const parsed = Number.parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeNumberInSession(key: string, value: number): void {
+  try {
+    window.sessionStorage.setItem(key, value.toString());
+  } catch {
+    // ignore storage errors
   }
 }

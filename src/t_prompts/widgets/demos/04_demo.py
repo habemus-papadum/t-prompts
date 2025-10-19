@@ -47,20 +47,7 @@ def section(title: str, content: Any):
     """Create a markdown section that automatically manages header depth."""
     return dedent(
         t"""
-        {title:_:header}
-
-        {content}
-        """
-    )
-
-
-def subsection(title: str, content: Any):
-    """Create a subsection nested within a parent section."""
-    return dedent(
-        t"""
-        {title:_:header}
-
-        {content}
+        {content:{title}:header={title}}
         """
     )
 
@@ -251,7 +238,7 @@ def create_quantum_workflow_demo():
         icon="🔬",
     )
 
-    schrodinger_subsection = subsection(
+    schrodinger_subsection = section(
         "The Schrödinger Equation",
         dedent(
             t"""
@@ -265,7 +252,7 @@ def create_quantum_workflow_demo():
         ),
     )
 
-    morse_subsection = subsection(
+    morse_subsection = section(
         "Morse Potential",
         dedent(
             t"""

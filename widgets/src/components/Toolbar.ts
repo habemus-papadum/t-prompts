@@ -269,26 +269,74 @@ function createHelpFeature(): HelpFeature {
   title.className = 'tp-help-title';
   title.textContent = 'How to use this widget';
 
-  const list = document.createElement('ul');
-  list.className = 'tp-help-list';
-
-  const items: Array<[string, string]> = [
-    ['View modes', 'Use the toolbar toggles to switch between Code, Markdown, or Split views.'],
-    ['Collapse content', 'Select one or more elements and press the space bar to collapse them.'],
-    ['Expand content', 'Double-click a collapsed segment or double-tap the space bar when nothing is selected.'],
+  const sections: Array<{
+    title: string;
+    items: Array<{ heading: string; description: string }>;
+  }> = [
+    {
+      title: 'Code view',
+      items: [
+        {
+          heading: 'Switch view modes',
+          description: 'Use the toolbar toggles to switch between Code, Markdown, or Split views.',
+        },
+        {
+          heading: 'Collapse selections',
+          description: 'Select one or more elements and press the space bar to collapse them.',
+        },
+        {
+          heading: 'Expand collapsed content',
+          description: 'Double-click a collapsed segment or double-tap the space bar when nothing is selected.',
+        },
+      ],
+    },
+    {
+      title: 'Tree view',
+      items: [
+        {
+          heading: 'Single-click rows',
+          description:
+            'Open or close tree nodes to inspect nested elements. The arrow button performs the same action.',
+        },
+        {
+          heading: 'Double-click rows',
+          description:
+            'Toggle the matching content in the code view—collapse visible sections or restore previously collapsed ones.',
+        },
+        {
+          heading: 'Hide the panel',
+          description: 'Use the « button in the tree header to tuck the tree away. Click the side strip to show it again.',
+        },
+      ],
+    },
   ];
 
-  for (const [heading, description] of items) {
-    const item = document.createElement('li');
-    const itemHeading = document.createElement('strong');
-    itemHeading.textContent = `${heading}: `;
-    item.appendChild(itemHeading);
-    item.append(description);
-    list.appendChild(item);
-  }
-
   popover.appendChild(title);
-  popover.appendChild(list);
+
+  for (const section of sections) {
+    const sectionElement = document.createElement('div');
+    sectionElement.className = 'tp-help-section';
+
+    const sectionTitle = document.createElement('h4');
+    sectionTitle.className = 'tp-help-section-title';
+    sectionTitle.textContent = section.title;
+    sectionElement.appendChild(sectionTitle);
+
+    const list = document.createElement('ul');
+    list.className = 'tp-help-list';
+
+    for (const { heading, description } of section.items) {
+      const item = document.createElement('li');
+      const itemHeading = document.createElement('strong');
+      itemHeading.textContent = `${heading}: `;
+      item.appendChild(itemHeading);
+      item.append(description);
+      list.appendChild(item);
+    }
+
+    sectionElement.appendChild(list);
+    popover.appendChild(sectionElement);
+  }
 
   container.appendChild(button);
   container.appendChild(popover);
