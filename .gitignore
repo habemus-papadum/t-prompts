@@ -216,7 +216,6 @@ pnpm-debug.log*
 widgets/.turbo/
 widgets/coverage/
 widgets/dist/
-widgets/src/generated.ts
 *.tsbuildinfo
 *.js.map
 

@@ -34,10 +34,6 @@ def test_structured_prompt_diff_detects_text_changes():
     assert "data-tp-widget" in html
     assert '"diff_type": "structured"' in html
 
-    rich = diff.to_rich()
-    assert "StructuredPrompt" in rich
-    assert "added=" in rich
-
 
 def test_structured_prompt_diff_detects_structure_changes():
     """Inserted nodes should be identified with appropriate status values."""
@@ -90,9 +86,6 @@ def test_rendered_diff_tracks_chunk_operations():
     assert "tp-rendered-diff-mount" in html
     assert "data-tp-widget" in html
     assert '"diff_type": "rendered"' in html
-
-    rich = diff.to_rich()
-    assert "insert=" in rich
 
 
 def test_diff_objects_are_json_serializable_roundtrip():

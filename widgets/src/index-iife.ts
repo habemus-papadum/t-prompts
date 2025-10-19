@@ -4,7 +4,12 @@
  */
 
 import { initWidget } from './renderer';
-import { STYLES_HASH, WIDGET_STYLES } from './generated';
+
+declare const __TP_WIDGET_STYLES__: string;
+declare const __TP_WIDGET_STYLES_HASH__: string;
+
+const STYLES_HASH = typeof __TP_WIDGET_STYLES_HASH__ !== 'undefined' ? __TP_WIDGET_STYLES_HASH__ : 'dev';
+const WIDGET_STYLES = typeof __TP_WIDGET_STYLES__ !== 'undefined' ? __TP_WIDGET_STYLES__ : '';
 
 // Export version matching Python package
 export const VERSION = '0.9.0-alpha';

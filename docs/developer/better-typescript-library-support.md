@@ -4,9 +4,11 @@
 
 This report analyzes the current widget library architecture and provides recommendations for supporting third-party usage via npm, multiple widget container types, and flexible cache-busting strategies.
 
+> **Update (2025-03-04):** The build no longer emits `src/generated.ts`; style constants are injected at bundle time via esbuild `define`. Historical references to `generated.ts` are retained for context.
+
 **Key Findings:**
 - Current build produces IIFE bundle suitable for browser `<script>` tags only
-- Cache-busting is tightly coupled to build process via `generated.ts`
+- Cache-busting is tightly coupled to build process via build-time inline constants (formerly `generated.ts`)
 - No TypeScript declarations are currently generated
 - Side effects in index.ts prevent clean tree-shaking
 - Package structure needs updates for npm publishing

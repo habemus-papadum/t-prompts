@@ -44,7 +44,7 @@ hash plumbing, while the Python build keeps its runtime bootstrap with inline as
    is missing.
 2. **Collect CSS**: concatenate KaTeX CSS + component styles, run minifier, inline fonts.
 3. **Prepare generated source for bundling**:
-   - Produce `generated.ts` (used only by the IIFE bundle) that exports `WIDGET_STYLES`.
+   - Inject style constants at build time instead of producing an intermediate `generated.ts`.
    - Wire an esbuild plugin that, after bundling, computes `asset_hash = sha256(output)[:8]`
      over the entire JavaScript payload (which already embeds the CSS).
    - Inject both `BUNDLE_HASH` (new descriptive name) and `STYLES_HASH` (backward-compatible alias)
