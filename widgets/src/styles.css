@@ -128,7 +128,8 @@
   border-radius: 6px;
   margin: calc(var(--tp-spacing) * 2) 0;
   max-width: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* =============================================================================
@@ -146,6 +147,9 @@
   border-bottom: 1px solid var(--tp-color-border);
   font-size: 13px;
   font-weight: 500;
+  position: relative;
+  overflow: visible;
+  z-index: 10;
 }
 
 .tp-toolbar-title {
@@ -157,6 +161,7 @@
   display: flex;
   align-items: center;
   gap: calc(var(--tp-spacing) * 1.25);
+  overflow: visible;
 }
 
 .tp-visibility-meter {
@@ -175,6 +180,7 @@
 .tp-help-container {
   position: relative;
   display: flex;
+  overflow: visible;
 }
 
 .tp-help-button {
@@ -218,7 +224,7 @@
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
   border-radius: 8px;
   color: var(--tp-color-fg);
-  z-index: 10;
+  z-index: 100;
 }
 
 .tp-help-title {
