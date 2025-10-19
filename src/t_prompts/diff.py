@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+import math
+import re
 from dataclasses import dataclass, field
 from html import escape
 from itertools import zip_longest
@@ -344,6 +346,26 @@ class StructuredPromptDiff:
                 "text_added": self.stats.text_added,
                 "text_removed": self.stats.text_removed,
             },
+            "metrics": self.metrics(),
+        }
+
+    def metrics(self) -> dict[str, float]:
+        """Compute quantitative metrics describing diff magnitude."""
+
+        before_elements = _gather_elements(self.before)
+        after_elements = _gather_elements(self.after)
+        edit_count, span_chars = _structured_edit_volume(self.root, before_elements, after_elements)
+        total_chars = _total_rendered_chars(self.before)
+        char_ratio = (span_chars / total_chars) if total_chars else 0.0
+        inversions, pairs = _collect_order_inversions(self.root)
+        order_score = (inversions / pairs) if pairs else 0.0
+        composite = 0.4 * edit_count + 0.4 * math.log1p(span_chars) + 0.2 * order_score
+        return {
+            "struct_edit_count": edit_count,
+            "struct_span_chars": span_chars,
+            "struct_char_ratio": char_ratio,
+            "struct_order_score": order_score,
+            "struct_composite": composite,
         }
 
     def to_rich(self, width: int = 120) -> str:
@@ -462,6 +484,7 @@ class RenderedPromptDiff:
                 for delta in self.chunk_deltas
             ],
             "stats": self.stats(),
+            "metrics": self.metrics(),
         }
 
     def stats(self) -> dict[str, int]:
@@ -474,6 +497,52 @@ class RenderedPromptDiff:
             "delete": deletes,
             "replace": replaces,
             "equal": equals,
+        }
+
+    def metrics(self) -> dict[str, float]:
+        """Compute quantitative metrics for rendered diffs."""
+
+        token_delta = 0
+        non_ws_delta = 0
+        ws_delta = 0
+        for delta in self.chunk_deltas:
+            if delta.op == "equal":
+                continue
+            if delta.op in {"delete", "replace"} and delta.before is not None:
+                if isinstance(delta.before, TextChunk):
+                    tokens = _tokenize(delta.before.text)
+                    token_delta += len(tokens)
+                    non_ws_delta += len(tokens)
+                    ws_delta += _count_whitespace(delta.before.text)
+                else:
+                    token_delta += 1
+                    non_ws_delta += 1
+            if delta.op in {"insert", "replace"} and delta.after is not None:
+                if isinstance(delta.after, TextChunk):
+                    tokens = _tokenize(delta.after.text)
+                    token_delta += len(tokens)
+                    non_ws_delta += len(tokens)
+                    ws_delta += _count_whitespace(delta.after.text)
+                else:
+                    token_delta += 1
+                    non_ws_delta += 1
+
+        before_signatures = _build_chunk_signature_set(self.before)
+        after_signatures = _build_chunk_signature_set(self.after)
+        union = before_signatures | after_signatures
+        if union:
+            intersection = before_signatures & after_signatures
+            chunk_drift = 1.0 - (len(intersection) / len(union))
+        else:
+            chunk_drift = 0.0
+
+        composite = 0.5 * non_ws_delta + 0.3 * ws_delta + 0.2 * chunk_drift
+        return {
+            "render_token_delta": token_delta,
+            "render_non_ws_delta": non_ws_delta,
+            "render_ws_delta": ws_delta,
+            "render_chunk_drift": chunk_drift,
+            "render_composite": composite,
         }
 
     def to_rich(self, width: int = 120) -> str:
@@ -839,3 +908,127 @@ def _serialize_node_delta(delta: NodeDelta) -> dict[str, Any]:
         ],
         "children": [_serialize_node_delta(child) for child in delta.children],
     }
+
+
+def _gather_elements(prompt: StructuredPrompt) -> dict[str, Element]:
+    elements: dict[str, Element] = {}
+    stack: list[Element] = [prompt]
+    while stack:
+        element = stack.pop()
+        elements[element.id] = element
+        stack.extend(_iter_children(element))
+    return elements
+
+
+def _structured_edit_volume(
+    node: NodeDelta,
+    before_elements: dict[str, Element],
+    after_elements: dict[str, Element],
+) -> tuple[float, int]:
+    total_weight = 0.0
+    span_chars = 0
+
+    def visit(current: NodeDelta, is_root: bool = False) -> None:
+        nonlocal total_weight, span_chars
+        if not is_root:
+            total_weight += _node_edit_weight(current)
+            span_chars += _node_span_chars(current, before_elements, after_elements)
+        for child in current.children:
+            visit(child)
+
+    visit(node, True)
+    return total_weight, span_chars
+
+
+def _node_edit_weight(node: NodeDelta) -> float:
+    if node.status in {"inserted", "deleted"}:
+        return 1.0
+    if node.status == "modified":
+        attr_or_text = bool(node.attr_changes or node.text_edits)
+        child_changes = any(child.status != "equal" for child in node.children)
+        if attr_or_text:
+            return 0.5 if not child_changes else 1.0
+        return 0.0
+    return 0.0
+
+
+def _node_span_chars(
+    node: NodeDelta,
+    before_elements: dict[str, Element],
+    after_elements: dict[str, Element],
+) -> int:
+    if node.status == "inserted" and node.after_id:
+        return _element_text_payload(after_elements.get(node.after_id))
+    if node.status == "deleted" and node.before_id:
+        return _element_text_payload(before_elements.get(node.before_id))
+    if node.status == "modified" and node.text_edits:
+        return sum(
+            max(len(edit.before), len(edit.after))
+            for edit in node.text_edits
+            if edit.op != "equal"
+        )
+    return 0
+
+
+def _element_text_payload(element: Optional[Element]) -> int:
+    if element is None:
+        return 0
+    if isinstance(element, Static):
+        return len(element.value)
+    if isinstance(element, TextInterpolation):
+        return len(element.value)
+    if isinstance(element, ListInterpolation) and element.separator:
+        return len(element.separator) * max(len(element.item_elements) - 1, 0)
+    return 0
+
+
+def _total_rendered_chars(prompt: StructuredPrompt) -> int:
+    ir = prompt.ir()
+    return sum(len(chunk.text) for chunk in ir.chunks if isinstance(chunk, TextChunk))
+
+
+def _collect_order_inversions(node: NodeDelta) -> tuple[int, int]:
+    matched = [
+        child
+        for child in node.children
+        if child.before_index is not None and child.after_index is not None
+    ]
+    inversions = 0
+    pairs = 0
+    if len(matched) > 1:
+        ordered = sorted(matched, key=lambda child: child.before_index or 0)
+        sequence = [child.after_index or 0 for child in ordered]
+        inversions += _count_inversions(sequence)
+        n = len(sequence)
+        pairs += n * (n - 1) // 2
+    for child in node.children:
+        child_inversions, child_pairs = _collect_order_inversions(child)
+        inversions += child_inversions
+        pairs += child_pairs
+    return inversions, pairs
+
+
+def _count_inversions(sequence: list[int]) -> int:
+    inversions = 0
+    for idx, left in enumerate(sequence):
+        for right in sequence[idx + 1 :]:
+            if left > right:
+                inversions += 1
+    return inversions
+
+
+_TOKEN_PATTERN = re.compile(r"\S+")
+
+
+def _tokenize(text: str) -> list[str]:
+    return _TOKEN_PATTERN.findall(text)
+
+
+def _count_whitespace(text: str) -> int:
+    return sum(1 for char in text if char.isspace())
+
+
+def _build_chunk_signature_set(prompt: StructuredPrompt) -> set[tuple[Any, ...]]:
+    signatures = _build_element_signature_map(prompt)
+    ir = prompt.ir()
+    return {_chunk_signature(chunk, signatures) for chunk in ir.chunks}

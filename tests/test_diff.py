@@ -39,6 +39,43 @@ def test_structured_prompt_diff_detects_text_changes():
     assert "added=" in rich
 
 
+def test_structured_diff_metrics_quantify_text_tweaks():
+    """Structured metrics should capture text-only edits with fractional weight."""
+
+    before = prompt(t"Hello world")
+    after = prompt(t"Hello world!")
+
+    diff = diff_structured_prompts(before, after)
+    metrics = diff.metrics()
+
+    assert metrics["struct_edit_count"] == pytest.approx(0.5)
+    assert metrics["struct_span_chars"] == 1
+
+    total_chars = sum(len(chunk.text) for chunk in before.ir().chunks)
+    expected_ratio = metrics["struct_span_chars"] / total_chars if total_chars else 0.0
+    assert metrics["struct_char_ratio"] == pytest.approx(expected_ratio)
+    assert metrics["struct_order_score"] == pytest.approx(0.0)
+    assert metrics["struct_composite"] > 0
+
+
+def test_structured_diff_metrics_detect_reordering():
+    """Swapping sibling prompts should produce a non-zero order score."""
+
+    first_before = prompt(t"First")
+    second_before = prompt(t"Second")
+    before = prompt(t"{first_before:first} {second_before:second}")
+
+    second_after = prompt(t"Second")
+    first_after = prompt(t"First")
+    after = prompt(t"{second_after:second} {first_after:first}")
+
+    diff = diff_structured_prompts(before, after)
+    metrics = diff.metrics()
+
+    assert metrics["struct_order_score"] > 0
+    assert metrics["struct_span_chars"] == 0
+
+
 def test_structured_prompt_diff_detects_structure_changes():
     """Inserted nodes should be identified with appropriate status values."""
 
@@ -93,6 +130,22 @@ def test_rendered_diff_tracks_chunk_operations():
 
     rich = diff.to_rich()
     assert "insert=" in rich
+
+
+def test_rendered_diff_metrics_split_whitespace_and_tokens():
+    """Rendered metrics should separate token edits from whitespace churn."""
+
+    before = prompt(t"Hello there")
+    after = prompt(t"Hello brave new world")
+
+    diff = diff_rendered_prompts(before, after)
+    metrics = diff.metrics()
+
+    assert metrics["render_token_delta"] == 6
+    assert metrics["render_non_ws_delta"] == 6
+    assert metrics["render_ws_delta"] == 4
+    assert metrics["render_chunk_drift"] == pytest.approx(0.0)
+    assert metrics["render_composite"] > 0
 
 
 def test_diff_objects_are_json_serializable_roundtrip():
