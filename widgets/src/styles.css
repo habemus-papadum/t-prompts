@@ -164,6 +164,61 @@
   overflow: visible;
 }
 
+.tp-diff-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--tp-color-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tp-diff-toggle__checkbox {
+  appearance: none;
+  width: 30px;
+  height: 18px;
+  border-radius: 16px;
+  background: var(--tp-color-border);
+  position: relative;
+  outline: none;
+  transition: background 0.2s ease;
+}
+
+.tp-diff-toggle__checkbox::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--tp-color-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.tp-diff-toggle__checkbox:checked {
+  background: var(--tp-color-accent);
+}
+
+.tp-diff-toggle__checkbox:checked::after {
+  transform: translateX(12px);
+}
+
+.tp-diff-toggle__checkbox:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tp-diff-toggle__slider {
+  display: none;
+}
+
+.tp-diff-toggle__label {
+  font-size: 12px;
+}
+
 .tp-visibility-meter {
   display: inline-flex;
   align-items: center;
@@ -605,6 +660,69 @@
   padding-left: 2ch; /* Space for gutter wrap markers */
 }
 
+.tp-chunk--diff {
+  position: relative;
+}
+
+.tp-chunk--diff::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px;
+}
+
+.tp-chunk--diff-insert::before {
+  background: #2ecc71;
+}
+
+.tp-chunk--diff-delete::before {
+  background: #e74c3c;
+}
+
+.tp-chunk--diff-replace::before {
+  background: #f39c12;
+}
+
+.tp-diff-ghost-container {
+  margin-top: 12px;
+  padding: 8px;
+  border-top: 1px solid var(--tp-color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tp-diff-ghost-chunk {
+  background: rgba(231, 76, 60, 0.08);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.tp-diff-ghost-chunk__header {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #922b21;
+}
+
+.tp-diff-ghost-chunk__before,
+.tp-diff-ghost-chunk__after {
+  margin: 0;
+  padding: 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  font-family: var(--tp-font-mono);
+  white-space: pre-wrap;
+}
+
+.tp-diff-ghost-chunk__after {
+  margin-top: 6px;
+  background: rgba(46, 204, 113, 0.12);
+}
+
 /* Markdown container */
 .tp-markdown-container {
   font-family: var(--tp-font-family);
@@ -612,6 +730,70 @@
   line-height: 1.6;
   color: var(--tp-color-fg);
   max-width: 80ch;
+}
+
+.tp-markdown-chunk--diff {
+  position: relative;
+}
+
+.tp-markdown-chunk--diff::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px;
+}
+
+.tp-markdown-chunk--insert::before {
+  background: #2ecc71;
+}
+
+.tp-markdown-chunk--delete::before {
+  background: #e74c3c;
+}
+
+.tp-markdown-chunk--replace::before {
+  background: #f39c12;
+}
+
+.tp-markdown-diff-ghosts {
+  margin-top: 12px;
+  border-top: 1px solid var(--tp-color-border);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tp-markdown-diff-ghost {
+  background: rgba(231, 76, 60, 0.08);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.tp-markdown-diff-ghost summary {
+  font-weight: 600;
+  color: #922b21;
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+
+.tp-markdown-diff-ghost__before,
+.tp-markdown-diff-ghost__after {
+  margin: 0;
+  padding: 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  font-family: var(--tp-font-mono);
+  white-space: pre-wrap;
+}
+
+.tp-markdown-diff-ghost__after {
+  margin-top: 6px;
+  background: rgba(46, 204, 113, 0.12);
 }
 
 /* Markdown typography */
@@ -1191,6 +1373,73 @@
   flex: 1;
 }
 
+.tp-tree-diff-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--tp-color-muted);
+}
+
+.tp-tree-summary-chip {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--tp-color-border);
+}
+
+.tp-tree-summary-chip--inserted {
+  background: rgba(46, 204, 113, 0.2);
+  color: #1e8449;
+}
+
+.tp-tree-summary-chip--deleted {
+  background: rgba(231, 76, 60, 0.2);
+  color: #922b21;
+}
+
+.tp-tree-summary-chip--modified {
+  background: rgba(243, 156, 18, 0.2);
+  color: #a5670c;
+}
+
+.tp-tree-summary-chip--moved {
+  background: rgba(155, 89, 182, 0.2);
+  color: #5b2c6f;
+}
+
+.tp-tree-summary-metrics {
+  margin-left: 4px;
+}
+
+.tp-tree-removed {
+  margin-top: 8px;
+  padding: 6px;
+  border-top: 1px solid var(--tp-color-border);
+  font-size: 12px;
+  color: var(--tp-color-muted);
+}
+
+.tp-tree-removed-heading {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tp-tree-removed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tp-tree-ghost-item {
+  padding-left: calc(var(--tp-tree-indent) * var(--tp-tree-ghost-depth));
+  border-left: 2px dashed var(--tp-color-border);
+}
+
+.tp-tree-ghost-row {
+  font-style: italic;
+  color: var(--tp-color-muted);
+}
+
 .tp-tree-collapse-btn {
   border: none;
   background: transparent;
@@ -1265,6 +1514,60 @@
   transition: background-color 0.15s ease;
   position: relative;
   z-index: 1;
+}
+
+.tp-tree-row--diff {
+  border-left: 3px solid transparent;
+  padding-left: calc(12px + var(--tp-indent) - 3px);
+}
+
+.tp-tree-row--diff-inserted {
+  border-color: #2ecc71;
+  background: rgba(46, 204, 113, 0.14);
+}
+
+.tp-tree-row--diff-deleted {
+  border-color: #e74c3c;
+  background: rgba(231, 76, 60, 0.14);
+}
+
+.tp-tree-row--diff-modified {
+  border-color: #f39c12;
+  background: rgba(243, 156, 18, 0.14);
+}
+
+.tp-tree-row--diff-moved {
+  border-color: #9b59b6;
+  background: rgba(155, 89, 182, 0.14);
+}
+
+.tp-diff-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 4px;
+  color: var(--tp-color-bg);
+}
+
+.tp-diff-badge--inserted {
+  background: #2ecc71;
+}
+
+.tp-diff-badge--deleted {
+  background: #e74c3c;
+}
+
+.tp-diff-badge--modified {
+  background: #f39c12;
+}
+
+.tp-diff-badge--moved {
+  background: #9b59b6;
 }
 
 .tp-tree-row:hover {

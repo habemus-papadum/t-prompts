@@ -14,6 +14,7 @@ import { computeWidgetMetadata } from './metadata';
 import { buildWidgetContainer } from './components/WidgetContainer';
 import { buildStructuredPromptDiffView } from './components/StructuredPromptDiffView';
 import { buildRenderedPromptDiffView } from './components/RenderedPromptDiffView';
+import { buildDiffContext } from './utils/diffOverlay';
 
 /**
  * Initialize a widget in the given container
@@ -75,9 +76,10 @@ export function initWidget(container: HTMLElement): void {
 
       // 3. Compute metadata (Phase 1 & 2)
       const metadata = computeWidgetMetadata(widgetData);
+      const diffContext = buildDiffContext(widgetData);
 
       // 4. Build widget component (Phase 3)
-      const widget = buildWidgetContainer(widgetData, metadata);
+      const widget = buildWidgetContainer(widgetData, metadata, diffContext ?? undefined);
 
       // 5. Mount to DOM
       if (mountPoint) {

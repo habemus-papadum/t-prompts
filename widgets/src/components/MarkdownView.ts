@@ -7,6 +7,7 @@
 
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata } from '../types';
+import type { RenderedChunkOverlay, ChunkDiffInfo } from '../utils/diffOverlay';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingEvent, FoldingClient } from '../folding/types';
 import MarkdownIt from 'markdown-it';
@@ -42,6 +43,12 @@ export interface MarkdownView extends Component {
    * Collapsed chunks will return their visible indicator instead of the hidden body.
    */
   getLayoutElements(chunkId: string): HTMLElement[] | undefined;
+  setDiffState(state: MarkdownDiffState | null): void;
+}
+
+export interface MarkdownDiffState {
+  enabled: boolean;
+  overlay: RenderedChunkOverlay;
 }
 
 const COLLAPSED_CLASS = 'tp-markdown-collapsed';
@@ -94,6 +101,62 @@ export function buildMarkdownView(
     elementTargets: metadata.elementLocationDetails,
   });
 
+  const diffGhostContainer = document.createElement('div');
+  diffGhostContainer.className = 'tp-markdown-diff-ghosts';
+  diffGhostContainer.hidden = true;
+
+  let currentDiffState: MarkdownDiffState | null = null;
+
+  const DIFF_CLASSES = [
+    'tp-markdown-chunk--diff',
+    'tp-markdown-chunk--insert',
+    'tp-markdown-chunk--delete',
+    'tp-markdown-chunk--replace',
+  ];
+
+  function applyDiffOverlay(): void {
+    for (const elements of chunkIdToElements.values()) {
+      for (const el of elements) {
+        el.classList.remove(...DIFF_CLASSES);
+        el.removeAttribute('data-diff-status');
+      }
+    }
+
+    diffGhostContainer.innerHTML = '';
+    diffGhostContainer.hidden = true;
+    if (diffGhostContainer.parentElement) {
+      diffGhostContainer.remove();
+    }
+
+    if (!currentDiffState?.enabled) {
+      return;
+    }
+
+    const overlay = currentDiffState.overlay;
+
+    for (const [chunkId, info] of overlay.chunkMap.entries()) {
+      const elements = chunkIdToElements.get(chunkId);
+      if (!elements) {
+        continue;
+      }
+      const className = markdownClassForOp(info.op);
+      for (const el of elements) {
+        el.classList.add('tp-markdown-chunk--diff', className);
+        el.setAttribute('data-diff-status', info.op);
+      }
+    }
+
+    if (overlay.ghostChunks.length > 0) {
+      if (!diffGhostContainer.parentElement) {
+        element.appendChild(diffGhostContainer);
+      }
+      diffGhostContainer.hidden = false;
+      for (const ghost of overlay.ghostChunks) {
+        diffGhostContainer.appendChild(renderMarkdownGhost(ghost));
+      }
+    }
+  }
+
   function clearCollapsedMarkers(): void {
     collapsedAnchors.clear();
     const collapsedElements = element.querySelectorAll(`.${COLLAPSED_CLASS}`);
@@ -113,7 +176,7 @@ export function buildMarkdownView(
     indicatorNodes.forEach((node) => node.remove());
   }
 
-  function createCollapsedIndicator(target: HTMLElement, collapsedCount: number): HTMLElement | null {
+function createCollapsedIndicator(target: HTMLElement, collapsedCount: number): HTMLElement | null {
     if (!target.parentNode) {
       return null;
     }
@@ -196,6 +259,7 @@ export function buildMarkdownView(
   // 7. Register as client
   foldingController.addClient(foldingClient);
   applyCollapsedState();
+  applyDiffOverlay();
 
   // 8. Return component
   return {
@@ -215,6 +279,10 @@ export function buildMarkdownView(
       const connected = elements.filter((el) => el.isConnected);
       return connected.length > 0 ? connected : elements;
     },
+    setDiffState(state: MarkdownDiffState | null): void {
+      currentDiffState = state;
+      applyDiffOverlay();
+    },
 
     destroy(): void {
       // Unregister from folding controller
@@ -227,6 +295,45 @@ export function buildMarkdownView(
       collapsedAnchors.clear();
     },
   };
+}
+
+function markdownClassForOp(op: ChunkDiffInfo['op']): string {
+  switch (op) {
+    case 'insert':
+      return 'tp-markdown-chunk--insert';
+    case 'delete':
+      return 'tp-markdown-chunk--delete';
+    case 'replace':
+      return 'tp-markdown-chunk--replace';
+    default:
+      return 'tp-markdown-chunk--diff';
+  }
+}
+
+function renderMarkdownGhost(info: ChunkDiffInfo): HTMLElement {
+  const details = document.createElement('details');
+  details.className = 'tp-markdown-diff-ghost';
+  details.open = false;
+
+  const summary = document.createElement('summary');
+  summary.textContent = info.op === 'replace' ? 'Replaced markdown content' : 'Removed markdown content';
+  details.appendChild(summary);
+
+  if (info.beforeText) {
+    const beforeBlock = document.createElement('pre');
+    beforeBlock.className = 'tp-markdown-diff-ghost__before';
+    beforeBlock.textContent = info.beforeText;
+    details.appendChild(beforeBlock);
+  }
+
+  if (info.afterText && info.op === 'replace') {
+    const afterBlock = document.createElement('pre');
+    afterBlock.className = 'tp-markdown-diff-ghost__after';
+    afterBlock.textContent = info.afterText;
+    details.appendChild(afterBlock);
+  }
+
+  return details;
 }
 
 /**

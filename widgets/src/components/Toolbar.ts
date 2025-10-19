@@ -27,16 +27,25 @@ export interface ToolbarOptions {
   callbacks: ToolbarCallbacks;
   foldingController: FoldingController;
   metrics: ToolbarMetrics;
+  diffToggle?: DiffToggleOptions;
 }
 
 export interface ToolbarComponent {
   element: HTMLElement;
   setScrollSyncEnabled(enabled: boolean): void;
+  setDiffToggleState(enabled: boolean): void;
   destroy(): void;
+}
+
+export interface DiffToggleOptions {
+  enabled: boolean;
+  available: boolean;
+  onToggle: (enabled: boolean) => void;
 }
 
 type ToolbarElement = HTMLElement & {
   _buttons?: Record<ViewMode, HTMLButtonElement>;
+  _diffToggleInput?: HTMLInputElement;
 };
 
 interface HelpFeature {
@@ -96,7 +105,7 @@ const icons = {
  * Create toolbar with view toggle buttons
  */
 export function createToolbar(options: ToolbarOptions): ToolbarComponent {
-  const { currentMode, callbacks, foldingController, metrics } = options;
+  const { currentMode, callbacks, foldingController, metrics, diffToggle } = options;
 
   const toolbar = document.createElement('div') as ToolbarElement;
   toolbar.className = 'tp-toolbar';
@@ -145,6 +154,38 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
   viewToggle.appendChild(markdownBtn);
   viewToggle.appendChild(splitBtn);
 
+  let diffToggleInput: HTMLInputElement | null = null;
+
+  if (diffToggle) {
+    const diffContainer = document.createElement('label');
+    diffContainer.className = 'tp-diff-toggle';
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'tp-diff-toggle__checkbox';
+    input.checked = diffToggle.enabled;
+    input.disabled = !diffToggle.available;
+    input.setAttribute('aria-label', 'Show diff overlay');
+
+    const slider = document.createElement('span');
+    slider.className = 'tp-diff-toggle__slider';
+
+    const text = document.createElement('span');
+    text.className = 'tp-diff-toggle__label';
+    text.textContent = 'Show diff';
+
+    diffContainer.appendChild(input);
+    diffContainer.appendChild(slider);
+    diffContainer.appendChild(text);
+
+    input.addEventListener('change', () => {
+      diffToggle.onToggle(input.checked);
+    });
+
+    rightContainer.appendChild(diffContainer);
+    diffToggleInput = input;
+  }
+
   rightContainer.appendChild(viewToggle);
 
   // Add scroll sync button after view toggles
@@ -156,6 +197,7 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
 
   // Store buttons for updating active state
   toolbar._buttons = { code: codeBtn, markdown: markdownBtn, split: splitBtn };
+  toolbar._diffToggleInput = diffToggleInput ?? undefined;
 
   function applyScrollSyncState(enabled: boolean): void {
     scrollSyncEnabled = enabled;
@@ -226,6 +268,11 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
     element: toolbar,
     setScrollSyncEnabled(enabled: boolean): void {
       applyScrollSyncState(enabled);
+    },
+    setDiffToggleState(enabled: boolean): void {
+      if (toolbar._diffToggleInput) {
+        toolbar._diffToggleInput.checked = enabled;
+      }
     },
     destroy(): void {
       foldingController.removeClient(foldingClient);

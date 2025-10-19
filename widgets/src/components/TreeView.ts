@@ -7,6 +7,8 @@
 
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata, ElementData, ChunkSize } from '../types';
+import type { StructuredTreeOverlay, GhostNode } from '../utils/diffOverlay';
+import type { NodeDelta } from '../diff-types';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingClient } from '../folding/types';
 import { createVisibilityMeter, type VisibilityMeter } from './VisibilityMeter';
@@ -19,6 +21,12 @@ import {
 export interface TreeView extends Component {
   element: HTMLElement;
   update(): void;
+  setDiffState(state: TreeDiffState | null): void;
+}
+
+export interface TreeDiffState {
+  enabled: boolean;
+  overlay: StructuredTreeOverlay;
 }
 
 interface TreeViewOptions {
@@ -41,12 +49,14 @@ interface ElementTreeNode {
 
 interface TreeItemComponent {
   element: HTMLDivElement;
+  row: HTMLDivElement;
   toggleButton: HTMLButtonElement | null;
   childrenContainer: HTMLDivElement | null;
   childItems: TreeItemComponent[];
   expanded: boolean;
   node: ElementTreeNode;
   visibilityMeter: VisibilityMeter;
+  keyElement: HTMLSpanElement;
   updateVisibility(): void;
   toggle(): void;
 }
@@ -77,6 +87,11 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
   title.textContent = 'Structure';
   header.appendChild(title);
 
+  const diffSummary = document.createElement('div');
+  diffSummary.className = 'tp-tree-diff-summary';
+  diffSummary.hidden = true;
+  header.appendChild(diffSummary);
+
   const collapseButton = document.createElement('button');
   collapseButton.type = 'button';
   collapseButton.className = 'tp-tree-collapse-btn';
@@ -93,6 +108,11 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
   const itemsContainer = document.createElement('div');
   itemsContainer.className = 'tp-tree-items';
   rootElement.appendChild(itemsContainer);
+
+  const removedContainer = document.createElement('div');
+  removedContainer.className = 'tp-tree-removed';
+  removedContainer.hidden = true;
+  rootElement.appendChild(removedContainer);
 
   const elementTree = buildElementTree(data, chunkSizeMap, treeShowWhitespace);
   const flatItems: TreeItemComponent[] = [];
@@ -111,10 +131,79 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
 
   foldingController.addClient(foldingClient);
 
+  let currentDiffState: TreeDiffState | null = null;
+
+  const renderDiffSummary = (overlay: StructuredTreeOverlay): void => {
+    diffSummary.hidden = false;
+    diffSummary.innerHTML = '';
+
+    const chips = [
+      { label: 'Added', value: overlay.stats.nodes_added, status: 'inserted' },
+      { label: 'Removed', value: overlay.stats.nodes_removed, status: 'deleted' },
+      { label: 'Modified', value: overlay.stats.nodes_modified, status: 'modified' },
+      { label: 'Moved', value: overlay.stats.nodes_moved, status: 'moved' },
+    ];
+
+    for (const chip of chips) {
+      const span = document.createElement('span');
+      span.className = `tp-tree-summary-chip tp-tree-summary-chip--${chip.status}`;
+      span.textContent = `${chip.label}: ${chip.value}`;
+      diffSummary.appendChild(span);
+    }
+
+    const textSummary = document.createElement('span');
+    textSummary.className = 'tp-tree-summary-metrics';
+    textSummary.textContent = `Text Δ +${overlay.stats.text_added} / −${overlay.stats.text_removed} • span ${overlay.metrics.struct_span_chars}`;
+    diffSummary.appendChild(textSummary);
+  };
+
+  const renderRemovedNodes = (overlay: StructuredTreeOverlay): void => {
+    removedContainer.innerHTML = '';
+
+    if (overlay.removed.length === 0) {
+      removedContainer.hidden = true;
+      return;
+    }
+
+    removedContainer.hidden = false;
+
+    const heading = document.createElement('div');
+    heading.className = 'tp-tree-removed-heading';
+    heading.textContent = 'Removed';
+    removedContainer.appendChild(heading);
+
+    const list = document.createElement('div');
+    list.className = 'tp-tree-removed-list';
+    for (const node of overlay.removed) {
+      list.appendChild(renderGhostNode(node, 0));
+    }
+    removedContainer.appendChild(list);
+  };
+
+  function updateDiffAppearance(): void {
+    for (const item of flatItems) {
+      const delta = currentDiffState?.enabled
+        ? currentDiffState.overlay.nodeByAfterId.get(item.node.id)
+        : undefined;
+      applyDiffToRow(item, delta ?? null);
+    }
+
+    if (currentDiffState?.enabled) {
+      renderDiffSummary(currentDiffState.overlay);
+      renderRemovedNodes(currentDiffState.overlay);
+    } else {
+      diffSummary.hidden = true;
+      diffSummary.textContent = '';
+      removedContainer.hidden = true;
+      removedContainer.innerHTML = '';
+    }
+  }
+
   function update(): void {
     for (const item of flatItems) {
       item.updateVisibility();
     }
+    updateDiffAppearance();
   }
 
   update();
@@ -128,6 +217,10 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
   return {
     element: rootElement,
     update,
+    setDiffState(state: TreeDiffState | null): void {
+      currentDiffState = state;
+      updateDiffAppearance();
+    },
 
     destroy(): void {
       rootElement.remove();
@@ -311,12 +404,14 @@ function createTreeItem(
 
   const item: TreeItemComponent = {
     element,
+    row,
     toggleButton: node.children.length > 0 ? toggleButton : null,
     childrenContainer,
     childItems,
     expanded: false, // Start collapsed by default
     node,
     visibilityMeter,
+    keyElement: keySpan,
     updateVisibility(): void {
       const { characters, pixels } = calculateVisibleMetrics(node.allChunkIds, chunkSizeMap, foldingController);
       visibilityMeter.update(characters, pixels);
@@ -396,6 +491,87 @@ function createTreeItem(
   });
 
   return item;
+}
+
+const ROW_STATUS_CLASS: Record<string, string> = {
+  inserted: 'tp-tree-row--diff-inserted',
+  deleted: 'tp-tree-row--diff-deleted',
+  modified: 'tp-tree-row--diff-modified',
+  moved: 'tp-tree-row--diff-moved',
+};
+
+const BADGE_SYMBOL: Record<string, string> = {
+  inserted: '+',
+  deleted: '−',
+  modified: '✎',
+  moved: '↷',
+};
+
+const BADGE_LABEL: Record<string, string> = {
+  inserted: 'Added node',
+  deleted: 'Removed node',
+  modified: 'Modified node',
+  moved: 'Moved node',
+};
+
+function applyDiffToRow(item: TreeItemComponent, delta: NodeDelta | null): void {
+  const { row, keyElement } = item;
+  row.classList.remove('tp-tree-row--diff');
+  for (const className of Object.values(ROW_STATUS_CLASS)) {
+    row.classList.remove(className);
+  }
+  row.removeAttribute('data-diff-status');
+
+  const existingBadge = row.querySelector('.tp-diff-badge');
+  if (existingBadge) {
+    existingBadge.remove();
+  }
+
+  if (!delta || delta.status === 'equal') {
+    return;
+  }
+
+  const status = delta.status;
+  const className = ROW_STATUS_CLASS[status];
+  if (className) {
+    row.classList.add('tp-tree-row--diff', className);
+    row.setAttribute('data-diff-status', status);
+  }
+
+  const badge = document.createElement('span');
+  badge.className = `tp-diff-badge tp-diff-badge--${status}`;
+  badge.textContent = BADGE_SYMBOL[status] ?? '•';
+  badge.title = BADGE_LABEL[status] ?? status;
+  badge.setAttribute('aria-label', badge.title);
+  row.insertBefore(badge, keyElement);
+}
+
+
+function renderGhostNode(node: GhostNode, depth: number): HTMLElement {
+  const container = document.createElement('div');
+  container.className = 'tp-tree-ghost-item';
+  container.style.setProperty('--tp-tree-ghost-depth', depth.toString());
+
+  const row = document.createElement('div');
+  row.className = 'tp-tree-ghost-row';
+  const labelParts = [node.elementType];
+  if (node.key) {
+    labelParts.push(`• ${node.key}`);
+  }
+  row.textContent = labelParts.join(' ');
+  row.setAttribute('data-element-id', node.id ?? '');
+  container.appendChild(row);
+
+  if (node.children.length > 0) {
+    const childrenContainer = document.createElement('div');
+    childrenContainer.className = 'tp-tree-ghost-children';
+    for (const child of node.children) {
+      childrenContainer.appendChild(renderGhostNode(child, depth + 1));
+    }
+    container.appendChild(childrenContainer);
+  }
+
+  return container;
 }
 
 function elideKey(key: string): string {

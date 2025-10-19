@@ -9,9 +9,10 @@
 
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata, ViewMode } from '../types';
-import { buildTreeView } from './TreeView';
-import { buildCodeView } from './CodeView';
-import { buildMarkdownView } from './MarkdownView';
+import type { DiffContext } from '../utils/diffOverlay';
+import { buildTreeView, type TreeDiffState } from './TreeView';
+import { buildCodeView, type CodeDiffState } from './CodeView';
+import { buildMarkdownView, type MarkdownDiffState } from './MarkdownView';
 import { ScrollSyncManager } from './ScrollSyncManager';
 import { FoldingController } from '../folding/controller';
 import { createToolbar, updateToolbarMode } from './Toolbar';
@@ -35,15 +36,22 @@ export interface WidgetContainer extends Component {
   foldingController: FoldingController; // Exposed for testing
   viewMode: ViewMode; // Current view mode
   scrollSyncManager: ScrollSyncManager;
+  diffContext?: DiffContext;
+  diffEnabled: boolean;
 
   // Operations
   setViewMode(mode: ViewMode): void;
+  setDiffEnabled(enabled: boolean): void;
 }
 
 /**
  * Build a WidgetContainer component from widget data and metadata
  */
-export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata): WidgetContainer {
+export function buildWidgetContainer(
+  data: WidgetData,
+  metadata: WidgetMetadata,
+  diffContext?: DiffContext
+): WidgetContainer {
   // 1. Create root element
   const element = document.createElement('div');
   element.className = 'tp-widget-output';
@@ -103,6 +111,8 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
 
   const codeView = buildCodeView(data, metadata, foldingController);
   const markdownView = buildMarkdownView(data, metadata, foldingController);
+
+  let diffEnabled = diffContext?.enabledByDefault ?? false;
 
   // 4. Create panels
   const codePanel = document.createElement('div');
@@ -388,6 +398,16 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
       chunkIds: initialChunkIds,
       chunkSizeMap,
     },
+    diffToggle: diffContext
+      ? {
+          enabled: diffEnabled,
+          available: Boolean(diffContext.structured || diffContext.rendered),
+          onToggle: (enabled) => {
+            diffEnabled = enabled;
+            applyDiffState();
+          },
+        }
+      : undefined,
   });
   const toolbar = toolbarComponent.element;
 
@@ -404,6 +424,29 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   });
 
   toolbarComponent.setScrollSyncEnabled(scrollSyncEnabled);
+
+  function applyDiffState(): void {
+    const treeState: TreeDiffState | null = diffContext?.structured && diffEnabled
+      ? { enabled: true, overlay: diffContext.structured }
+      : null;
+    treeView.setDiffState(treeState);
+
+    const codeState: CodeDiffState | null = diffContext?.rendered && diffEnabled
+      ? { enabled: true, overlay: diffContext.rendered }
+      : null;
+    codeView.setDiffState(codeState);
+
+    const markdownState: MarkdownDiffState | null = diffContext?.rendered && diffEnabled
+      ? { enabled: true, overlay: diffContext.rendered }
+      : null;
+    markdownView.setDiffState(markdownState);
+
+    if (diffContext?.rendered || diffContext?.structured) {
+      toolbarComponent.setDiffToggleState(diffEnabled);
+    }
+  }
+
+  applyDiffState();
 
   const handleAssetLoad = (): void => {
     scrollSyncManager.markDirty('asset-load');
@@ -459,8 +502,14 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     foldingController,
     viewMode: currentViewMode,
     scrollSyncManager,
+    diffContext,
+    diffEnabled,
 
     setViewMode,
+    setDiffEnabled(enabled: boolean): void {
+      diffEnabled = enabled;
+      applyDiffState();
+    },
 
     destroy(): void {
       // Cleanup all views
