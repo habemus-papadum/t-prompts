@@ -5,22 +5,22 @@
 | Name                                   |    Stmts |     Miss |   Cover |   Missing |
 |--------------------------------------- | -------: | -------: | ------: | --------: |
 | src/t\_prompts/\_\_init\_\_.py         |       11 |        0 |    100% |           |
-| src/t\_prompts/diff.py                 |      351 |       61 |     83% |196, 199-201, 225-227, 230-239, 252-258, 276-277, 334, 359-365, 386, 390, 438, 451, 482-483, 508, 511, 515, 541, 545, 571, 582, 600, 628, 689, 713-715, 724, 729-736, 744-746 |
+| src/t\_prompts/diff.py                 |      373 |       89 |     76% |204-210, 234-236, 239-248, 261-267, 278-303, 365, 378-384, 401-412, 500, 513-514, 541, 548, 574, 578, 604, 615, 633, 661, 722, 758-770, 773-775, 787-789 |
 | src/t\_prompts/element.py              |      168 |       32 |     81% |34, 86-88, 141, 162, 176, 214, 235, 278, 296, 390, 406, 464, 478-484, 522, 526, 530, 554, 573, 591, 650, 675, 698, 718-719 |
 | src/t\_prompts/exceptions.py           |       46 |        2 |     96% |   73, 109 |
 | src/t\_prompts/ir.py                   |      181 |       12 |     93% |98-99, 113-115, 274-276, 323, 359, 410, 490, 787 |
 | src/t\_prompts/parsing.py              |       33 |        0 |    100% |           |
-| src/t\_prompts/source\_location.py     |       41 |        3 |     93% |72, 95, 123 |
-| src/t\_prompts/structured\_prompt.py   |      192 |        6 |     97% |272, 314, 549-552 |
+| src/t\_prompts/source\_location.py     |       40 |        3 |     92% |72, 101, 107 |
+| src/t\_prompts/structured\_prompt.py   |      224 |        6 |     97% |274, 316, 559-562 |
 | src/t\_prompts/text.py                 |       68 |        5 |     93% |48, 66, 110, 136, 145 |
 | src/t\_prompts/widgets/\_\_init\_\_.py |        7 |        0 |    100% |           |
 | src/t\_prompts/widgets/config.py       |       17 |        1 |     94% |        72 |
-| src/t\_prompts/widgets/export.py       |       26 |        0 |    100% |           |
-| src/t\_prompts/widgets/preview.py      |      247 |      219 |     11% |28-29, 36-38, 42-103, 107-118, 123-127, 134-137, 141-156, 181-294, 310, 370-377, 417-542, 550-585, 595 |
-| src/t\_prompts/widgets/renderer.py     |       25 |        6 |     76% |     29-45 |
+| src/t\_prompts/widgets/export.py       |       30 |        0 |    100% |           |
+| src/t\_prompts/widgets/preview.py      |      252 |      222 |     12% |36-37, 44-46, 50-111, 115-126, 131-135, 142-145, 149-164, 193-319, 335, 395-402, 462-587, 595-630, 640 |
+| src/t\_prompts/widgets/renderer.py     |       26 |        6 |     77% |     27-43 |
 | src/t\_prompts/widgets/utils.py        |        9 |        4 |     56% |     48-54 |
 | src/t\_prompts/widgets/widget.py       |        5 |        0 |    100% |           |
-|                              **TOTAL** | **1427** |  **351** | **75%** |           |
+|                              **TOTAL** | **1490** |  **382** | **74%** |           |
 
 
 ## Setup coverage badge
