@@ -12,6 +12,12 @@ describe('RenderedPromptDiffView', () => {
     const data: RenderedPromptDiffData = {
       diff_type: 'rendered',
       stats: { insert: 1, delete: 1, replace: 1, equal: 1 },
+      metrics: {
+        render_token_delta: 3,
+        render_non_ws_delta: 2,
+        render_ws_delta: 1,
+        render_chunk_drift: 0.5,
+      },
       chunk_deltas: [
         {
           op: 'equal',
@@ -38,6 +44,10 @@ describe('RenderedPromptDiffView', () => {
 
     const component = buildRenderedPromptDiffView(data);
     document.body.appendChild(component.element);
+
+    const pills = component.element.querySelectorAll('.tp-diff-pill');
+    expect(pills).toHaveLength(8);
+    expect(pills[pills.length - 1]?.textContent).toBe('Chunk drift: 50.0%');
 
     const chunks = component.element.querySelectorAll('.tp-diff-chunk');
     expect(chunks).toHaveLength(3);

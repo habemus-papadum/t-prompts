@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from itertools import zip_longest
 from typing import Any, Iterable, Literal, Optional
@@ -75,6 +76,26 @@ class DiffStats:
 
 
 @dataclass(slots=True)
+class StructuralDiffMetrics:
+    """Quantitative metrics describing structural diff size."""
+
+    struct_edit_count: float = 0.0
+    struct_span_chars: int = 0
+    struct_char_ratio: float = 0.0
+    struct_order_score: float = 0.0
+
+
+@dataclass(slots=True)
+class RenderedDiffMetrics:
+    """Quantitative metrics describing rendered diff size."""
+
+    render_token_delta: int = 0
+    render_non_ws_delta: int = 0
+    render_ws_delta: int = 0
+    render_chunk_drift: float = 0.0
+
+
+@dataclass(slots=True)
 class StructuredPromptDiff:
     """Result of comparing two StructuredPrompt instances."""
 
@@ -82,6 +103,7 @@ class StructuredPromptDiff:
     after: StructuredPrompt
     root: NodeDelta
     stats: DiffStats
+    metrics: StructuralDiffMetrics
 
     def to_widget_data(self) -> dict[str, Any]:
         """
@@ -103,6 +125,12 @@ class StructuredPromptDiff:
                 "text_added": self.stats.text_added,
                 "text_removed": self.stats.text_removed,
             },
+            "metrics": {
+                "struct_edit_count": self.metrics.struct_edit_count,
+                "struct_span_chars": self.metrics.struct_span_chars,
+                "struct_char_ratio": self.metrics.struct_char_ratio,
+                "struct_order_score": self.metrics.struct_order_score,
+            },
         }
 
     def _repr_html_(self) -> str:
@@ -121,7 +149,11 @@ class StructuredPromptDiff:
             f"nodes_modified={self.stats.nodes_modified}, "
             f"nodes_moved={self.stats.nodes_moved}, "
             f"text_added={self.stats.text_added}, "
-            f"text_removed={self.stats.text_removed})"
+            f"text_removed={self.stats.text_removed}, "
+            f"struct_edit_count={self.metrics.struct_edit_count:.1f}, "
+            f"struct_span_chars={self.metrics.struct_span_chars}, "
+            f"struct_char_ratio={self.metrics.struct_char_ratio:.3f}, "
+            f"struct_order_score={self.metrics.struct_order_score:.3f})"
         )
 
     def __repr__(self) -> str:
@@ -164,6 +196,7 @@ class RenderedPromptDiff:
     after: StructuredPrompt
     chunk_deltas: list[ChunkDelta]
     per_element: dict[str, ElementRenderChange]
+    metrics: RenderedDiffMetrics
 
     def to_widget_data(self) -> dict[str, Any]:
         """
@@ -189,6 +222,12 @@ class RenderedPromptDiff:
                 for delta in self.chunk_deltas
             ],
             "stats": self.stats(),
+            "metrics": {
+                "render_token_delta": self.metrics.render_token_delta,
+                "render_non_ws_delta": self.metrics.render_non_ws_delta,
+                "render_ws_delta": self.metrics.render_ws_delta,
+                "render_chunk_drift": self.metrics.render_chunk_drift,
+            },
         }
 
     def stats(self) -> dict[str, int]:
@@ -218,7 +257,10 @@ class RenderedPromptDiff:
             f"insert={stats['insert']}, "
             f"delete={stats['delete']}, "
             f"replace={stats['replace']}, "
-            f"equal={stats['equal']})"
+            f"equal={stats['equal']}, "
+            f"render_token_delta={self.metrics.render_token_delta}, "
+            f"render_ws_delta={self.metrics.render_ws_delta}, "
+            f"render_chunk_drift={self.metrics.render_chunk_drift:.3f})"
         )
 
     def __repr__(self) -> str:
@@ -232,7 +274,8 @@ def diff_structured_prompts(before: StructuredPrompt, after: StructuredPrompt) -
     root = _align_nodes(before, after)
     stats = DiffStats()
     _collect_stats(root, stats)
-    return StructuredPromptDiff(before=before, after=after, root=root, stats=stats)
+    metrics = _compute_structural_metrics(before, root)
+    return StructuredPromptDiff(before=before, after=after, root=root, stats=stats, metrics=metrics)
 
 
 def diff_rendered_prompts(before: StructuredPrompt, after: StructuredPrompt) -> RenderedPromptDiff:
@@ -260,7 +303,14 @@ def diff_rendered_prompts(before: StructuredPrompt, after: StructuredPrompt) -> 
         added, removed = delta.text_delta()
         summary.text_added += added
         summary.text_removed += removed
-    return RenderedPromptDiff(before=before, after=after, chunk_deltas=deltas, per_element=per_element)
+    metrics = _compute_rendered_metrics(before_chunks, after_chunks, before_signatures, after_signatures)
+    return RenderedPromptDiff(
+        before=before,
+        after=after,
+        chunk_deltas=deltas,
+        per_element=per_element,
+        metrics=metrics,
+    )
 
 
 # Internal helpers ------------------------------------------------------------------
@@ -282,6 +332,66 @@ def _collect_stats(delta: NodeDelta, stats: DiffStats) -> None:
 
     for child in delta.children:
         _collect_stats(child, stats)
+
+
+def _compute_structural_metrics(before: StructuredPrompt, root: NodeDelta) -> StructuralDiffMetrics:
+    """Derive quantitative metrics summarizing structural diff magnitude."""
+
+    total_chars = _total_rendered_characters(before)
+    span_chars = 0
+    edit_count = 0.0
+    matched_nodes = 0
+    moved_nodes = 0
+
+    def visit(delta: NodeDelta) -> None:
+        nonlocal span_chars, edit_count, matched_nodes, moved_nodes
+
+        has_child_changes = any(child.status != "equal" for child in delta.children)
+        has_attr_changes = bool(delta.attr_changes)
+        has_text_changes = bool(delta.text_edits)
+
+        weight = 0.0
+        if delta.status in {"inserted", "deleted", "moved"}:
+            weight = 1.0
+        elif delta.status == "modified":
+            weight = 1.0 if has_child_changes else 0.5
+
+        edit_count += weight
+
+        if delta.before_id is not None and delta.after_id is not None:
+            matched_nodes += 1
+            if (
+                delta.before_index is not None
+                and delta.after_index is not None
+                and delta.before_index != delta.after_index
+            ):
+                moved_nodes += 1
+
+        if has_text_changes or has_attr_changes:
+            for edit in delta.text_edits:
+                if edit.op == "equal":
+                    continue
+                if edit.op == "insert":
+                    span_chars += len(edit.after)
+                elif edit.op == "delete":
+                    span_chars += len(edit.before)
+                else:  # replace
+                    span_chars += max(len(edit.before), len(edit.after))
+
+        for child in delta.children:
+            visit(child)
+
+    visit(root)
+
+    char_ratio = span_chars / total_chars if total_chars > 0 else 0.0
+    order_score = (moved_nodes / matched_nodes) if matched_nodes > 0 else 0.0
+
+    return StructuralDiffMetrics(
+        struct_edit_count=edit_count,
+        struct_span_chars=span_chars,
+        struct_char_ratio=char_ratio,
+        struct_order_score=order_score,
+    )
 
 
 def _align_nodes(before: Optional[Element], after: Optional[Element]) -> NodeDelta:
@@ -488,6 +598,35 @@ def _chunk_element(delta: ChunkDelta) -> Optional[str]:
     return None
 
 
+def _compute_rendered_metrics(
+    before_chunks: Iterable[TextChunk | ImageChunk],
+    after_chunks: Iterable[TextChunk | ImageChunk],
+    before_signatures: dict[str, tuple[str, ...]],
+    after_signatures: dict[str, tuple[str, ...]],
+) -> RenderedDiffMetrics:
+    before_list = list(before_chunks)
+    after_list = list(after_chunks)
+
+    before_text = "".join(chunk.text for chunk in before_list if isinstance(chunk, TextChunk))
+    after_text = "".join(chunk.text for chunk in after_list if isinstance(chunk, TextChunk))
+    non_ws_delta, ws_delta = _token_delta_counts(before_text, after_text)
+
+    before_sig_set = {_chunk_signature(chunk, before_signatures) for chunk in before_list}
+    after_sig_set = {_chunk_signature(chunk, after_signatures) for chunk in after_list}
+    union = before_sig_set | after_sig_set
+    if not union:
+        chunk_drift = 0.0
+    else:
+        chunk_drift = 1.0 - (len(before_sig_set & after_sig_set) / len(union))
+
+    return RenderedDiffMetrics(
+        render_token_delta=non_ws_delta,
+        render_non_ws_delta=non_ws_delta,
+        render_ws_delta=ws_delta,
+        render_chunk_drift=chunk_drift,
+    )
+
+
 def _build_element_signature_map(prompt: StructuredPrompt) -> dict[str, tuple[str, ...]]:
     """
     Build a stable signature map for elements within a prompt.
@@ -520,6 +659,53 @@ def _chunk_signature(chunk: TextChunk | ImageChunk, signatures: dict[str, tuple[
     """
     path = signatures.get(chunk.element_id)
     return (type(chunk).__name__, path)
+
+
+_TOKEN_SPLIT_PATTERN = re.compile(r"\s+|\S+")
+
+
+def _token_delta_counts(before_text: str, after_text: str) -> tuple[int, int]:
+    """Return counts of non-whitespace and whitespace token churn."""
+
+    from difflib import SequenceMatcher
+
+    before_tokens = _TOKEN_SPLIT_PATTERN.findall(before_text)
+    after_tokens = _TOKEN_SPLIT_PATTERN.findall(after_text)
+    matcher = SequenceMatcher(a=before_tokens, b=after_tokens, autojunk=False)
+
+    non_ws = 0
+    ws = 0
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+
+        if tag in {"replace", "delete"}:
+            for token in before_tokens[i1:i2]:
+                if token.isspace():
+                    ws += 1
+                else:
+                    non_ws += 1
+
+        if tag in {"replace", "insert"}:
+            for token in after_tokens[j1:j2]:
+                if token.isspace():
+                    ws += 1
+                else:
+                    non_ws += 1
+
+    return non_ws, ws
+
+
+def _total_rendered_characters(prompt: StructuredPrompt) -> int:
+    """Compute total rendered character count for a prompt."""
+
+    ir = prompt.ir()
+    total = 0
+    for chunk in ir.chunks:
+        if isinstance(chunk, TextChunk):
+            total += len(chunk.text)
+    return total
 
 
 def _serialize_node_delta(delta: NodeDelta) -> dict[str, Any]:
