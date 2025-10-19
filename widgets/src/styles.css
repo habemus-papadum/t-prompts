@@ -457,6 +457,22 @@
   display: none;
 }
 
+/* Before panel - special styling to distinguish from main view */
+.tp-before-panel {
+  background: rgba(251, 140, 0, 0.02);
+  border-left: 2px solid rgba(251, 140, 0, 0.2);
+}
+
+.tp-before-panel .tp-output-container::before {
+  content: 'BEFORE';
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(251, 140, 0, 0.8);
+  margin-bottom: calc(var(--tp-spacing) * 0.5);
+  letter-spacing: 0.5px;
+}
+
 .tp-tree-container {
   display: flex;
   flex-direction: row;
@@ -516,6 +532,13 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.tp-before-panel {
+  flex: 0 0 auto;
+  width: var(--tp-before-width, 33%);
+  min-width: 160px;
+  max-width: none;
 }
 
 .tp-tree-expand-strip {
@@ -1480,6 +1503,24 @@
   padding-left: 4px;
 }
 
+/* Before view diff overlays - special styling for "before" state */
+.tp-diff-enabled .tp-diff-replace-before {
+  border-left: 3px solid #fb8c00;
+  background: rgba(251, 140, 0, 0.12);
+  padding-left: 4px;
+  opacity: 0.85;
+}
+
+/* More prominent delete styling for before panel */
+.tp-before-panel .tp-diff-delete {
+  border-left: 4px solid #d73a49;
+  background: rgba(215, 58, 73, 0.18);
+  padding-left: 4px;
+  text-decoration: line-through;
+  opacity: 1;
+  font-weight: 500;
+}
+
 .tp-diff-node-title {
   font-weight: 600;
   margin-bottom: 2px;
@@ -1640,5 +1681,33 @@
     border-left: 3px solid #ffb86c;
     background: rgba(255, 184, 108, 0.12);
     padding-left: 4px;
+  }
+
+  /* Before view diff overlays - special styling for "before" state */
+  .tp-diff-enabled .tp-diff-replace-before {
+    border-left: 3px solid #ffb86c;
+    background: rgba(255, 184, 108, 0.15);
+    padding-left: 4px;
+    opacity: 0.85;
+  }
+
+  /* More prominent delete styling for before panel (dark mode) */
+  .tp-before-panel .tp-diff-delete {
+    border-left: 4px solid #ff7b72;
+    background: rgba(255, 123, 114, 0.20);
+    padding-left: 4px;
+    text-decoration: line-through;
+    opacity: 1;
+    font-weight: 500;
+  }
+
+  /* Before panel dark mode adjustments */
+  .tp-before-panel {
+    background: rgba(255, 184, 108, 0.03);
+    border-left-color: rgba(255, 184, 108, 0.25);
+  }
+
+  .tp-before-panel .tp-output-container::before {
+    color: rgba(255, 184, 108, 0.9);
   }
 }
