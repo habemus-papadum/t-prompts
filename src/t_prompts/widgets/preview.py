@@ -28,6 +28,7 @@ class HTMLRepresentable(Protocol):
         """Return HTML representation of the object."""
         ...
 
+
 try:
     from watchdog.events import FileSystemEventHandler
     from watchdog.observers import Observer
@@ -69,6 +70,7 @@ class WidgetPreviewHandler(SimpleHTTPRequestHandler):
             except Exception as e:
                 print(f"\n[GET /] ERROR generating HTML: {e}")
                 import traceback
+
                 traceback.print_exc()
                 # Send error page
                 self.send_response(500)
@@ -164,9 +166,7 @@ class FileChangeHandler(FileSystemEventHandler):
             self.callback()
 
 
-def _generate_html(
-    generator_func: Callable[[], Any], reload_script: str = "", show_banner: bool = True
-) -> str:
+def _generate_html(generator_func: Callable[[], Any], reload_script: str = "", show_banner: bool = True) -> str:
     """Generate the full HTML page with widget and auto-reload.
 
     Parameters
@@ -496,6 +496,7 @@ def run_preview(
             if func_module_name == "__main__":
                 # Load the module from file path directly
                 import importlib.util
+
                 spec = importlib.util.spec_from_file_location("__demo_main__", demo_path)
                 if spec is None or spec.loader is None:
                     print("Warning: Could not create spec for demo file")
@@ -515,6 +516,7 @@ def run_preview(
         except Exception as e:
             print(f"Error: Failed to reload module: {e}")
             import traceback
+
             traceback.print_exc()
             # Fall back to original function
             return generator_func
@@ -551,7 +553,7 @@ def run_preview(
             *args,
             widget_html_func=lambda: _generate_html(get_current_generator(), reload_script, show_banner=watch),
             reload_trigger=reload_trigger,
-            **kwargs
+            **kwargs,
         )
 
     server = HTTPServer(("localhost", port), handler_factory)
@@ -611,6 +613,7 @@ def main():
 
     # Import the demo file and look for a generator function
     import importlib.util
+
     spec = importlib.util.spec_from_file_location("demo", demo_path)
     if spec is None or spec.loader is None:
         print(f"Error: Could not load demo file: {demo_path}")

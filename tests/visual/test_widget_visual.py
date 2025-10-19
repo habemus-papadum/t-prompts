@@ -23,10 +23,10 @@ def test_simple_widget_renders(widget_page, take_screenshot, wait_for_widget_ren
     screenshot_path = take_screenshot("simple_prompt")
 
     # Verify widget container exists
-    assert page.locator('[data-tp-widget]').count() > 0
+    assert page.locator("[data-tp-widget]").count() > 0
 
     # Verify widget output is present
-    assert page.locator('.tp-widget-output').count() > 0
+    assert page.locator(".tp-widget-output").count() > 0
 
     # Screenshot saved for AI verification
     assert screenshot_path.exists()

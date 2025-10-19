@@ -12,10 +12,13 @@ import t_prompts
 def test_dedent_basic():
     """Test basic dedenting with uniform indentation."""
     text = "world"
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello {text:t}
     How are you?
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     assert str(p) == "Hello world\nHow are you?"
 
@@ -24,11 +27,14 @@ def test_dedent_with_interpolation_mid_text():
     """Test dedenting with interpolation in the middle."""
     name = "Alice"
     age = "30"
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Name: {name:n}
     Age: {age:a}
     Status: Active
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     assert str(p) == "Name: Alice\nAge: 30\nStatus: Active"
 
@@ -37,27 +43,36 @@ def test_dedent_multiple_statics():
     """Test dedenting across multiple static segments."""
     x = "X"
     y = "Y"
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     First: {x:x}
     Second: {y:y}
     Done
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     assert str(p) == "First: X\nSecond: Y\nDone"
 
 
 def test_dedent_nested_prompts():
     """Test that nested prompts are dedented independently."""
-    inner = t_prompts.prompt(t"""
+    inner = t_prompts.prompt(
+        t"""
     Inner content
     More inner
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
-    outer = t_prompts.prompt(t"""
+    outer = t_prompts.prompt(
+        t"""
     Outer start
     {inner:inner}
     Outer end
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     # Note: The inner prompt retains the indentation from the outer prompt's static text
     # because the static "\n    " before {inner:inner} is dedented to "\n    "
@@ -76,10 +91,15 @@ def test_dedent_nested_prompts():
 
 def test_trim_leading_basic():
     """Test removing leading whitespace line."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello
     World
-    """, dedent=False, trim_leading=True, trim_trailing=False)
+    """,
+        dedent=False,
+        trim_leading=True,
+        trim_trailing=False,
+    )
 
     # First line removed, but no dedenting, trailing preserved
     assert str(p) == "    Hello\n    World\n    "
@@ -87,29 +107,44 @@ def test_trim_leading_basic():
 
 def test_trim_leading_with_dedent():
     """Test trim leading combined with dedent."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello
     World
-    """, dedent=True, trim_leading=True)
+    """,
+        dedent=True,
+        trim_leading=True,
+    )
 
     assert str(p) == "Hello\nWorld"
 
 
 def test_trim_leading_only_newline():
     """Test trim leading when first line is just newline."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
 Hello
 World
-""", dedent=False, trim_leading=True, trim_trailing=False)
+""",
+        dedent=False,
+        trim_leading=True,
+        trim_trailing=False,
+    )
 
     assert str(p) == "Hello\nWorld\n"
 
 
 def test_no_trim_leading():
     """Test that trim_leading=False preserves first line."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello
-    """, dedent=True, trim_leading=False, trim_trailing=False, trim_empty_leading=False)
+    """,
+        dedent=True,
+        trim_leading=False,
+        trim_trailing=False,
+        trim_empty_leading=False,
+    )
 
     # First line not removed, trim_empty_leading also OFF
     # With all trims off, dedenting still happens based on "Hello" line
@@ -126,31 +161,43 @@ def test_no_trim_leading():
 
 def test_trim_empty_leading_basic():
     """Test removing empty lines after first line."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
 
     Hello
-    """, dedent=True, trim_empty_leading=True)
+    """,
+        dedent=True,
+        trim_empty_leading=True,
+    )
 
     assert str(p) == "Hello"
 
 
 def test_trim_empty_leading_multiple():
     """Test removing multiple empty lines."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
 
 
     Hello
-    """, dedent=True, trim_empty_leading=True)
+    """,
+        dedent=True,
+        trim_empty_leading=True,
+    )
 
     assert str(p) == "Hello"
 
 
 def test_no_trim_empty_leading():
     """Test that trim_empty_leading=False preserves empty lines."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
 
     Hello
-    """, dedent=True, trim_empty_leading=False)
+    """,
+        dedent=True,
+        trim_empty_leading=False,
+    )
 
     # Empty line preserved
     assert str(p).startswith("\n")
@@ -163,9 +210,13 @@ def test_no_trim_empty_leading():
 
 def test_trim_trailing_basic():
     """Test removing trailing newlines."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello
-    """, dedent=True, trim_trailing=True)
+    """,
+        dedent=True,
+        trim_trailing=True,
+    )
 
     assert str(p) == "Hello"
     assert not str(p).endswith("\n")
@@ -173,20 +224,28 @@ def test_trim_trailing_basic():
 
 def test_trim_trailing_multiple():
     """Test removing multiple trailing newlines."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello
 
 
-    """, dedent=True, trim_trailing=True)
+    """,
+        dedent=True,
+        trim_trailing=True,
+    )
 
     assert str(p) == "Hello"
 
 
 def test_no_trim_trailing():
     """Test that trim_trailing=False preserves trailing newlines."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello
-    """, dedent=True, trim_trailing=False)
+    """,
+        dedent=True,
+        trim_trailing=False,
+    )
 
     # Trailing whitespace is preserved when trim_trailing=False
     # Note: whitespace-only lines are also dedented, so "    " becomes ""
@@ -202,13 +261,19 @@ def test_no_trim_trailing():
 def test_all_features_enabled():
     """Test with all dedent features enabled."""
     task = "translate"
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     You are a helpful assistant.
 
     Task: {task:t}
 
     Please respond.
-    """, dedent=True, trim_leading=True, trim_empty_leading=True, trim_trailing=True)
+    """,
+        dedent=True,
+        trim_leading=True,
+        trim_empty_leading=True,
+        trim_trailing=True,
+    )
 
     expected = "You are a helpful assistant.\n\nTask: translate\n\nPlease respond."
     assert str(p) == expected
@@ -216,9 +281,14 @@ def test_all_features_enabled():
 
 def test_only_trims_no_dedent():
     """Test with trims enabled but dedent disabled."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello
-    """, dedent=False, trim_leading=True, trim_trailing=True)
+    """,
+        dedent=False,
+        trim_leading=True,
+        trim_trailing=True,
+    )
 
     # Trims applied but indentation preserved
     assert str(p) == "    Hello"
@@ -226,9 +296,15 @@ def test_only_trims_no_dedent():
 
 def test_no_features_enabled():
     """Test with all features disabled."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello
-    """, dedent=False, trim_leading=False, trim_trailing=False, trim_empty_leading=False)
+    """,
+        dedent=False,
+        trim_leading=False,
+        trim_trailing=False,
+        trim_empty_leading=False,
+    )
 
     # Everything preserved including leading newline
     result = str(p)
@@ -264,9 +340,12 @@ def test_only_interpolations():
 
 def test_no_non_empty_lines():
     """Test dedenting with only whitespace."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
 
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     # All whitespace removed
     assert str(p) == ""
@@ -274,11 +353,14 @@ def test_no_non_empty_lines():
 
 def test_mixed_indentation_levels():
     """Test dedenting with varying indentation levels."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     First line (4 spaces)
       Second line (6 spaces)
     Third line (4 spaces)
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     # Dedented by 4 spaces (the first non-empty line)
     expected = "First line (4 spaces)\n  Second line (6 spaces)\nThird line (4 spaces)"
@@ -287,10 +369,13 @@ def test_mixed_indentation_levels():
 
 def test_less_indented_line():
     """Test dedenting when a later line has less indentation."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
         Indented by 8
       Indented by 6
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     # Dedented by 8 spaces (first non-empty line)
     # Second line only has 6, so it dedents as much as possible
@@ -309,21 +394,27 @@ def test_single_line_no_newlines():
 def test_interpolation_in_first_line():
     """Test with interpolation right after removed first line."""
     name = "Alice"
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello {name:n}
     How are you?
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     assert str(p) == "Hello Alice\nHow are you?"
 
 
 def test_empty_lines_preserved_in_middle():
     """Test that empty lines in the middle are preserved."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     First
 
     Third
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     expected = "First\n\nThird"
     assert str(p) == expected
@@ -338,9 +429,12 @@ def test_mixed_tabs_and_spaces_error():
     """Test that mixed tabs and spaces raise an error."""
     with pytest.raises(t_prompts.DedentError, match="Mixed tabs and spaces"):
         # Mix tabs and spaces in indentation
-        t_prompts.prompt(t"""
+        t_prompts.prompt(
+            t"""
 \t    Hello
-        """, dedent=True)
+        """,
+            dedent=True,
+        )
 
 
 # =============================================================================
@@ -351,9 +445,12 @@ def test_mixed_tabs_and_spaces_error():
 def test_provenance_preserves_original_strings():
     """Test that original strings are preserved in template."""
     text = "world"
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello {text:t}
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     # Original strings should still be in template
     assert p.template.strings == ("\n    Hello ", "\n    ")
@@ -369,15 +466,16 @@ def test_provenance_preserves_original_strings():
 
 def test_list_with_dedent():
     """Test that list interpolations work with dedenting."""
-    items = [
-        t_prompts.prompt(t"Item {i:i}") for i in ["1", "2", "3"]
-    ]
+    items = [t_prompts.prompt(t"Item {i:i}") for i in ["1", "2", "3"]]
 
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Items:
     {items:items}
     Done
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     # The list items are rendered as-is, but the static text around them is dedented
     # The newline + spaces before {items:items} becomes just "\n    " after dedenting
@@ -391,13 +489,14 @@ def test_list_with_dedent():
 
 def test_list_with_custom_separator_and_dedent():
     """Test list with custom separator and dedenting."""
-    items = [
-        t_prompts.prompt(t"{i:i}") for i in ["A", "B", "C"]
-    ]
+    items = [t_prompts.prompt(t"{i:i}") for i in ["A", "B", "C"]]
 
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     List: {items:items:sep=, }
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     expected = "List: A, B, C"
     assert str(p) == expected
@@ -413,7 +512,8 @@ def test_realistic_llm_prompt():
     context = "User is a Python developer"
     question = "How do I use list comprehensions?"
 
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     You are a helpful programming assistant.
 
     Context: {context:ctx}
@@ -421,7 +521,9 @@ def test_realistic_llm_prompt():
     Question: {question:q}
 
     Please provide a clear and concise answer with examples.
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     result = str(p)
     assert "You are a helpful programming assistant." in result
@@ -433,18 +535,24 @@ def test_realistic_llm_prompt():
 
 def test_realistic_nested_conversation():
     """Test nested prompts representing conversation with dedenting."""
-    system = t_prompts.prompt(t"""
+    system = t_prompts.prompt(
+        t"""
     You are a helpful assistant.
     Always be polite and concise.
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     user_msg = "Hello!"
 
-    conversation = t_prompts.prompt(t"""
+    conversation = t_prompts.prompt(
+        t"""
     System: {system:sys}
 
     User: {user_msg:user}
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     result = str(conversation)
     assert "System: You are a helpful assistant." in result
@@ -459,14 +567,17 @@ def test_realistic_multi_section_prompt():
         for eng, fr in [("hello", "bonjour"), ("goodbye", "au revoir")]
     ]
 
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Task: {task:t}
 
     Examples:
     {examples:ex}
 
     Now translate the following:
-    """, dedent=True)
+    """,
+        dedent=True,
+    )
 
     result = str(p)
     assert result.startswith("Task:")
@@ -493,9 +604,15 @@ def test_default_trims_enabled_dedent_disabled():
 
 def test_explicit_defaults():
     """Test explicitly setting all defaults."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello
-    """, dedent=False, trim_leading=True, trim_empty_leading=True, trim_trailing=True)
+    """,
+        dedent=False,
+        trim_leading=True,
+        trim_empty_leading=True,
+        trim_trailing=True,
+    )
 
     # Should be same as default
     assert str(p) == "    Hello"
@@ -503,9 +620,15 @@ def test_explicit_defaults():
 
 def test_dedent_only_no_trims():
     """Test dedent without trims."""
-    p = t_prompts.prompt(t"""
+    p = t_prompts.prompt(
+        t"""
     Hello
-    """, dedent=True, trim_leading=False, trim_empty_leading=False, trim_trailing=False)
+    """,
+        dedent=True,
+        trim_leading=False,
+        trim_empty_leading=False,
+        trim_trailing=False,
+    )
 
     # First line not removed, so dedenting considers it
     result = str(p)

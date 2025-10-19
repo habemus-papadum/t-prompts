@@ -81,7 +81,6 @@ class PromptReuseError(StructuredPromptsError):
     """Raised when attempting to nest a StructuredPrompt in multiple locations."""
 
     def __init__(self, prompt, current_parent, new_parent):
-
         self.prompt = prompt
         self.current_parent = current_parent
         self.new_parent = new_parent
@@ -102,7 +101,7 @@ class PromptReuseError(StructuredPromptsError):
         from .element import ListInterpolation
 
         # Handle objects with parent and key attributes (new structure or temp wrappers)
-        if hasattr(parent, 'parent') and hasattr(parent, 'key') and parent.key is not None:
+        if hasattr(parent, "parent") and hasattr(parent, "key") and parent.key is not None:
             parent_type = type(parent).__name__
             return f"{parent_type}(key='{parent.key}')"
         elif isinstance(parent, ListInterpolation):

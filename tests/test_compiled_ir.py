@@ -1,6 +1,5 @@
 """Tests for CompiledIR functionality."""
 
-
 import t_prompts
 
 

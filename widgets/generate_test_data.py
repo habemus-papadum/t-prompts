@@ -70,9 +70,7 @@ def generate_markdown_demo_test():
     try:
         demo_module = import_module("t_prompts.widgets.demos.01_demo")
     except ModuleNotFoundError as exc:
-        raise RuntimeError(
-            "Failed to import demo module. Ensure extras (especially 'image') are installed."
-        ) from exc
+        raise RuntimeError("Failed to import demo module. Ensure extras (especially 'image') are installed.") from exc
 
     if not hasattr(demo_module, "my_prompt"):
         raise RuntimeError("Demo module does not expose a my_prompt function.")

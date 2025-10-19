@@ -3,7 +3,6 @@
 This module tests the basic functionality of source location capture.
 """
 
-
 from t_prompts import SourceLocation, Static, StructuredPrompt, prompt
 
 
@@ -48,11 +47,11 @@ def test_source_location_captured_by_default():
     p = prompt(t"Task: {task}")
 
     # Check that source location was captured
-    assert p['task'].source_location is not None
-    assert p['task'].source_location.is_available
-    assert p['task'].source_location.filename == "test_source_location.py"
-    assert p['task'].source_location.line is not None
-    assert p['task'].source_location.line > 0
+    assert p["task"].source_location is not None
+    assert p["task"].source_location.is_available
+    assert p["task"].source_location.filename == "test_source_location.py"
+    assert p["task"].source_location.line is not None
+    assert p["task"].source_location.line > 0
 
 
 def test_source_location_disabled():
@@ -61,7 +60,7 @@ def test_source_location_disabled():
     p = prompt(t"Task: {task}", capture_source_location=False)
 
     # Check that source location was NOT captured
-    assert p['task'].source_location is None
+    assert p["task"].source_location is None
 
 
 def test_source_location_on_static_elements():
@@ -84,7 +83,7 @@ def test_source_location_on_nested_prompts():
     outer = prompt(t"Outer: {inner:i}")  # Line 84: inner interpolated here
 
     # The nested prompt (now stored directly) should have both locations
-    inner_prompt = outer['i']  # StructuredPrompt is now stored directly
+    inner_prompt = outer["i"]  # StructuredPrompt is now stored directly
     assert isinstance(inner_prompt, StructuredPrompt)
 
     # source_location = where it was interpolated (line 84)
@@ -98,14 +97,14 @@ def test_source_location_on_nested_prompts():
     assert inner_prompt.creation_location.line == 83
 
     # Its children should have source_location = inner's creation_location
-    assert inner_prompt['x'].source_location is not None
-    assert inner_prompt['x'].source_location.is_available
-    assert inner_prompt['x'].source_location.line == 83
+    assert inner_prompt["x"].source_location is not None
+    assert inner_prompt["x"].source_location.is_available
+    assert inner_prompt["x"].source_location.line == 83
 
     # With the new architecture, outer['i'] IS the inner prompt object
-    assert outer['i'] is inner
+    assert outer["i"] is inner
     # Children's source_location matches the prompt's creation_location
-    assert outer['i'].creation_location.line == inner_prompt['x'].source_location.line
+    assert outer["i"].creation_location.line == inner_prompt["x"].source_location.line
 
 
 def test_source_location_with_multiple_interpolations():
@@ -115,12 +114,12 @@ def test_source_location_with_multiple_interpolations():
     p = prompt(t"{x} and {y}")
 
     # Both should have source locations
-    assert p['x'].source_location is not None
-    assert p['y'].source_location is not None
+    assert p["x"].source_location is not None
+    assert p["y"].source_location is not None
 
     # Should be on the same line
     # Note: Currently source location captures the prompt() call line, not individual interpolations
-    assert p['x'].source_location.line == p['y'].source_location.line
+    assert p["x"].source_location.line == p["y"].source_location.line
 
 
 def test_source_location_with_list_interpolation():
@@ -131,5 +130,5 @@ def test_source_location_with_list_interpolation():
     p = prompt(t"Items: {items:list}")
 
     # List interpolation should have source location
-    assert p['list'].source_location is not None
-    assert p['list'].source_location.is_available
+    assert p["list"].source_location is not None
+    assert p["list"].source_location.is_available

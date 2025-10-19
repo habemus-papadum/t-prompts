@@ -325,6 +325,7 @@ def test_to_json_all_element_types():
     """Test toJSON() with all element types in one prompt."""
     try:
         from PIL import Image
+
         has_pil = True
     except ImportError:
         has_pil = False

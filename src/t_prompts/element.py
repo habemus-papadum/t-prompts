@@ -22,6 +22,7 @@ InterpolationType = Union[
     "StructuredPrompt",
 ]
 
+
 # Workaround for Python 3.14.0b3 missing convert function
 def convert(value: str, conversion: Literal["r", "s", "a"]) -> str:
     """Apply string conversion (!r, !s, !a) to a value."""
@@ -455,7 +456,7 @@ class ListInterpolation(Element):
         from .exceptions import PromptReuseError
 
         # Get items from temporary field
-        items = object.__getattribute__(self, 'items')
+        items = object.__getattribute__(self, "items")
 
         # Check for duplicate prompts (disallow reuse in lists)
         seen_ids = set()
@@ -465,7 +466,7 @@ class ListInterpolation(Element):
                     item,
                     None,  # Don't have reference to first occurrence
                     self,
-                    message=f"Cannot reuse StructuredPrompt (id={item.id}) in the same list"
+                    message=f"Cannot reuse StructuredPrompt (id={item.id}) in the same list",
                 )
             seen_ids.add(item.id)
 
@@ -479,6 +480,7 @@ class ListInterpolation(Element):
                     def __init__(self, parent, key):
                         self.parent = parent
                         self.key = key
+
                 old_parent_element = item.parent[item.key] if item.key in item.parent else None
                 new_wrapper = _TempWrapper(self.parent, self.key)
                 raise PromptReuseError(item, old_parent_element, new_wrapper)
@@ -498,7 +500,7 @@ class ListInterpolation(Element):
             attached_items.append(item)
 
         # Store items directly
-        object.__setattr__(self, 'item_elements', attached_items)
+        object.__setattr__(self, "item_elements", attached_items)
 
     def __getitem__(self, idx: int) -> "StructuredPrompt":
         """

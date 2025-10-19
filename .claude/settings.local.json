@@ -70,7 +70,8 @@
       "Bash(for script in scripts/*.sh)",
       "Bash(bash -n \"$script\")",
       "Bash(pnpm approve-builds)",
-      "Bash(pnpm --filter @t-prompts/widgets build:python)"
+      "Bash(pnpm --filter @t-prompts/widgets build:python)",
+      "Bash(git reset test_precommit.py)"
     ],
     "deny": [],
     "ask": []

@@ -95,7 +95,7 @@ def widget_page(page, http_server, save_widget_for_test):
         page.goto(url)
 
         # Wait for widget container to be visible (not just present)
-        page.wait_for_selector('[data-tp-widget]', state='visible', timeout=5000)
+        page.wait_for_selector("[data-tp-widget]", state="visible", timeout=5000)
 
         # Give a small additional delay for JavaScript initialization
         page.wait_for_timeout(200)
@@ -143,7 +143,7 @@ def wait_for_widget_render(page):
     def _wait():
         """Wait for widget output to be rendered."""
         # Wait for widget output container to be present
-        page.wait_for_selector('.tp-widget-output', timeout=5000)
+        page.wait_for_selector(".tp-widget-output", timeout=5000)
 
         # Small additional delay for CSS rendering
         page.wait_for_timeout(100)

@@ -84,10 +84,7 @@ def test_xml_hint_rejects_tag_with_newline():
 
 def test_xml_hint_with_list():
     """Test XML hint wrapping entire list interpolation."""
-    items = [
-        t_prompts.prompt(t"{item:item}")
-        for item in ["apple", "banana", "cherry"]
-    ]
+    items = [t_prompts.prompt(t"{item:item}") for item in ["apple", "banana", "cherry"]]
 
     p = t_prompts.prompt(t"{items:list:xml=fruits}")
 
@@ -212,10 +209,7 @@ def test_header_hint_with_empty_content():
 
 def test_header_hint_with_list():
     """Test header hint wrapping entire list interpolation."""
-    items = [
-        t_prompts.prompt(t"{item:item}")
-        for item in ["First", "Second", "Third"]
-    ]
+    items = [t_prompts.prompt(t"{item:item}") for item in ["First", "Second", "Third"]]
 
     p = t_prompts.prompt(t"{items:list:header=Items}")
 
@@ -266,10 +260,7 @@ def test_combined_hints_nested():
 
 def test_combined_hints_with_list():
     """Test combined hints wrapping a list."""
-    items = [
-        t_prompts.prompt(t"{item:item}")
-        for item in ["A", "B", "C"]
-    ]
+    items = [t_prompts.prompt(t"{item:item}") for item in ["A", "B", "C"]]
 
     p = t_prompts.prompt(t"{items:list:header=Items:xml=list}")
 
@@ -291,10 +282,7 @@ def test_combined_hints_multiline():
 
 def test_xml_hint_with_custom_separator():
     """Test XML hint with custom list separator."""
-    items = [
-        t_prompts.prompt(t"{item:item}")
-        for item in ["apple", "banana", "cherry"]
-    ]
+    items = [t_prompts.prompt(t"{item:item}") for item in ["apple", "banana", "cherry"]]
 
     p = t_prompts.prompt(t"{items:list:xml=fruits:sep=, }")
 
@@ -304,10 +292,7 @@ def test_xml_hint_with_custom_separator():
 
 def test_header_hint_with_custom_separator():
     """Test header hint with custom list separator."""
-    items = [
-        t_prompts.prompt(t"{item:item}")
-        for item in ["First", "Second", "Third"]
-    ]
+    items = [t_prompts.prompt(t"{item:item}") for item in ["First", "Second", "Third"]]
 
     p = t_prompts.prompt(t"{items:list:header=Items:sep= | }")
 
@@ -317,10 +302,7 @@ def test_header_hint_with_custom_separator():
 
 def test_all_hints_combined():
     """Test XML, header, and sep hints all together."""
-    items = [
-        t_prompts.prompt(t"{item:item}")
-        for item in ["X", "Y", "Z"]
-    ]
+    items = [t_prompts.prompt(t"{item:item}") for item in ["X", "Y", "Z"]]
 
     p = t_prompts.prompt(t"{items:list:header=Letters:xml=letters:sep=,}")
 

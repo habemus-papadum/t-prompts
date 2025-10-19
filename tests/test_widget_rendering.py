@@ -61,7 +61,7 @@ def test_html_contains_embedded_json():
 
     # Should have script tag with JSON data
     assert '<script data-role="tp-widget-data"' in html
-    assert "type=\"application/json\"" in html
+    assert 'type="application/json"' in html
 
 
 def test_html_does_not_contain_javascript_bundle():
@@ -97,8 +97,8 @@ def test_html_contains_valid_json_data():
     # Extract JSON from script tag
     start = html.find('<script data-role="tp-widget-data"')
     if start != -1:
-        start = html.find('>', start) + 1
-        end = html.find('</script>', start)
+        start = html.find(">", start) + 1
+        end = html.find("</script>", start)
         json_str = html[start:end]
 
         # Should be valid JSON
@@ -137,8 +137,8 @@ def test_nested_prompt_html():
     # Extract and verify JSON structure
     start = html.find('<script data-role="tp-widget-data"')
     if start != -1:
-        start = html.find('>', start) + 1
-        end = html.find('</script>', start)
+        start = html.find(">", start) + 1
+        end = html.find("</script>", start)
         json_str = html[start:end]
         data = json.loads(json_str)
 
@@ -164,8 +164,8 @@ def test_ir_html_contains_rendered_output():
     # Extract JSON
     start = html.find('<script data-role="tp-widget-data"')
     if start != -1:
-        start = html.find('>', start) + 1
-        end = html.find('</script>', start)
+        start = html.find(">", start) + 1
+        end = html.find("</script>", start)
         json_str = html[start:end]
         data = json.loads(json_str)
 

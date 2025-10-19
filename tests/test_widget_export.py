@@ -64,17 +64,17 @@ def test_save_widget_html_contains_widget_data(temp_output_dir):
     html_content = output_path.read_text(encoding="utf-8")
 
     # Should contain widget container
-    assert 'data-tp-widget' in html_content
+    assert "data-tp-widget" in html_content
 
     # Should contain embedded JSON data
     assert 'data-role="tp-widget-data"' in html_content
 
     # Should contain widget mount point
-    assert 'tp-widget-mount' in html_content
+    assert "tp-widget-mount" in html_content
 
     # Should contain the prompt data in JSON
-    assert 'prompt_id' in html_content
-    assert 'children' in html_content
+    assert "prompt_id" in html_content
+    assert "children" in html_content
 
 
 def test_save_widget_html_includes_js_prelude(temp_output_dir):
@@ -88,7 +88,7 @@ def test_save_widget_html_includes_js_prelude(temp_output_dir):
     html_content = output_path.read_text(encoding="utf-8")
 
     # Should contain JavaScript bundle in the head
-    assert 'tp-widget-bundle' in html_content
+    assert "tp-widget-bundle" in html_content
     assert '<script id="tp-widget-bundle' in html_content
 
 
@@ -120,7 +120,7 @@ def test_save_widget_html_with_nested_prompt(temp_output_dir):
 
     html_content = output_path.read_text(encoding="utf-8")
     assert output_path.exists()
-    assert 'data-tp-widget' in html_content
+    assert "data-tp-widget" in html_content
 
 
 def test_save_widget_html_with_intermediate_representation(temp_output_dir):
@@ -135,7 +135,7 @@ def test_save_widget_html_with_intermediate_representation(temp_output_dir):
 
     html_content = output_path.read_text(encoding="utf-8")
     assert output_path.exists()
-    assert 'data-tp-widget' in html_content
+    assert "data-tp-widget" in html_content
 
 
 def test_save_widget_html_accepts_string_path(temp_output_dir):
@@ -201,7 +201,7 @@ def test_create_widget_gallery_includes_js_prelude(temp_output_dir):
     html_content = output_path.read_text(encoding="utf-8")
 
     # Should contain JavaScript bundle in the head
-    assert 'tp-widget-bundle' in html_content
+    assert "tp-widget-bundle" in html_content
     assert '<script id="tp-widget-bundle' in html_content
 
     # Should only appear once in the HTML (not duplicated per widget)
@@ -371,7 +371,7 @@ def test_save_widget_html_with_multiline_content(temp_output_dir):
 
     html_content = output_path.read_text(encoding="utf-8")
     assert output_path.exists()
-    assert 'data-tp-widget' in html_content
+    assert "data-tp-widget" in html_content
 
 
 def test_create_widget_gallery_preserves_order(temp_output_dir):

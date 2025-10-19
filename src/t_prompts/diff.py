@@ -10,7 +10,6 @@ from .element import Element, ImageInterpolation, ListInterpolation, Static, Tex
 from .ir import ImageChunk, TextChunk
 from .structured_prompt import StructuredPrompt
 
-
 DiffStatus = Literal["equal", "modified", "inserted", "deleted", "moved"]
 ChunkOp = Literal["equal", "insert", "delete", "replace"]
 
@@ -181,14 +180,10 @@ class RenderedPromptDiff:
                 {
                     "op": delta.op,
                     "before": (
-                        {"text": delta.before.text, "element_id": delta.before.element_id}
-                        if delta.before
-                        else None
+                        {"text": delta.before.text, "element_id": delta.before.element_id} if delta.before else None
                     ),
                     "after": (
-                        {"text": delta.after.text, "element_id": delta.after.element_id}
-                        if delta.after
-                        else None
+                        {"text": delta.after.text, "element_id": delta.after.element_id} if delta.after else None
                     ),
                 }
                 for delta in self.chunk_deltas
@@ -538,8 +533,6 @@ def _serialize_node_delta(delta: NodeDelta) -> dict[str, Any]:
         "before_index": delta.before_index,
         "after_index": delta.after_index,
         "attr_changes": {k: list(v) for k, v in delta.attr_changes.items()},
-        "text_edits": [
-            {"op": edit.op, "before": edit.before, "after": edit.after} for edit in delta.text_edits
-        ],
+        "text_edits": [{"op": edit.op, "before": edit.before, "after": edit.after} for edit in delta.text_edits],
         "children": [_serialize_node_delta(child) for child in delta.children],
     }

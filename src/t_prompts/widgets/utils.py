@@ -48,7 +48,6 @@ def get_widget_js() -> str:
     js_path = _WIDGETS_DIR / "index.js"
     if not js_path.exists():
         raise FileNotFoundError(
-            f"Widget bundle not found at {js_path}. "
-            "Run 'pnpm build' from the repository root to build the widgets."
+            f"Widget bundle not found at {js_path}. Run 'pnpm build' from the repository root to build the widgets."
         )
     return js_path.read_text()

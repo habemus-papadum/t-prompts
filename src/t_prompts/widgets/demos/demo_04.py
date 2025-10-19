@@ -1,4 +1,3 @@
-
 from t_prompts import dedent
 from t_prompts.widgets import run_preview
 
@@ -43,6 +42,7 @@ def generate_markdown_table_examples():
     | Inline Total | {summary_cell_value!s} |
     """)
     return table_prompt
+
 
 if __name__ == "__main__":
     run_preview(__file__, generate_markdown_table_examples)

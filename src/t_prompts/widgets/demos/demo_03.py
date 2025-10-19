@@ -168,8 +168,8 @@ def create_quantum_workflow_demo():
     """Compose the full Morse potential vibrational workflow demo."""
 
     # Level 1 interpolation: primitive parameters
-    D_e = "4.5"   # eV
-    a = "1.9"     # Å⁻¹
+    D_e = "4.5"  # eV
+    a = "1.9"  # Å⁻¹
     r_e = "0.74"  # Å
 
     # Level 2: Tabulate Morse parameters
@@ -362,13 +362,7 @@ def create_quantum_workflow_demo():
     # -------------------------------------------------------------------------
     from PIL import Image
 
-    image_path = (
-        Path(__file__).parent.parent.parent.parent.parent
-        / "docs"
-        / "demos"
-        / "assets"
-        / "warps-and-wefts.png"
-    )
+    image_path = Path(__file__).parent.parent.parent.parent.parent / "docs" / "demos" / "assets" / "warps-and-wefts.png"
     visualization_image = Image.open(image_path)
 
     visualization_intro = dedent(

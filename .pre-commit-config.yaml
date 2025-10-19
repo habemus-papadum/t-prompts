@@ -21,3 +21,23 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
         args: ['--maxkb=1000']
+
+  # Python linting with ruff
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.0
+    hooks:
+      - id: ruff
+        name: Lint Python with ruff
+        args: [--fix]
+      - id: ruff-format
+        name: Format Python with ruff
+
+  # TypeScript linting with eslint
+  - repo: local
+    hooks:
+      - id: typescript-lint
+        name: Lint TypeScript with eslint
+        entry: pnpm --filter @t-prompts/widgets lint
+        language: system
+        files: widgets/src/.*\.(ts|tsx)$
+        pass_filenames: false
