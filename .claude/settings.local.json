@@ -71,7 +71,20 @@
       "Bash(bash -n \"$script\")",
       "Bash(pnpm approve-builds)",
       "Bash(pnpm --filter @t-prompts/widgets build:python)",
-      "Bash(git reset test_precommit.py)"
+      "Bash(git reset test_precommit.py)",
+      "Bash(tokei)",
+      "Bash(cloc --by-file-by-lang --include-lang=Python,TypeScript src/ tests/ widgets/ --vcs=git)",
+      "Bash(cloc --include-lang=Python --by-file src/t_prompts --vcs=git)",
+      "Bash(cloc --include-lang=Python --by-file tests --vcs=git)",
+      "Bash(cloc --include-lang=TypeScript --by-file widgets/src --vcs=git)",
+      "Bash(cloc --include-lang=Python src/t_prompts/*.py --vcs=git --quiet)",
+      "Bash(cloc --include-lang=Python src/t_prompts/widgets/*.py --vcs=git --quiet)",
+      "Bash(cloc --include-lang=Python src/t_prompts/widgets/demos/*.py --vcs=git --quiet)",
+      "Bash(cloc --include-lang=TypeScript widgets/src/components/*.ts --vcs=git --quiet)",
+      "Bash(cloc --include-lang=TypeScript widgets/src/transforms/*.ts --vcs=git --quiet)",
+      "Bash(cloc --include-lang=TypeScript widgets/src/folding/*.ts --vcs=git --quiet)",
+      "Bash(cloc --include-lang=TypeScript widgets/src/utils/*.ts --vcs=git --quiet)",
+      "Bash(cloc --include-lang=TypeScript widgets/src/*.ts --vcs=git --quiet)"
     ],
     "deny": [],
     "ask": []
