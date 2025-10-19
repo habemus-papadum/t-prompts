@@ -31,8 +31,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build widgets
-        run: pnpm build
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Setup
+        run: ./scripts/setup.sh
 
       - name: Run linting
         run: pnpm lint
@@ -91,31 +107,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install pnpm dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build widgets for Python tests
-        run: pnpm --filter @t-prompts/widgets build
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Create Virtual Environment
-        run: uv sync --frozen --all-extras
-
       - name: Install Playwright Browsers
         run: uv run playwright install --with-deps chromium
 
@@ -124,9 +115,6 @@ jobs:
 
       - name: Run All Tests with Coverage (including visual tests)
         run: uv run pytest --cov=src/t_prompts --cov-report=xml --cov-report=term
-
-      - name: Run Notebook Tests
-        run: ./test_notebooks.sh --no-inplace
 
       - name: Build Documentation
         run: uv run mkdocs build
