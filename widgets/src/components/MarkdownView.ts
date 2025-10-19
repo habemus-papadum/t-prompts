@@ -35,6 +35,11 @@ interface PositionRange {
 export interface MarkdownView extends Component {
   // Markdown-specific data
   chunkIdToElements: Map<string, HTMLElement[]>; // chunkId → array of DOM elements
+  getLayoutElements(chunkId: string): HTMLElement[];
+}
+
+export interface MarkdownViewOptions {
+  onLayoutChanged?: () => void;
 }
 
 const COLLAPSED_CLASS = 'tp-markdown-collapsed';
@@ -52,7 +57,8 @@ const INLINE_CHUNK_CLASS = 'tp-markdown-chunk';
 export function buildMarkdownView(
   data: WidgetData,
   _metadata: WidgetMetadata,
-  foldingController: FoldingController
+  foldingController: FoldingController,
+  options?: MarkdownViewOptions
 ): MarkdownView {
   // 1. Create initial DOM structure
   const element = document.createElement('div');
@@ -79,6 +85,10 @@ export function buildMarkdownView(
     inlinePositions,
     chunkIdToElements
   );
+
+  const notifyLayoutChanged = (): void => {
+    options?.onLayoutChanged?.();
+  };
 
   function clearCollapsedMarkers(): void {
     const collapsedElements = element.querySelectorAll(`.${COLLAPSED_CLASS}`);
@@ -147,6 +157,8 @@ export function buildMarkdownView(
         markCollapsedElement(el);
       }
     }
+
+    notifyLayoutChanged();
   }
 
   // 6. Create folding client
@@ -166,10 +178,43 @@ export function buildMarkdownView(
   foldingController.addClient(foldingClient);
   applyCollapsedState();
 
+  const getLayoutElements = (chunkId: string): HTMLElement[] => {
+    const elements = chunkIdToElements.get(chunkId);
+    if (!elements || elements.length === 0) {
+      return [];
+    }
+
+    if (!foldingController.isCollapsed(chunkId)) {
+      return elements.filter((el) => !!el.parentNode && el.isConnected);
+    }
+
+    const indicators: HTMLElement[] = [];
+    for (const el of elements) {
+      const indicator = collapsedIndicators.get(el);
+      if (indicator && indicator.isConnected) {
+        indicators.push(indicator);
+      }
+    }
+
+    if (indicators.length > 0) {
+      return indicators;
+    }
+
+    return elements.filter((el) => !!el.parentNode && el.isConnected);
+  };
+
+  const images = element.querySelectorAll('img');
+  images.forEach((img) => {
+    img.addEventListener('load', () => notifyLayoutChanged(), { once: true });
+  });
+
+  notifyLayoutChanged();
+
   // 8. Return component
   return {
     element,
     chunkIdToElements,
+    getLayoutElements,
 
     destroy(): void {
       // Unregister from folding controller

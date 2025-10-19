@@ -12,6 +12,7 @@ import { createVisibilityMeter } from './VisibilityMeter';
 
 export interface ToolbarCallbacks {
   onViewModeChange: (mode: ViewMode) => void;
+  onToggleScrollSync: (enabled: boolean) => void;
 }
 
 export interface ToolbarMetrics {
@@ -23,6 +24,7 @@ export interface ToolbarMetrics {
 
 export interface ToolbarOptions {
   currentMode: ViewMode;
+  scrollSyncEnabled: boolean;
   callbacks: ToolbarCallbacks;
   foldingController: FoldingController;
   metrics: ToolbarMetrics;
@@ -72,23 +74,61 @@ const icons = {
     svg.setAttribute('fill', 'currentColor');
     svg.innerHTML = '<path d="M1 3h6v10H1V3zm1 1v8h4V4H2zm7-1h6v10H9V3zm1 1v8h4V4h-4z"/>';
     return svg;
- },
+  },
+  sync: (): SVGElement => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('fill', 'currentColor');
+    svg.innerHTML =
+      '<path d="M9.25 2.5a.75.75 0 0 0 0 1.5h2a1.25 1.25 0 1 1 0 2.5H8.75a.75.75 0 0 0 0 1.5h2.5a2.75 2.75 0 0 0 0-5.5zm-4.5 6H2.25a.75.75 0 0 0 0 1.5h2a1.25 1.25 0 1 1 0 2.5H1.75a.75.75 0 0 0 0 1.5h2.5a2.75 2.75 0 0 0 0-5.5zM5.5 8.75a.75.75 0 0 0 .75.75h3.5a.75.75 0 0 0 0-1.5H6.25a.75.75 0 0 0-.75.75z"/>';
+    return svg;
+  },
 };
 
 /**
  * Create toolbar with view toggle buttons
  */
 export function createToolbar(options: ToolbarOptions): ToolbarComponent {
-  const { currentMode, callbacks, foldingController, metrics } = options;
+  const { currentMode, callbacks, foldingController, metrics, scrollSyncEnabled } = options;
 
   const toolbar = document.createElement('div') as ToolbarElement;
   toolbar.className = 'tp-toolbar';
+
+  const leftContainer = document.createElement('div');
+  leftContainer.className = 'tp-toolbar-left';
 
   // Left side: Title
   const title = document.createElement('div');
   title.className = 'tp-toolbar-title';
   title.textContent = 't-prompts';
-  toolbar.appendChild(title);
+
+  let currentScrollSyncEnabled = scrollSyncEnabled;
+  const scrollSyncButton = document.createElement('button');
+  scrollSyncButton.type = 'button';
+  scrollSyncButton.className = 'tp-toolbar-sync-btn';
+  scrollSyncButton.appendChild(icons.sync());
+
+  const updateSyncButtonState = (enabled: boolean): void => {
+    currentScrollSyncEnabled = enabled;
+    scrollSyncButton.classList.toggle('tp-toolbar-sync-btn--active', enabled);
+    scrollSyncButton.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    scrollSyncButton.setAttribute('aria-label', enabled ? 'Disable scroll sync' : 'Enable scroll sync');
+    scrollSyncButton.title = enabled ? 'Disable scroll sync' : 'Enable scroll sync';
+  };
+
+  updateSyncButtonState(scrollSyncEnabled);
+
+  scrollSyncButton.addEventListener('click', () => {
+    const nextEnabled = !currentScrollSyncEnabled;
+    updateSyncButtonState(nextEnabled);
+    callbacks.onToggleScrollSync(nextEnabled);
+  });
+
+  leftContainer.appendChild(scrollSyncButton);
+  leftContainer.appendChild(title);
+  toolbar.appendChild(leftContainer);
 
   // Metric indicator (inline component)
   const visibilityMeter = createVisibilityMeter({

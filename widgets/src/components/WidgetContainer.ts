@@ -15,6 +15,7 @@ import { buildMarkdownView } from './MarkdownView';
 import { FoldingController } from '../folding/controller';
 import { createToolbar, updateToolbarMode } from './Toolbar';
 import type { ToolbarComponent } from './Toolbar';
+import { ScrollSyncManager } from './ScrollSyncManager';
 
 const TREE_DEFAULT_WIDTH = 280;
 const TREE_MIN_WIDTH = 200;
@@ -99,8 +100,18 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   treeResizer.setAttribute('aria-label', 'Resize tree panel');
   treeResizer.tabIndex = 0;
 
-  const codeView = buildCodeView(data, metadata, foldingController);
-  const markdownView = buildMarkdownView(data, metadata, foldingController);
+  let scrollSyncManager: ScrollSyncManager | null = null;
+
+  const notifyScrollSync = (): void => {
+    scrollSyncManager?.markDirty('view');
+  };
+
+  const codeView = buildCodeView(data, metadata, foldingController, {
+    onLayoutChanged: notifyScrollSync,
+  });
+  const markdownView = buildMarkdownView(data, metadata, foldingController, {
+    onLayoutChanged: notifyScrollSync,
+  });
 
   // 4. Create panels
   const codePanel = document.createElement('div');
@@ -134,6 +145,25 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   contentArea.appendChild(treeContainer);
   contentArea.appendChild(treeResizer);
   contentArea.appendChild(mainSplit);
+
+  scrollSyncManager = new ScrollSyncManager({
+    foldingController,
+    code: {
+      id: 'code',
+      scrollContainer: codePanel,
+      getAnchors: (chunkId: string) => {
+        const elements = codeView.chunkIdToTopElements.get(chunkId) ?? [];
+        return elements.filter((el) => el.isConnected && !!el.parentNode);
+      },
+    },
+    markdown: {
+      id: 'markdown',
+      scrollContainer: markdownPanel,
+      getAnchors: (chunkId: string) => markdownView.getLayoutElements(chunkId),
+    },
+  });
+
+  scrollSyncManager.observe();
 
   let currentTreeWidth = TREE_DEFAULT_WIDTH;
   let currentSplitRatio = SPLIT_DEFAULT_RATIO;
@@ -341,6 +371,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
 
   // 6. State management
   let currentViewMode: ViewMode = 'split';
+  let scrollSyncEnabled = true;
 
   // 7. View mode setter
   function setViewMode(mode: ViewMode): void {
@@ -363,13 +394,23 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
 
     // Update toolbar active state
     updateToolbarMode(toolbar, mode);
+
+    scrollSyncManager?.setViewVisibility('code', !isMarkdownOnly);
+    scrollSyncManager?.setViewVisibility('markdown', !isCodeOnly);
   }
+
+  const handleScrollSyncToggle = (enabled: boolean): void => {
+    scrollSyncEnabled = enabled;
+    scrollSyncManager?.setEnabled(enabled);
+  };
 
   // 8. Create toolbar
   const toolbarComponent: ToolbarComponent = createToolbar({
     currentMode: currentViewMode,
+    scrollSyncEnabled,
     callbacks: {
       onViewModeChange: setViewMode,
+      onToggleScrollSync: handleScrollSyncToggle,
     },
     foldingController,
     metrics: {
@@ -438,6 +479,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
       // Cleanup all views
       views.forEach((view) => view.destroy());
       toolbarComponent.destroy();
+      scrollSyncManager?.destroy();
       treeResizer.removeEventListener('pointerdown', onTreeResizerPointerDown);
       treeResizer.removeEventListener('keydown', onTreeResizerKeyDown);
       splitResizer.removeEventListener('pointerdown', onSplitResizerPointerDown);

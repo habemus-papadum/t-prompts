@@ -25,6 +25,10 @@ export interface CodeView extends Component {
   chunkIdToTopElements: Map<string, HTMLElement[]>; // chunkId → array of top-level DOM elements
 }
 
+export interface CodeViewOptions {
+  onLayoutChanged?: () => void;
+}
+
 /**
  * Build a CodeView component from widget data and metadata
  *
@@ -35,7 +39,8 @@ export interface CodeView extends Component {
 export function buildCodeView(
   data: WidgetData,
   metadata: WidgetMetadata,
-  foldingController: FoldingController
+  foldingController: FoldingController,
+  options?: CodeViewOptions
 ): CodeView {
   // 1. Create initial DOM structure
   const element = document.createElement('div');
@@ -55,6 +60,9 @@ export function buildCodeView(
   state = applyTransform_ImageHoverPreview(state);
   state = applyTransform_MarkBoundaries(state);
 
+  const notifyLayoutChanged = (): void => {
+    options?.onLayoutChanged?.();
+  };
 
   // 4. Selection tracking with debouncing
   let selectionTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -255,6 +263,7 @@ export function buildCodeView(
     }
 
     recomputeWrapping();
+    notifyLayoutChanged();
 
   }
 
@@ -285,6 +294,7 @@ export function buildCodeView(
     chunkIdToTopElements.delete(expandedId);
 
     recomputeWrapping();
+    notifyLayoutChanged();
 
   }
 
@@ -299,6 +309,8 @@ export function buildCodeView(
 
   // 8. Register as client
   foldingController.addClient(foldingClient);
+
+  notifyLayoutChanged();
 
   // 9. Return component with operations
   return {

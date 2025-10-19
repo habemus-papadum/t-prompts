@@ -20,8 +20,10 @@ describe('Toolbar', () => {
   it('updates visibility indicators when folding state changes', () => {
     const toolbar = createToolbar({
       currentMode: 'split',
+      scrollSyncEnabled: true,
       callbacks: {
         onViewModeChange: () => {},
+        onToggleScrollSync: () => {},
       },
       foldingController,
       metrics: {
@@ -61,8 +63,10 @@ describe('Toolbar', () => {
   it('toggles help popover when help button is clicked', () => {
     const toolbar = createToolbar({
       currentMode: 'split',
+      scrollSyncEnabled: true,
       callbacks: {
         onViewModeChange: () => {},
+        onToggleScrollSync: () => {},
       },
       foldingController,
       metrics: {
@@ -94,6 +98,48 @@ describe('Toolbar', () => {
 
     expect(popover?.hidden).toBe(true);
     expect(helpButton?.getAttribute('aria-expanded')).toBe('false');
+
+    toolbar.destroy();
+  });
+
+  it('toggles scroll sync button and emits callback', () => {
+    const toggled: boolean[] = [];
+    const toolbar = createToolbar({
+      currentMode: 'split',
+      scrollSyncEnabled: true,
+      callbacks: {
+        onViewModeChange: () => {},
+        onToggleScrollSync: (enabled) => toggled.push(enabled),
+      },
+      foldingController,
+      metrics: {
+        totalCharacters: 150,
+        totalPixels: 400,
+        chunkIds,
+        chunkSizeMap: {
+          ...chunkSizeMap,
+        },
+      },
+    });
+
+    document.body.appendChild(toolbar.element);
+
+    const button = toolbar.element.querySelector('.tp-toolbar-sync-btn') as HTMLButtonElement | null;
+    expect(button).not.toBeNull();
+    expect(button?.classList.contains('tp-toolbar-sync-btn--active')).toBe(true);
+    expect(button?.getAttribute('aria-pressed')).toBe('true');
+
+    button?.click();
+
+    expect(button?.classList.contains('tp-toolbar-sync-btn--active')).toBe(false);
+    expect(button?.getAttribute('aria-pressed')).toBe('false');
+    expect(toggled).toEqual([false]);
+
+    button?.click();
+
+    expect(button?.classList.contains('tp-toolbar-sync-btn--active')).toBe(true);
+    expect(button?.getAttribute('aria-pressed')).toBe('true');
+    expect(toggled).toEqual([false, true]);
 
     toolbar.destroy();
   });

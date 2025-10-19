@@ -146,6 +146,12 @@
   font-weight: 500;
 }
 
+.tp-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--tp-spacing) * 0.75);
+}
+
 .tp-toolbar-title {
   color: var(--tp-color-fg);
   opacity: 0.8;
@@ -173,6 +179,37 @@
 .tp-help-container {
   position: relative;
   display: flex;
+}
+
+.tp-toolbar-sync-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--tp-color-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.tp-toolbar-sync-btn svg {
+  pointer-events: none;
+}
+
+.tp-toolbar-sync-btn:hover {
+  color: var(--tp-color-fg);
+}
+
+.tp-toolbar-sync-btn:focus-visible {
+  outline: 2px solid var(--tp-color-accent);
+  outline-offset: 2px;
+}
+
+.tp-toolbar-sync-btn--active {
+  color: var(--tp-color-fg);
 }
 
 .tp-help-button {
