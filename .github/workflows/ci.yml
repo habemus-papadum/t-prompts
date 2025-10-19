@@ -9,6 +9,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: read
+  repository-projects: read
 
 jobs:
   test:
@@ -89,8 +91,22 @@ jobs:
           publish_branch: typescript-coverage-badge
           keep_files: false
 
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: uv run playwright install --with-deps chromium
+
+      - name: Install Playwright System Dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: uv run playwright install-deps chromium
 
       - name: Run Linting
         run: uv run ruff check .
