@@ -12,6 +12,7 @@ import type { WidgetData, WidgetMetadata, ViewMode } from '../types';
 import { buildTreeView } from './TreeView';
 import { buildCodeView } from './CodeView';
 import { buildMarkdownView } from './MarkdownView';
+import { ScrollSyncManager } from './ScrollSyncManager';
 import { FoldingController } from '../folding/controller';
 import { createToolbar, updateToolbarMode } from './Toolbar';
 import type { ToolbarComponent } from './Toolbar';
@@ -33,6 +34,7 @@ export interface WidgetContainer extends Component {
   contentArea: HTMLElement;
   foldingController: FoldingController; // Exposed for testing
   viewMode: ViewMode; // Current view mode
+  scrollSyncManager: ScrollSyncManager;
 
   // Operations
   setViewMode(mode: ViewMode): void;
@@ -341,6 +343,8 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
 
   // 6. State management
   let currentViewMode: ViewMode = 'split';
+  let scrollSyncEnabled = true;
+  let scrollSyncManager: ScrollSyncManager;
 
   // 7. View mode setter
   function setViewMode(mode: ViewMode): void {
@@ -363,6 +367,8 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
 
     // Update toolbar active state
     updateToolbarMode(toolbar, mode);
+
+    scrollSyncManager.handleViewVisibilityChange();
   }
 
   // 8. Create toolbar
@@ -370,6 +376,10 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     currentMode: currentViewMode,
     callbacks: {
       onViewModeChange: setViewMode,
+      onScrollSyncToggle: (enabled) => {
+        scrollSyncEnabled = enabled;
+        scrollSyncManager.setEnabled(enabled);
+      },
     },
     foldingController,
     metrics: {
@@ -384,6 +394,23 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   // 9. Assemble
   element.appendChild(toolbar);
   element.appendChild(contentArea);
+
+  scrollSyncManager = new ScrollSyncManager({
+    controller: foldingController,
+    codeView,
+    markdownView,
+    codePanel,
+    markdownPanel,
+  });
+
+  toolbarComponent.setScrollSyncEnabled(scrollSyncEnabled);
+
+  const handleAssetLoad = (): void => {
+    scrollSyncManager.markDirty('asset-load');
+  };
+
+  codePanel.addEventListener('load', handleAssetLoad, true);
+  markdownPanel.addEventListener('load', handleAssetLoad, true);
 
   // 10. Initialize view mode
   setViewMode(currentViewMode);
@@ -431,6 +458,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     contentArea,
     foldingController,
     viewMode: currentViewMode,
+    scrollSyncManager,
 
     setViewMode,
 
@@ -438,10 +466,13 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
       // Cleanup all views
       views.forEach((view) => view.destroy());
       toolbarComponent.destroy();
+      scrollSyncManager.destroy();
       treeResizer.removeEventListener('pointerdown', onTreeResizerPointerDown);
       treeResizer.removeEventListener('keydown', onTreeResizerKeyDown);
       splitResizer.removeEventListener('pointerdown', onSplitResizerPointerDown);
       splitResizer.removeEventListener('keydown', onSplitResizerKeyDown);
+      codePanel.removeEventListener('load', handleAssetLoad, true);
+      markdownPanel.removeEventListener('load', handleAssetLoad, true);
       element.remove();
     },
   };

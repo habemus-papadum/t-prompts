@@ -97,4 +97,47 @@ describe('Toolbar', () => {
 
     toolbar.destroy();
   });
+
+  it('provides scroll sync toggle control', () => {
+    let latestState: boolean | null = null;
+
+    const toolbar = createToolbar({
+      currentMode: 'split',
+      callbacks: {
+        onViewModeChange: () => {},
+        onScrollSyncToggle: (enabled) => {
+          latestState = enabled;
+        },
+      },
+      foldingController,
+      metrics: {
+        totalCharacters: 150,
+        totalPixels: 400,
+        chunkIds,
+        chunkSizeMap: {
+          ...chunkSizeMap,
+        },
+      },
+    });
+
+    document.body.appendChild(toolbar.element);
+
+    const syncButton = toolbar.element.querySelector('.tp-toolbar-sync-btn') as HTMLButtonElement | null;
+    expect(syncButton).not.toBeNull();
+    expect(syncButton?.classList.contains('active')).toBe(true);
+    expect(syncButton?.getAttribute('aria-pressed')).toBe('true');
+
+    syncButton?.click();
+
+    expect(latestState).toBe(false);
+    expect(syncButton?.getAttribute('aria-pressed')).toBe('false');
+    expect(syncButton?.classList.contains('active')).toBe(false);
+
+    toolbar.setScrollSyncEnabled(true);
+
+    expect(syncButton?.classList.contains('active')).toBe(true);
+    expect(syncButton?.getAttribute('aria-pressed')).toBe('true');
+
+    toolbar.destroy();
+  });
 });

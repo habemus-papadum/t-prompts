@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { initWidget } from '../index';
 import longText240Data from '../../test-fixtures/long-text-240.json';
 import complexWrapTestData from '../../test-fixtures/complex-wrap-test.json';
+import type { WidgetContainer } from './WidgetContainer';
 
 describe('WidgetContainer', () => {
   let container: HTMLDivElement;
@@ -230,5 +231,39 @@ describe('WidgetContainer', () => {
       console.error('ERROR: Expected at least 3 long text segments, got:', longTextSegments.length);
       console.error('All chunk texts:', chunkTexts);
     }
+  });
+
+  it('exposes scroll sync toggle through the toolbar', () => {
+    const widgetData = longText240Data;
+
+    const scriptTag = document.createElement('script');
+    scriptTag.setAttribute('data-role', 'tp-widget-data');
+    scriptTag.setAttribute('type', 'application/json');
+    scriptTag.textContent = JSON.stringify(widgetData);
+    container.appendChild(scriptTag);
+
+    const mountPoint = document.createElement('div');
+    mountPoint.className = 'tp-widget-mount';
+    container.appendChild(mountPoint);
+
+    document.body.appendChild(container);
+
+    initWidget(container);
+
+    const widget = (container as HTMLElement & { _widgetComponent?: WidgetContainer })._widgetComponent;
+    expect(widget).toBeDefined();
+    expect(widget?.scrollSyncManager.isEnabled).toBe(true);
+
+    const toggle = container.querySelector('.tp-toolbar-sync-btn') as HTMLButtonElement | null;
+    expect(toggle).not.toBeNull();
+
+    toggle?.click();
+
+    expect(widget?.scrollSyncManager.isEnabled).toBe(false);
+
+    toggle?.click();
+    expect(widget?.scrollSyncManager.isEnabled).toBe(true);
+
+    document.body.removeChild(container);
   });
 });
