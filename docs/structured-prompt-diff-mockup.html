@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Structured Prompt Diff Mockup</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #f4f5f7;
+      color: #1f2933;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .toggle {
+      border: 1px solid #cbd2d9;
+      background: white;
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .summary {
+      display: flex;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .summary span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    .summary .added { background: #e1f8e6; color: #166534; }
+    .summary .modified { background: #dbeafe; color: #1d4ed8; }
+    .summary .removed { background: #fee2e2; color: #b91c1c; }
+
+    main {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: 280px 1fr;
+    }
+    .panel {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    h2 {
+      font-size: 16px;
+      margin: 0;
+    }
+    .tree-item {
+      border: 1px solid #d2d6dc;
+      border-radius: 10px;
+      padding: 10px;
+      position: relative;
+      margin-bottom: 10px;
+      background: #f9fafb;
+    }
+    .tree-item.added { border-top: 4px solid #16a34a; border-bottom: 4px solid #16a34a; background: #f0fdf4; }
+    .tree-item.modified { border-left: 4px solid #2563eb; }
+    .tree-item.moved { border-left: 4px dashed #f59e0b; }
+    .tree-item.ghost {
+      border: 2px dashed #f87171;
+      background: #fef2f2;
+      opacity: 0.8;
+    }
+    .badge {
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      background: #1f2933;
+      color: white;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .ghost .badge { background: #b91c1c; }
+
+    .chunk {
+      border-radius: 12px;
+      border: 1px solid #d2d6dc;
+      overflow: hidden;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .chunk.added::before,
+    .chunk.added::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, #16a34a, #4ade80);
+    }
+    .chunk.added::before { top: 0; }
+    .chunk.added::after { bottom: 0; }
+    .chunk-header {
+      background: #f9fafb;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+    .chunk-body {
+      padding: 16px;
+      font-family: 'Fira Code', monospace;
+      background: white;
+      font-size: 13px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .chunk-body.single { grid-template-columns: 1fr; }
+    .removed-block {
+      border: 1px dashed #f87171;
+      background: #fef2f2;
+      padding: 12px;
+      border-radius: 8px;
+      font-style: italic;
+      color: #991b1b;
+    }
+    .legend {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: #52606d;
+    }
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 6px;
+      border-radius: 4px;
+      vertical-align: middle;
+    }
+    .legend .add::before { background: #16a34a; }
+    .legend .mod::before { background: #2563eb; }
+    .legend .del::before { background: #b91c1c; }
+  </style>
+</head>
+<body>
+  <header>
+    <button class="toggle">Diff mode: On</button>
+    <div class="summary">
+      <span class="added">+ Added 4</span>
+      <span class="modified">± Modified 2</span>
+      <span class="removed">− Removed 1</span>
+    </div>
+    <div class="legend">
+      <span class="add">Added</span>
+      <span class="mod">Modified</span>
+      <span class="del">Removed</span>
+    </div>
+  </header>
+  <main>
+    <section class="panel">
+      <h2>Prompt Structure</h2>
+      <div class="tree-item added">
+        <div class="badge">Added</div>
+        New chunk: "Tool Selection"
+      </div>
+      <div class="tree-item modified">
+        <div class="badge">Modified</div>
+        Instruction block updated
+      </div>
+      <div class="tree-item moved">
+        <div class="badge">Moved</div>
+        Safety reminders (moved from #2 → #4)
+      </div>
+      <div class="tree-item ghost">
+        <div class="badge">Removed</div>
+        Legacy intro paragraph
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Chunk Details</h2>
+      <article class="chunk added">
+        <header class="chunk-header">
+          <span>Chunk #5 · Tool Selection</span>
+          <span>Added</span>
+        </header>
+        <pre class="chunk-body single"><code>When selecting a tool, verify:
+1. Capabilities match request
+2. No disallowed operations involved</code></pre>
+      </article>
+
+      <article class="chunk">
+        <header class="chunk-header">
+          <span>Chunk #2 · System Guidance</span>
+          <span>Modified</span>
+        </header>
+        <div class="chunk-body">
+          <pre><code>// Before
+Provide neutral tone. Avoid speculation.
+Escalate safety concerns.</code></pre>
+          <pre><code>// After
+Maintain neutral tone.
+Escalate safety or legal concerns immediately.</code></pre>
+        </div>
+      </article>
+
+      <article class="chunk">
+        <header class="chunk-header">
+          <span>Removed Segment</span>
+          <span>Removed</span>
+        </header>
+        <div class="chunk-body single">
+          <div class="removed-block">The legacy escalation checklist has been removed. View the prior prompt for full context.</div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
