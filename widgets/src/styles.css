@@ -6,12 +6,13 @@
 
 /* Base UI Variables */
 :root {
-  --tp-color-bg: #ffffff;
-  --tp-color-fg: #24292e;
-  --tp-color-border: #e1e4e8;
-  --tp-color-accent: #0366d6;
-  --tp-color-muted: #6a737d;
-  --tp-color-error: #d73a49;
+  /* Theme colors with environment fallbacks: VS Code -> JupyterLab -> defaults */
+  --tp-color-bg: var(--vscode-editor-background, var(--jp-layout-color1, #ffffff));
+  --tp-color-fg: var(--vscode-editor-foreground, var(--jp-ui-font-color1, #24292e));
+  --tp-color-border: var(--vscode-panel-border, var(--jp-border-color1, #e1e4e8));
+  --tp-color-accent: var(--vscode-textLink-foreground, var(--jp-brand-color1, #0366d6));
+  --tp-color-muted: var(--vscode-descriptionForeground, var(--jp-ui-font-color2, #6a737d));
+  --tp-color-error: var(--vscode-errorForeground, var(--jp-error-color1, #d73a49));
   --tp-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
   --tp-font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
   --tp-spacing: 8px;
@@ -73,12 +74,13 @@
 /* Dark Mode Overrides */
 @media (prefers-color-scheme: dark) {
   :root {
-    --tp-color-bg: #0d1117;
-    --tp-color-fg: #c9d1d9;
-    --tp-color-border: #30363d;
-    --tp-color-accent: #58a6ff;
-    --tp-color-muted: #8b949e;
-    --tp-color-error: #f85149;
+    /* Dark mode theme colors with environment fallbacks: VS Code -> JupyterLab -> defaults */
+    --tp-color-bg: var(--vscode-editor-background, var(--jp-layout-color1, #0d1117));
+    --tp-color-fg: var(--vscode-editor-foreground, var(--jp-ui-font-color1, #c9d1d9));
+    --tp-color-border: var(--vscode-panel-border, var(--jp-border-color1, #30363d));
+    --tp-color-accent: var(--vscode-textLink-foreground, var(--jp-brand-color1, #58a6ff));
+    --tp-color-muted: var(--vscode-descriptionForeground, var(--jp-ui-font-color2, #8b949e));
+    --tp-color-error: var(--vscode-errorForeground, var(--jp-error-color1, #f85149));
 
     /* Tree view dark mode */
     --tp-tree-line-color: #3d444d;  /* Muted grey for tree lines (dark mode) */
