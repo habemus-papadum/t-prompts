@@ -62,29 +62,21 @@ pip install t-prompts
 Or with uv:
 
 ```bash
-uv pip install t-prompts
-```
-
-For image support:
-
-```bash
-pip install t-prompts[image]
+uv add t-prompts
 ```
 
 ## Development
 
-This project uses [UV](https://docs.astral.sh/uv/) for dependency management.
+This project uses [UV](https://docs.astral.sh/uv/) and [PNPM](https://pnpm.io/) for dependency management.
 
 ```bash
-# Setup
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv sync --frozen --all-extras
-
-# Install Playwright browsers for visual tests
+# Onetime Setup (per dev machine)
+curl -LsSf https://astral.sh/uv/install.sh | sh # Other options exist!
+curl -fsSL https://get.pnpm.io/install.sh | sh - # Other options exist!
 ./scripts/setup-visual-tests.sh
 
-# Run tests (includes visual tests)
-uv run pytest
+# Repo setup (per clone)
+./scripts/setup.sh
 
 # Lint and format
 uv run ruff check .
