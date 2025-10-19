@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true  # Ensure token persists for coverage action's git operations
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
@@ -128,6 +130,14 @@ jobs:
       - name: Build Documentation
         run: uv run mkdocs build
 
+      - name: Temporarily disable git hooks for coverage action
+        run: |
+          # The coverage action runs in a container without pre-commit installed
+          # Temporarily rename hooks to prevent "pre-commit not found" errors
+          if [ -f .git/hooks/pre-commit ]; then
+            mv .git/hooks/pre-commit .git/hooks/pre-commit.disabled
+          fi
+
       - name: Coverage Comment
         id: coverage_comment
         uses: py-cov-action/python-coverage-comment-action@v3
@@ -135,6 +145,14 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           MINIMUM_GREEN: 80
           MINIMUM_ORANGE: 70
+
+      - name: Re-enable git hooks
+        if: always()
+        run: |
+          # Restore the pre-commit hook
+          if [ -f .git/hooks/pre-commit.disabled ]; then
+            mv .git/hooks/pre-commit.disabled .git/hooks/pre-commit
+          fi
 
       - name: Store Pull Request comment to be posted
         uses: actions/upload-artifact@v4
