@@ -17,6 +17,7 @@ import { applyTransform_MarkBoundaries } from '../transforms/boundaries';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingEvent, FoldingClient } from '../folding/types';
 import { activateChunkNavigation, type NavigationActivation } from '../utils/chunkNavigation';
+import type { DiffState, DiffStateSnapshot, RenderedGhostChunk } from '../state/diffState';
 
 /**
  * Code view component interface
@@ -36,7 +37,8 @@ export interface CodeView extends Component {
 export function buildCodeView(
   data: WidgetData,
   metadata: WidgetMetadata,
-  foldingController: FoldingController
+  foldingController: FoldingController,
+  diffState?: DiffState
 ): CodeView {
   // 1. Create initial DOM structure
   const element = document.createElement('div');
@@ -44,6 +46,9 @@ export function buildCodeView(
 
   // 2. Build chunk ID to top-level elements map
   const chunkIdToTopElements = new Map<string, HTMLElement[]>();
+  const diffCallouts: HTMLElement[] = [];
+  const diffGhosts: HTMLElement[] = [];
+  let diffUnsubscribe: (() => void) | null = null;
 
   // 3. Apply transformation pipeline
   let state: TransformState = { element, chunks: chunkIdToTopElements, data, metadata };
@@ -61,6 +66,101 @@ export function buildCodeView(
     chunkTargets: metadata.chunkLocationMap,
     elementTargets: metadata.elementLocationDetails,
   });
+
+  const clearDiffDecorations = (): void => {
+    for (const targets of chunkIdToTopElements.values()) {
+      for (const target of targets) {
+        target.classList.remove('tp-chunk--diff', 'tp-chunk--diff-insert', 'tp-chunk--diff-replace');
+        target.removeAttribute('data-diff-op');
+        target.removeAttribute('title');
+      }
+    }
+
+    while (diffCallouts.length > 0) {
+      const callout = diffCallouts.pop();
+      callout?.remove();
+    }
+
+    while (diffGhosts.length > 0) {
+      const ghost = diffGhosts.pop();
+      ghost?.remove();
+    }
+
+    element.classList.remove('tp-output-container--diff');
+  };
+
+  const applyGhostInline = (anchor: HTMLElement, ghost: RenderedGhostChunk): void => {
+    const callout = document.createElement('span');
+    callout.className = 'tp-chunk-ghost-inline';
+    callout.textContent = ghost.text;
+    callout.setAttribute('data-diff-op', 'delete');
+    callout.setAttribute('aria-label', 'Removed text');
+    anchor.insertAdjacentElement('afterend', callout);
+    diffCallouts.push(callout);
+  };
+
+  const applyGhostBlock = (ghost: RenderedGhostChunk): void => {
+    const ghostElement = document.createElement('div');
+    ghostElement.className = 'tp-chunk-ghost-block';
+    ghostElement.textContent = ghost.text;
+    ghostElement.setAttribute('data-diff-op', 'delete');
+    ghostElement.setAttribute('aria-label', 'Removed chunk');
+    ghostElement.setAttribute('data-chunk-id', ghost.chunkId);
+
+    const anchorTargets = ghost.anchorAfterId ? chunkIdToTopElements.get(ghost.anchorAfterId) : undefined;
+    const anchor = anchorTargets && anchorTargets.length > 0 ? anchorTargets[0] : null;
+    if (anchor && anchor.parentElement) {
+      anchor.parentElement.insertBefore(ghostElement, anchor);
+    } else {
+      element.appendChild(ghostElement);
+    }
+
+    diffGhosts.push(ghostElement);
+  };
+
+  const applyDiffSnapshot = (snapshot: DiffStateSnapshot | null): void => {
+    clearDiffDecorations();
+
+    const rendered = snapshot?.available && snapshot.enabled ? snapshot.rendered : undefined;
+    if (!rendered) {
+      return;
+    }
+
+    element.classList.add('tp-output-container--diff');
+
+    for (const [chunkId, annotation] of rendered.chunkAnnotations.entries()) {
+      const targets = chunkIdToTopElements.get(chunkId);
+      if (!targets) {
+        continue;
+      }
+      for (const target of targets) {
+        target.classList.add('tp-chunk--diff');
+        target.setAttribute('data-diff-op', annotation.op);
+        if (annotation.op === 'insert') {
+          target.classList.add('tp-chunk--diff-insert');
+          target.title = 'Added chunk';
+        } else if (annotation.op === 'replace') {
+          target.classList.add('tp-chunk--diff-replace');
+          target.title = 'Modified chunk';
+        }
+      }
+    }
+
+    for (const ghost of rendered.deletedChunks) {
+      if (ghost.op === 'replace' && ghost.anchorAfterId) {
+        const anchors = chunkIdToTopElements.get(ghost.anchorAfterId) ?? [];
+        if (anchors.length === 0) {
+          applyGhostBlock(ghost);
+          continue;
+        }
+        for (const anchor of anchors) {
+          applyGhostInline(anchor, ghost);
+        }
+        continue;
+      }
+      applyGhostBlock(ghost);
+    }
+  };
 
 
   // 4. Selection tracking with debouncing
@@ -307,6 +407,12 @@ export function buildCodeView(
   // 8. Register as client
   foldingController.addClient(foldingClient);
 
+  if (diffState?.isAvailable()) {
+    diffUnsubscribe = diffState.subscribe((snapshot) => {
+      applyDiffSnapshot(snapshot);
+    });
+  }
+
   // 9. Return component with operations
   return {
     element: state.element,
@@ -326,6 +432,9 @@ export function buildCodeView(
 
       // Unregister from folding controller
       foldingController.removeClient(foldingClient);
+
+      diffUnsubscribe?.();
+      clearDiffDecorations();
 
       // Cleanup DOM and data
       element.remove();

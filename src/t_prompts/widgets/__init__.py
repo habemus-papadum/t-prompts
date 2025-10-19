@@ -1,6 +1,7 @@
 """Widget system for rendering structured prompts in Jupyter and HTML."""
 
 from .config import WidgetConfig, get_default_widget_config, set_default_widget_config
+from .diff_overlay import build_diff_overlay_data, build_diff_overlay_widget
 from .export import create_widget_gallery, save_widget_html
 from .preview import run_preview
 from .renderer import _render_widget_html, js_prelude, setup_notebook
@@ -20,4 +21,6 @@ __all__ = [
     "js_prelude",
     "setup_notebook",
     "_render_widget_html",
+    "build_diff_overlay_widget",
+    "build_diff_overlay_data",
 ]

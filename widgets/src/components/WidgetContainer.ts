@@ -16,6 +16,7 @@ import { ScrollSyncManager } from './ScrollSyncManager';
 import { FoldingController } from '../folding/controller';
 import { createToolbar, updateToolbarMode } from './Toolbar';
 import type { ToolbarComponent } from './Toolbar';
+import { DiffState } from '../state/diffState';
 
 const TREE_DEFAULT_WIDTH = 280;
 const TREE_MIN_WIDTH = 200;
@@ -82,10 +83,16 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   let collapseTreePanel: () => void = () => {};
   let expandTreePanel: () => void = () => {};
 
+  const diffState = new DiffState({
+    structured: data.structured_diff ?? null,
+    rendered: data.rendered_diff ?? null,
+  });
+
   const treeView = buildTreeView({
     data,
     metadata,
     foldingController,
+    diffState,
     onCollapse: () => collapseTreePanel(),
   });
 
@@ -101,8 +108,8 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   treeResizer.setAttribute('aria-label', 'Resize tree panel');
   treeResizer.tabIndex = 0;
 
-  const codeView = buildCodeView(data, metadata, foldingController);
-  const markdownView = buildMarkdownView(data, metadata, foldingController);
+  const codeView = buildCodeView(data, metadata, foldingController, diffState);
+  const markdownView = buildMarkdownView(data, metadata, foldingController, diffState);
 
   // 4. Create panels
   const codePanel = document.createElement('div');
@@ -388,6 +395,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
       chunkIds: initialChunkIds,
       chunkSizeMap,
     },
+    diffState,
   });
   const toolbar = toolbarComponent.element;
 

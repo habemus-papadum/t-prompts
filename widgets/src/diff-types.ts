@@ -74,6 +74,7 @@ export interface StructuredPromptDiffData {
 export interface ChunkReference {
   text: string;
   element_id: string;
+  chunk_id: string | null;
 }
 
 /**

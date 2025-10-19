@@ -9,6 +9,7 @@ import type { ChunkSize, ViewMode } from '../types';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingClient, FoldingEvent } from '../folding/types';
 import { createVisibilityMeter } from './VisibilityMeter';
+import type { DiffState, DiffStateSnapshot } from '../state/diffState';
 
 export interface ToolbarCallbacks {
   onViewModeChange: (mode: ViewMode) => void;
@@ -27,6 +28,7 @@ export interface ToolbarOptions {
   callbacks: ToolbarCallbacks;
   foldingController: FoldingController;
   metrics: ToolbarMetrics;
+  diffState?: DiffState;
 }
 
 export interface ToolbarComponent {
@@ -96,7 +98,7 @@ const icons = {
  * Create toolbar with view toggle buttons
  */
 export function createToolbar(options: ToolbarOptions): ToolbarComponent {
-  const { currentMode, callbacks, foldingController, metrics } = options;
+  const { currentMode, callbacks, foldingController, metrics, diffState } = options;
 
   const toolbar = document.createElement('div') as ToolbarElement;
   toolbar.className = 'tp-toolbar';
@@ -122,9 +124,33 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
   rightContainer.className = 'tp-toolbar-right';
 
   let scrollSyncEnabled = true;
+  let diffUnsubscribe: (() => void) | null = null;
 
   // Add visibility meter first (leftmost in right container)
   rightContainer.appendChild(visibilityMeter.element);
+
+  if (diffState?.isAvailable()) {
+    const diffToggle = document.createElement('button');
+    diffToggle.type = 'button';
+    diffToggle.className = 'tp-toolbar-button tp-toolbar-diff-toggle';
+
+    const applySnapshot = (snapshot: DiffStateSnapshot): void => {
+      const active = snapshot.available && snapshot.enabled;
+      diffToggle.disabled = !snapshot.available;
+      diffToggle.classList.toggle('active', active);
+      diffToggle.textContent = active ? 'Hide diff' : 'Show diff';
+      diffToggle.setAttribute('aria-pressed', active ? 'true' : 'false');
+      diffToggle.title = active ? 'Hide diff overlays' : 'Show diff overlays';
+    };
+
+    diffToggle.addEventListener('click', () => {
+      diffState.setEnabled(!diffState.isEnabled());
+    });
+
+    diffUnsubscribe = diffState.subscribe(applySnapshot);
+
+    rightContainer.appendChild(diffToggle);
+  }
 
   const viewToggle = document.createElement('div');
   viewToggle.className = 'tp-view-toggle';
@@ -229,6 +255,7 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
     },
     destroy(): void {
       foldingController.removeClient(foldingClient);
+      diffUnsubscribe?.();
       visibilityMeter.destroy();
       helpFeature.destroy();
       scrollSyncButton.removeEventListener('click', handleScrollSyncClick);

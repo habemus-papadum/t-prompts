@@ -36,6 +36,8 @@ from .text import process_dedent
 from .widgets import (
     Widget,
     WidgetConfig,
+    build_diff_overlay_data,
+    build_diff_overlay_widget,
     get_default_widget_config,
     js_prelude,
     set_default_widget_config,
@@ -56,6 +58,8 @@ __all__ = [
     "ImageChunk",
     "Widget",
     "WidgetConfig",
+    "build_diff_overlay_widget",
+    "build_diff_overlay_data",
     "prompt",
     "dedent",
     "get_default_widget_config",

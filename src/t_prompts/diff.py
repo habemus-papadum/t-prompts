@@ -213,10 +213,22 @@ class RenderedPromptDiff:
                 {
                     "op": delta.op,
                     "before": (
-                        {"text": delta.before.text, "element_id": delta.before.element_id} if delta.before else None
+                        {
+                            "text": delta.before.text,
+                            "element_id": delta.before.element_id,
+                            "chunk_id": delta.before.id,
+                        }
+                        if delta.before
+                        else None
                     ),
                     "after": (
-                        {"text": delta.after.text, "element_id": delta.after.element_id} if delta.after else None
+                        {
+                            "text": delta.after.text,
+                            "element_id": delta.after.element_id,
+                            "chunk_id": delta.after.id,
+                        }
+                        if delta.after
+                        else None
                     ),
                 }
                 for delta in self.chunk_deltas

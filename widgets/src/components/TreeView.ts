@@ -7,6 +7,8 @@
 
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata, ElementData, ChunkSize } from '../types';
+import type { DiffState, DiffStateSnapshot } from '../state/diffState';
+import type { DiffStats, NodeDelta } from '../diff-types';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingClient } from '../folding/types';
 import { createVisibilityMeter, type VisibilityMeter } from './VisibilityMeter';
@@ -25,6 +27,7 @@ interface TreeViewOptions {
   data: WidgetData;
   metadata: WidgetMetadata;
   foldingController: FoldingController;
+  diffState?: DiffState;
   onCollapse?: () => void;
 }
 
@@ -49,6 +52,7 @@ interface TreeItemComponent {
   visibilityMeter: VisibilityMeter;
   updateVisibility(): void;
   toggle(): void;
+  setDiffState(snapshot: DiffStateSnapshot | null): void;
 }
 
 const ICON_FOR_TYPE: Record<string, string> = {
@@ -61,8 +65,23 @@ const ICON_FOR_TYPE: Record<string, string> = {
 
 const MAX_KEY_LENGTH = 15;
 
+const DIFF_STATUS_DETAILS: Record<string, { label: string; className: string; title: string }> = {
+  inserted: { label: '+', className: 'tp-tree-row--diff-inserted', title: 'Added node' },
+  modified: { label: '≃', className: 'tp-tree-row--diff-modified', title: 'Modified node' },
+  moved: { label: '↷', className: 'tp-tree-row--diff-moved', title: 'Moved node' },
+  deleted: { label: '−', className: 'tp-tree-row--diff-deleted', title: 'Removed node' },
+  equal: { label: '', className: '', title: '' },
+};
+
+const TREE_DIFF_CLASSES = [
+  'tp-tree-row--diff-inserted',
+  'tp-tree-row--diff-modified',
+  'tp-tree-row--diff-moved',
+  'tp-tree-row--diff-deleted',
+];
+
 export function buildTreeView(options: TreeViewOptions): TreeView {
-  const { data, metadata, foldingController, onCollapse } = options;
+  const { data, metadata, foldingController, diffState, onCollapse } = options;
   const chunkSizeMap = metadata.chunkSizeMap ?? {};
   const treeShowWhitespace = data.config?.treeShowWhitespace ?? 'default';
 
@@ -76,6 +95,11 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
   title.className = 'tp-tree-title';
   title.textContent = 'Structure';
   header.appendChild(title);
+
+  const summary = document.createElement('div');
+  summary.className = 'tp-tree-diff-summary';
+  summary.hidden = true;
+  header.appendChild(summary);
 
   const collapseButton = document.createElement('button');
   collapseButton.type = 'button';
@@ -94,11 +118,24 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
   itemsContainer.className = 'tp-tree-items';
   rootElement.appendChild(itemsContainer);
 
+  const removedContainer = document.createElement('div');
+  removedContainer.className = 'tp-tree-removed';
+  removedContainer.hidden = true;
+  const removedTitle = document.createElement('div');
+  removedTitle.className = 'tp-tree-removed-title';
+  removedTitle.textContent = 'Removed';
+  const removedItems = document.createElement('div');
+  removedItems.className = 'tp-tree-removed-items';
+  removedContainer.appendChild(removedTitle);
+  removedContainer.appendChild(removedItems);
+  rootElement.appendChild(removedContainer);
+
   const elementTree = buildElementTree(data, chunkSizeMap, treeShowWhitespace);
   const flatItems: TreeItemComponent[] = [];
+  let diffUnsubscribe: (() => void) | null = null;
 
   for (const node of elementTree) {
-    const item = createTreeItem(node, 0, chunkSizeMap, foldingController);
+    const item = createTreeItem(node, 0, chunkSizeMap, foldingController, diffState);
     collectItems(item, flatItems);
     itemsContainer.appendChild(item.element);
   }
@@ -111,6 +148,66 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
 
   foldingController.addClient(foldingClient);
 
+  const updateRemovedNodes = (nodes: NodeDelta[]): void => {
+    removedItems.innerHTML = '';
+    if (!nodes || nodes.length === 0) {
+      removedContainer.hidden = true;
+      return;
+    }
+
+    removedContainer.hidden = false;
+    for (const delta of nodes) {
+      const entry = document.createElement('div');
+      entry.className = 'tp-tree-removed-item';
+
+      const pill = document.createElement('span');
+      pill.className = 'tp-tree-diff-pill tp-tree-diff-pill--removed';
+      pill.textContent = '−';
+      pill.setAttribute('aria-hidden', 'true');
+      entry.appendChild(pill);
+
+      const label = document.createElement('span');
+      label.className = 'tp-tree-removed-label';
+      label.textContent = `${formatDiffKey(delta.key)} • ${delta.element_type}`;
+      entry.appendChild(label);
+
+      const detailParts: string[] = [];
+      const editCount = delta.text_edits?.length ?? 0;
+      if (editCount > 0) {
+        detailParts.push(`${editCount} text change${editCount === 1 ? '' : 's'}`);
+      }
+      const attrKeys = Object.keys(delta.attr_changes ?? {});
+      if (attrKeys.length > 0) {
+        detailParts.push(`${attrKeys.length} attribute change${attrKeys.length === 1 ? '' : 's'}`);
+      }
+      if (detailParts.length > 0) {
+        entry.title = detailParts.join(', ');
+      }
+
+      removedItems.appendChild(entry);
+    }
+  };
+
+  const applyDiffSnapshot = (snapshot: DiffStateSnapshot | null): void => {
+    const structured = snapshot?.available && snapshot.enabled ? snapshot.structured : undefined;
+    rootElement.classList.toggle('tp-tree-view--diff', Boolean(structured));
+
+    if (structured) {
+      summary.hidden = false;
+      summary.textContent = formatDiffSummary(structured.stats);
+      updateRemovedNodes(structured.removedNodes);
+    } else {
+      summary.hidden = true;
+      summary.textContent = '';
+      updateRemovedNodes([]);
+    }
+
+    const itemSnapshot = structured ? snapshot : null;
+    for (const item of flatItems) {
+      item.setDiffState(itemSnapshot);
+    }
+  };
+
   function update(): void {
     for (const item of flatItems) {
       item.updateVisibility();
@@ -118,6 +215,12 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
   }
 
   update();
+
+  if (diffState?.isAvailable()) {
+    diffUnsubscribe = diffState.subscribe((snapshot) => {
+      applyDiffSnapshot(snapshot);
+    });
+  }
 
   const navigationActivation: NavigationActivation | undefined = activateChunkNavigation(rootElement, {
     enable: data.config?.enableEditorLinks ?? true,
@@ -133,6 +236,7 @@ export function buildTreeView(options: TreeViewOptions): TreeView {
       rootElement.remove();
       flatItems.length = 0;
       foldingController.removeClient(foldingClient);
+      diffUnsubscribe?.();
       navigationActivation?.disconnect();
     },
   };
@@ -260,7 +364,8 @@ function createTreeItem(
   node: ElementTreeNode,
   depth: number,
   chunkSizeMap: Record<string, ChunkSize>,
-  foldingController: FoldingController
+  foldingController: FoldingController,
+  diffState?: DiffState
 ): TreeItemComponent {
   const element = document.createElement('div');
   element.className = 'tp-tree-item tp-tree-item--collapsed';
@@ -288,6 +393,11 @@ function createTreeItem(
   keySpan.textContent = elideKey(node.key);
   row.appendChild(keySpan);
 
+  const diffBadge = document.createElement('span');
+  diffBadge.className = 'tp-tree-diff-pill';
+  diffBadge.hidden = true;
+  row.appendChild(diffBadge);
+
   const visibilityMeter = createVisibilityMeter({
     totalCharacters: node.totalCharacters,
     totalPixels: node.totalPixels,
@@ -304,10 +414,45 @@ function createTreeItem(
   element.appendChild(childrenContainer);
 
   const childItems = node.children.map((child) => {
-    const childItem = createTreeItem(child, depth + 1, chunkSizeMap, foldingController);
+    const childItem = createTreeItem(child, depth + 1, chunkSizeMap, foldingController, diffState);
     childrenContainer.appendChild(childItem.element);
     return childItem;
   });
+
+  const applyDiffState = (snapshot: DiffStateSnapshot | null): void => {
+    diffBadge.hidden = true;
+    diffBadge.textContent = '';
+    diffBadge.removeAttribute('title');
+    row.classList.remove('tp-tree-row--diff');
+    row.removeAttribute('data-diff-status');
+    element.classList.remove('tp-tree-item--diff');
+    for (const className of TREE_DIFF_CLASSES) {
+      row.classList.remove(className);
+    }
+
+    const active = snapshot?.available && snapshot.enabled && snapshot.structured;
+    if (!active || !snapshot?.structured) {
+      return;
+    }
+
+    const delta = snapshot.structured.statusByElementId.get(node.id);
+    if (!delta || delta.status === 'equal') {
+      return;
+    }
+
+    const detail = DIFF_STATUS_DETAILS[delta.status] ?? DIFF_STATUS_DETAILS.equal;
+    if (!detail.className) {
+      return;
+    }
+
+    diffBadge.hidden = false;
+    diffBadge.textContent = detail.label;
+    diffBadge.title = detail.title;
+    diffBadge.setAttribute('aria-label', detail.title);
+    row.classList.add('tp-tree-row--diff', detail.className);
+    row.setAttribute('data-diff-status', delta.status);
+    element.classList.add('tp-tree-item--diff');
+  };
 
   const item: TreeItemComponent = {
     element,
@@ -338,6 +483,12 @@ function createTreeItem(
         if (item.toggleButton) {
           item.toggleButton.textContent = '▸';
         }
+      }
+    },
+    setDiffState(snapshot) {
+      applyDiffState(snapshot);
+      for (const childItem of childItems) {
+        childItem.setDiffState(snapshot);
       }
     },
   };
@@ -410,6 +561,23 @@ function collectItems(item: TreeItemComponent, target: TreeItemComponent[]): voi
   for (const child of item.childItems) {
     collectItems(child, target);
   }
+}
+
+function formatDiffSummary(stats: DiffStats): string {
+  const parts = [
+    `+${stats.nodes_added}`,
+    `−${stats.nodes_removed}`,
+    `≃${stats.nodes_modified}`,
+    `↷${stats.nodes_moved}`,
+  ];
+  return `Δ Nodes: ${parts.join(' ')}`;
+}
+
+function formatDiffKey(key: string | number | null): string {
+  if (key === null || key === undefined) {
+    return '(anonymous)';
+  }
+  return elideKey(String(key));
 }
 
 function calculateVisibleMetrics(

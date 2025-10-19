@@ -21,6 +21,7 @@ import {
 } from './MarkdownView.plugin';
 import type { InlinePositionMap } from './MarkdownView.plugin';
 import { activateChunkNavigation, type NavigationActivation } from '../utils/chunkNavigation';
+import type { DiffState, DiffStateSnapshot, RenderedGhostChunk } from '../state/diffState';
 
 /**
  * Position range in the markdown source text
@@ -59,7 +60,8 @@ const INLINE_CHUNK_CLASS = 'tp-markdown-chunk';
 export function buildMarkdownView(
   data: WidgetData,
   metadata: WidgetMetadata,
-  foldingController: FoldingController
+  foldingController: FoldingController,
+  diffState?: DiffState
 ): MarkdownView {
   // 1. Create initial DOM structure
   const element = document.createElement('div');
@@ -69,6 +71,9 @@ export function buildMarkdownView(
   const chunkIdToElements = new Map<string, HTMLElement[]>();
   const collapsedIndicators = new WeakMap<HTMLElement, HTMLElement>();
   const collapsedAnchors = new Map<string, HTMLElement>();
+  const diffCallouts: HTMLElement[] = [];
+  const diffGhosts: HTMLElement[] = [];
+  let diffUnsubscribe: (() => void) | null = null;
 
   // 3. Stage 1: Generate markdown text with position tracking
   const { markdownText, chunkPositions, chunkTexts } = generateMarkdownWithPositions(data);
@@ -93,6 +98,98 @@ export function buildMarkdownView(
     chunkTargets: metadata.chunkLocationMap,
     elementTargets: metadata.elementLocationDetails,
   });
+
+  const clearDiffDecorations = (): void => {
+    for (const elements of chunkIdToElements.values()) {
+      for (const el of elements) {
+        el.classList.remove('tp-markdown-diff', 'tp-markdown-diff-insert', 'tp-markdown-diff-replace');
+        el.removeAttribute('data-diff-op');
+      }
+    }
+
+    while (diffCallouts.length > 0) {
+      const callout = diffCallouts.pop();
+      callout?.remove();
+    }
+
+    while (diffGhosts.length > 0) {
+      const ghost = diffGhosts.pop();
+      ghost?.remove();
+    }
+
+    element.classList.remove('tp-markdown-container--diff');
+  };
+
+  const applyMarkdownGhostInline = (anchor: HTMLElement, ghost: RenderedGhostChunk): void => {
+    const callout = document.createElement('span');
+    callout.className = 'tp-markdown-ghost-inline';
+    callout.textContent = ghost.text;
+    callout.setAttribute('data-diff-op', 'delete');
+    callout.setAttribute('aria-label', 'Removed content');
+    anchor.insertAdjacentElement('afterend', callout);
+    diffCallouts.push(callout);
+  };
+
+  const applyMarkdownGhostBlock = (ghost: RenderedGhostChunk): void => {
+    const block = document.createElement('div');
+    block.className = 'tp-markdown-ghost-block';
+    block.textContent = ghost.text;
+    block.setAttribute('data-diff-op', 'delete');
+    block.setAttribute('aria-label', 'Removed block');
+    block.setAttribute('data-chunk-id', ghost.chunkId);
+
+    const anchorTargets = ghost.anchorAfterId ? chunkIdToElements.get(ghost.anchorAfterId) : undefined;
+    const anchor = anchorTargets && anchorTargets.length > 0 ? anchorTargets[0] : null;
+    if (anchor && anchor.parentElement) {
+      anchor.parentElement.insertBefore(block, anchor);
+    } else {
+      element.appendChild(block);
+    }
+
+    diffGhosts.push(block);
+  };
+
+  const applyDiffSnapshot = (snapshot: DiffStateSnapshot | null): void => {
+    clearDiffDecorations();
+
+    const rendered = snapshot?.available && snapshot.enabled ? snapshot.rendered : undefined;
+    if (!rendered) {
+      return;
+    }
+
+    element.classList.add('tp-markdown-container--diff');
+
+    for (const [chunkId, annotation] of rendered.chunkAnnotations.entries()) {
+      const targets = chunkIdToElements.get(chunkId);
+      if (!targets) {
+        continue;
+      }
+      for (const target of targets) {
+        target.classList.add('tp-markdown-diff');
+        target.setAttribute('data-diff-op', annotation.op);
+        if (annotation.op === 'insert') {
+          target.classList.add('tp-markdown-diff-insert');
+        } else if (annotation.op === 'replace') {
+          target.classList.add('tp-markdown-diff-replace');
+        }
+      }
+    }
+
+    for (const ghost of rendered.deletedChunks) {
+      if (ghost.op === 'replace' && ghost.anchorAfterId) {
+        const anchors = chunkIdToElements.get(ghost.anchorAfterId) ?? [];
+        if (anchors.length === 0) {
+          applyMarkdownGhostBlock(ghost);
+          continue;
+        }
+        for (const anchor of anchors) {
+          applyMarkdownGhostInline(anchor, ghost);
+        }
+        continue;
+      }
+      applyMarkdownGhostBlock(ghost);
+    }
+  };
 
   function clearCollapsedMarkers(): void {
     collapsedAnchors.clear();
@@ -197,6 +294,12 @@ export function buildMarkdownView(
   foldingController.addClient(foldingClient);
   applyCollapsedState();
 
+  if (diffState?.isAvailable()) {
+    diffUnsubscribe = diffState.subscribe((snapshot) => {
+      applyDiffSnapshot(snapshot);
+    });
+  }
+
   // 8. Return component
   return {
     element,
@@ -219,6 +322,9 @@ export function buildMarkdownView(
     destroy(): void {
       // Unregister from folding controller
       foldingController.removeClient(foldingClient);
+
+      diffUnsubscribe?.();
+      clearDiffDecorations();
 
       // Cleanup DOM and data
       navigationActivation?.disconnect();
