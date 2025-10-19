@@ -367,6 +367,10 @@
   user-select: none;
 }
 
+.tp-toolbar-sync-btn {
+  margin-right: calc(var(--tp-spacing) * 0.5);
+}
+
 .tp-view-toggle-btn svg {
   width: 16px;
   height: 16px;

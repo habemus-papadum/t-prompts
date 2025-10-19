@@ -36,6 +36,12 @@ interface PositionRange {
 export interface MarkdownView extends Component {
   // Markdown-specific data
   chunkIdToElements: Map<string, HTMLElement[]>; // chunkId → array of DOM elements
+
+  /**
+   * Retrieve the preferred layout elements for the provided chunk.
+   * Collapsed chunks will return their visible indicator instead of the hidden body.
+   */
+  getLayoutElements(chunkId: string): HTMLElement[] | undefined;
 }
 
 const COLLAPSED_CLASS = 'tp-markdown-collapsed';
@@ -62,6 +68,7 @@ export function buildMarkdownView(
   // 2. Build chunk ID to elements map
   const chunkIdToElements = new Map<string, HTMLElement[]>();
   const collapsedIndicators = new WeakMap<HTMLElement, HTMLElement>();
+  const collapsedAnchors = new Map<string, HTMLElement>();
 
   // 3. Stage 1: Generate markdown text with position tracking
   const { markdownText, chunkPositions, chunkTexts } = generateMarkdownWithPositions(data);
@@ -88,6 +95,7 @@ export function buildMarkdownView(
   });
 
   function clearCollapsedMarkers(): void {
+    collapsedAnchors.clear();
     const collapsedElements = element.querySelectorAll(`.${COLLAPSED_CLASS}`);
     collapsedElements.forEach((node) => {
       const htmlElement = node as HTMLElement;
@@ -138,7 +146,7 @@ export function buildMarkdownView(
     return indicator;
   }
 
-  function markCollapsedElement(target: HTMLElement, isPrimary: boolean, collapsedCount: number): void {
+  function markCollapsedElement(chunkId: string, target: HTMLElement, isPrimary: boolean, collapsedCount: number): void {
     target.classList.add(COLLAPSED_CLASS);
     if (!isPrimary || collapsedIndicators.has(target)) {
       return;
@@ -147,6 +155,9 @@ export function buildMarkdownView(
     const indicator = createCollapsedIndicator(target, collapsedCount);
     if (indicator) {
       collapsedIndicators.set(target, indicator);
+      if (!collapsedAnchors.has(chunkId)) {
+        collapsedAnchors.set(chunkId, indicator);
+      }
     }
   }
 
@@ -164,7 +175,7 @@ export function buildMarkdownView(
         if (!el) {
           continue;
         }
-        markCollapsedElement(el, index === 0, totalElements);
+        markCollapsedElement(chunkId, el, index === 0, totalElements);
       }
     }
   }
@@ -190,6 +201,20 @@ export function buildMarkdownView(
   return {
     element,
     chunkIdToElements,
+    getLayoutElements(chunkId: string): HTMLElement[] | undefined {
+      const indicator = collapsedAnchors.get(chunkId);
+      if (indicator) {
+        return [indicator];
+      }
+
+      const elements = chunkIdToElements.get(chunkId);
+      if (!elements || elements.length === 0) {
+        return undefined;
+      }
+
+      const connected = elements.filter((el) => el.isConnected);
+      return connected.length > 0 ? connected : elements;
+    },
 
     destroy(): void {
       // Unregister from folding controller
@@ -199,6 +224,7 @@ export function buildMarkdownView(
       navigationActivation?.disconnect();
       element.remove();
       chunkIdToElements.clear();
+      collapsedAnchors.clear();
     },
   };
 }

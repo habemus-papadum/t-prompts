@@ -12,6 +12,7 @@ import { createVisibilityMeter } from './VisibilityMeter';
 
 export interface ToolbarCallbacks {
   onViewModeChange: (mode: ViewMode) => void;
+  onScrollSyncToggle?: (enabled: boolean) => void;
 }
 
 export interface ToolbarMetrics {
@@ -30,6 +31,7 @@ export interface ToolbarOptions {
 
 export interface ToolbarComponent {
   element: HTMLElement;
+  setScrollSyncEnabled(enabled: boolean): void;
   destroy(): void;
 }
 
@@ -72,7 +74,17 @@ const icons = {
     svg.setAttribute('fill', 'currentColor');
     svg.innerHTML = '<path d="M1 3h6v10H1V3zm1 1v8h4V4H2zm7-1h6v10H9V3zm1 1v8h4V4h-4z"/>';
     return svg;
- },
+  },
+  sync: (): SVGElement => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('fill', 'currentColor');
+    svg.innerHTML =
+      '<path d="M3.5 3.5H7l-.72-.72.72-.78L9.75 4.75 7 7.5l-.72-.78L7 6H3.5A3.5 3.5 0 0 0 3.5 13h1v1h-1A4.5 4.5 0 0 1 3.5 3.5zm9 9H9l.72.72-.72.78L6.25 11.25 9 8.5l.72.78L9 10h3.5a3.5 3.5 0 0 0 0-7h-1V2h1a4.5 4.5 0 0 1 0 9z"/>';
+    return svg;
+  },
 };
 
 /**
@@ -104,6 +116,10 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
   const rightContainer = document.createElement('div');
   rightContainer.className = 'tp-toolbar-right';
 
+  let scrollSyncEnabled = true;
+
+  const scrollSyncButton = createScrollSyncButton(scrollSyncEnabled);
+  rightContainer.appendChild(scrollSyncButton);
   rightContainer.appendChild(visibilityMeter.element);
 
   const viewToggle = document.createElement('div');
@@ -132,6 +148,27 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
 
   // Store buttons for updating active state
   toolbar._buttons = { code: codeBtn, markdown: markdownBtn, split: splitBtn };
+
+  function applyScrollSyncState(enabled: boolean): void {
+    scrollSyncEnabled = enabled;
+    scrollSyncButton.classList.toggle('active', enabled);
+    scrollSyncButton.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    scrollSyncButton.title = enabled ? 'Disable scroll sync' : 'Enable scroll sync';
+    scrollSyncButton.setAttribute(
+      'aria-label',
+      enabled ? 'Disable scroll synchronization' : 'Enable scroll synchronization'
+    );
+  }
+
+  applyScrollSyncState(scrollSyncEnabled);
+
+  const handleScrollSyncClick = (): void => {
+    const next = !scrollSyncEnabled;
+    applyScrollSyncState(next);
+    callbacks.onScrollSyncToggle?.(next);
+  };
+
+  scrollSyncButton.addEventListener('click', handleScrollSyncClick);
 
   const foldingClient: FoldingClient = {
     onStateChanged(event: FoldingEvent): void {
@@ -179,10 +216,14 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
 
   return {
     element: toolbar,
+    setScrollSyncEnabled(enabled: boolean): void {
+      applyScrollSyncState(enabled);
+    },
     destroy(): void {
       foldingController.removeClient(foldingClient);
       visibilityMeter.destroy();
       helpFeature.destroy();
+      scrollSyncButton.removeEventListener('click', handleScrollSyncClick);
       toolbar.remove();
     },
   };
@@ -224,6 +265,18 @@ function createToggleButton(
   if (active) {
     button.classList.add('active');
   }
+
+  return button;
+}
+
+function createScrollSyncButton(initiallyEnabled: boolean): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'tp-toolbar-sync-btn tp-view-toggle-btn';
+  button.setAttribute('aria-pressed', initiallyEnabled ? 'true' : 'false');
+
+  const icon = icons.sync();
+  button.appendChild(icon);
 
   return button;
 }
