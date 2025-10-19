@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
+import re
 from itertools import zip_longest
 from typing import Any, Iterable, Literal, Optional
 
@@ -76,6 +78,16 @@ class DiffStats:
 
 
 @dataclass(slots=True)
+class StructuredDiffMetrics:
+    """Quantitative metrics describing structural diff size."""
+
+    edit_count: float = 0.0
+    span_chars: int = 0
+    char_ratio: float = 0.0
+    order_score: float = 0.0
+
+
+@dataclass(slots=True)
 class StructuredPromptDiff:
     """Result of comparing two StructuredPrompt instances."""
 
@@ -83,6 +95,7 @@ class StructuredPromptDiff:
     after: StructuredPrompt
     root: NodeDelta
     stats: DiffStats
+    metrics: StructuredDiffMetrics
 
     def to_widget_data(self) -> dict[str, Any]:
         """
@@ -103,6 +116,12 @@ class StructuredPromptDiff:
                 "nodes_moved": self.stats.nodes_moved,
                 "text_added": self.stats.text_added,
                 "text_removed": self.stats.text_removed,
+            },
+            "metrics": {
+                "edit_count": self.metrics.edit_count,
+                "span_chars": self.metrics.span_chars,
+                "char_ratio": self.metrics.char_ratio,
+                "order_score": self.metrics.order_score,
             },
         }
 
@@ -158,6 +177,16 @@ class ElementRenderChange:
 
 
 @dataclass(slots=True)
+class RenderedDiffMetrics:
+    """Quantitative metrics describing rendered diff size."""
+
+    token_delta: int = 0
+    non_ws_delta: int = 0
+    ws_delta: int = 0
+    chunk_drift: float = 0.0
+
+
+@dataclass(slots=True)
 class RenderedPromptDiff:
     """Diff between two rendered prompt intermediate representations."""
 
@@ -165,6 +194,7 @@ class RenderedPromptDiff:
     after: StructuredPrompt
     chunk_deltas: list[ChunkDelta]
     per_element: dict[str, ElementRenderChange]
+    metrics: RenderedDiffMetrics
 
     def to_widget_data(self) -> dict[str, Any]:
         """
@@ -194,6 +224,12 @@ class RenderedPromptDiff:
                 for delta in self.chunk_deltas
             ],
             "stats": self.stats(),
+            "metrics": {
+                "token_delta": self.metrics.token_delta,
+                "non_ws_delta": self.metrics.non_ws_delta,
+                "ws_delta": self.metrics.ws_delta,
+                "chunk_drift": self.metrics.chunk_drift,
+            },
         }
 
     def stats(self) -> dict[str, int]:
@@ -237,7 +273,8 @@ def diff_structured_prompts(before: StructuredPrompt, after: StructuredPrompt) -
     root = _align_nodes(before, after)
     stats = DiffStats()
     _collect_stats(root, stats)
-    return StructuredPromptDiff(before=before, after=after, root=root, stats=stats)
+    metrics = _compute_structured_metrics(root, before, after)
+    return StructuredPromptDiff(before=before, after=after, root=root, stats=stats, metrics=metrics)
 
 
 def diff_rendered_prompts(before: StructuredPrompt, after: StructuredPrompt) -> RenderedPromptDiff:
@@ -265,7 +302,20 @@ def diff_rendered_prompts(before: StructuredPrompt, after: StructuredPrompt) -> 
         added, removed = delta.text_delta()
         summary.text_added += added
         summary.text_removed += removed
-    return RenderedPromptDiff(before=before, after=after, chunk_deltas=deltas, per_element=per_element)
+    metrics = _compute_rendered_metrics(
+        deltas,
+        before_chunks,
+        after_chunks,
+        before_signatures,
+        after_signatures,
+    )
+    return RenderedPromptDiff(
+        before=before,
+        after=after,
+        chunk_deltas=deltas,
+        per_element=per_element,
+        metrics=metrics,
+    )
 
 
 # Internal helpers ------------------------------------------------------------------
@@ -543,3 +593,224 @@ def _serialize_node_delta(delta: NodeDelta) -> dict[str, Any]:
         ],
         "children": [_serialize_node_delta(child) for child in delta.children],
     }
+
+
+def _compute_structured_metrics(root: NodeDelta, before: StructuredPrompt, after: StructuredPrompt) -> StructuredDiffMetrics:
+    before_map = _build_element_map(before)
+    after_map = _build_element_map(after)
+
+    edit_count = 0.0
+    span_chars = 0
+
+    def visit(delta: NodeDelta) -> None:
+        nonlocal edit_count, span_chars
+
+        if delta.status == "inserted":
+            edit_count += 1
+            span_chars += _element_text_length(after_map.get(delta.after_id))
+        elif delta.status == "deleted":
+            edit_count += 1
+            span_chars += _element_text_length(before_map.get(delta.before_id))
+        elif delta.status == "moved":
+            edit_count += 1
+        elif delta.status == "modified":
+            attr_only = bool(delta.attr_changes) and not delta.text_edits and all(
+                child.status == "equal" for child in delta.children
+            )
+            if delta.attr_changes or delta.text_edits or "→" in delta.element_type:
+                edit_count += 0.5 if attr_only else 1
+            # Text edits contribute to span impact regardless of weight
+        for edit in delta.text_edits:
+            span_chars += max(len(edit.before), len(edit.after))
+
+        for child in delta.children:
+            visit(child)
+
+    visit(root)
+
+    baseline_chars = _structured_total_chars(before)
+    if baseline_chars == 0:
+        baseline_chars = max(_structured_total_chars(after), 1)
+    char_ratio = span_chars / baseline_chars
+
+    order_score = _structured_order_score(before, after)
+
+    return StructuredDiffMetrics(
+        edit_count=edit_count,
+        span_chars=span_chars,
+        char_ratio=char_ratio,
+        order_score=order_score,
+    )
+
+
+def _build_element_map(element: Element) -> dict[str, Element]:
+    elements: dict[str, Element] = {}
+
+    def visit(node: Element) -> None:
+        elements[node.id] = node
+        for child in _iter_children(node):
+            visit(child)
+
+    visit(element)
+    return elements
+
+
+def _element_text_length(element: Optional[Element]) -> int:
+    if element is None:
+        return 0
+    if isinstance(element, Static):
+        return len(element.value)
+    if isinstance(element, TextInterpolation):
+        return len(element.value)
+    return 0
+
+
+def _structured_total_chars(element: Element) -> int:
+    total = 0
+
+    def visit(node: Element) -> None:
+        nonlocal total
+        total += _element_text_length(node)
+        for child in _iter_children(node):
+            visit(child)
+
+    visit(element)
+    return total
+
+
+def _structured_order_score(before: Element, after: Element) -> float:
+    total_pairs = 0
+    discordant_pairs = 0
+
+    def visit(before_node: Element, after_node: Element) -> None:
+        nonlocal total_pairs, discordant_pairs
+
+        before_children = list(_iter_children(before_node))
+        after_children = list(_iter_children(after_node))
+        if not before_children or not after_children:
+            return
+
+        after_lookup: dict[tuple[Any, ...], deque[tuple[int, Element]]] = {}
+        for idx, child in enumerate(after_children):
+            after_lookup.setdefault(_order_signature(child), deque()).append((idx, child))
+
+        matched: list[tuple[int, int, Element, Element]] = []
+        for before_idx, before_child in enumerate(before_children):
+            bucket = after_lookup.get(_order_signature(before_child))
+            if bucket:
+                after_idx, after_child = bucket.popleft()
+                matched.append((before_idx, after_idx, before_child, after_child))
+
+        if len(matched) >= 2:
+            ordered = sorted(matched, key=lambda entry: entry[0])
+            after_indices = [entry[1] for entry in ordered]
+            pair_count = len(after_indices) * (len(after_indices) - 1) // 2
+            total_pairs += pair_count
+            discordant_pairs += _count_inversions(after_indices)
+
+        for _, _, before_child, after_child in matched:
+            visit(before_child, after_child)
+
+    visit(before, after)
+
+    if total_pairs == 0:
+        return 0.0
+    return discordant_pairs / total_pairs
+
+
+def _order_signature(element: Element) -> tuple[Any, ...]:
+    element_type = type(element).__name__
+    if isinstance(element, Static):
+        return (element_type, element.value)
+    if isinstance(element, TextInterpolation):
+        return (element_type, element.value)
+    if isinstance(element, StructuredPrompt):
+        text = _element_render_text(element)
+        if text:
+            return (element_type, text)
+        return (element_type, element.key)
+    if isinstance(element, ListInterpolation):
+        return (element_type, element.key)
+    return (element_type, element.key)
+
+
+def _count_inversions(sequence: list[int]) -> int:
+    inversions = 0
+    for idx, value in enumerate(sequence):
+        for other in sequence[idx + 1 :]:
+            if value > other:
+                inversions += 1
+    return inversions
+
+
+TOKEN_PATTERN = re.compile(r"\s+|\S+")
+
+
+def _compute_rendered_metrics(
+    deltas: Iterable[ChunkDelta],
+    before_chunks: Iterable[TextChunk | ImageChunk],
+    after_chunks: Iterable[TextChunk | ImageChunk],
+    before_signatures: dict[str, tuple[str, ...]],
+    after_signatures: dict[str, tuple[str, ...]],
+) -> RenderedDiffMetrics:
+    token_delta = 0
+    non_ws_delta = 0
+    ws_delta = 0
+
+    for delta in deltas:
+        if delta.op == "insert":
+            total, non_ws, ws = _token_counts(delta.after.text if delta.after else "")
+            token_delta += total
+            non_ws_delta += non_ws
+            ws_delta += ws
+        elif delta.op == "delete":
+            total, non_ws, ws = _token_counts(delta.before.text if delta.before else "")
+            token_delta += total
+            non_ws_delta += non_ws
+            ws_delta += ws
+        elif delta.op == "replace":
+            before_total, before_non_ws, before_ws = _token_counts(delta.before.text if delta.before else "")
+            after_total, after_non_ws, after_ws = _token_counts(delta.after.text if delta.after else "")
+            token_delta += before_total + after_total
+            non_ws_delta += before_non_ws + after_non_ws
+            ws_delta += before_ws + after_ws
+
+    before_set = {_chunk_signature(chunk, before_signatures) for chunk in before_chunks}
+    after_set = {_chunk_signature(chunk, after_signatures) for chunk in after_chunks}
+    union = before_set | after_set
+    intersection = before_set & after_set
+    chunk_drift = 0.0 if not union else 1 - (len(intersection) / len(union))
+
+    return RenderedDiffMetrics(
+        token_delta=token_delta,
+        non_ws_delta=non_ws_delta,
+        ws_delta=ws_delta,
+        chunk_drift=chunk_drift,
+    )
+
+
+def _token_counts(text: str) -> tuple[int, int, int]:
+    total = 0
+    non_ws = 0
+    ws = 0
+    for token in TOKEN_PATTERN.findall(text):
+        total += 1
+        if token.isspace():
+            ws += 1
+        else:
+            non_ws += 1
+    return total, non_ws, ws
+
+
+def _element_render_text(element: Optional[Element]) -> str:
+    if element is None:
+        return ""
+    try:
+        ir = element.ir()
+    except Exception:  # pragma: no cover - defensive guard
+        return ""
+    texts: list[str] = []
+    for chunk in getattr(ir, "chunks", ()):  # type: ignore[attr-defined]
+        if isinstance(chunk, TextChunk):
+            texts.append(chunk.text)
+    return "".join(texts)

@@ -19,6 +19,12 @@ describe('StructuredPromptDiffView', () => {
         text_added: 5,
         text_removed: 2,
       },
+      metrics: {
+        edit_count: 2.5,
+        span_chars: 12,
+        char_ratio: 0.5,
+        order_score: 0.25,
+      },
       root: {
         status: 'modified',
         element_type: 'StructuredPrompt',
@@ -56,8 +62,9 @@ describe('StructuredPromptDiffView', () => {
     expect(header?.textContent).toBe('Structured prompt diff');
 
     const pills = component.element.querySelectorAll('.tp-diff-pill');
-    expect(pills).toHaveLength(6);
+    expect(pills).toHaveLength(10);
     expect(pills[0]?.textContent).toBe('Added: 1');
+    expect(pills[pills.length - 1]?.textContent).toBe('Order score: 0.25');
 
     const title = component.element.querySelector('.tp-diff-node-title');
     expect(title?.textContent).toContain('None');

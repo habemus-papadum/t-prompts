@@ -49,6 +49,25 @@ export function buildRenderedPromptDiffView(
     summary.appendChild(pill);
   }
 
+  const metricsItems = [
+    { label: 'Token Δ', value: data.metrics.token_delta },
+    { label: 'Non-ws Δ', value: data.metrics.non_ws_delta },
+    { label: 'Ws Δ', value: data.metrics.ws_delta },
+    {
+      label: 'Chunk drift',
+      value: Number.isFinite(data.metrics.chunk_drift)
+        ? data.metrics.chunk_drift.toFixed(2)
+        : '0.00',
+    },
+  ];
+
+  for (const { label, value } of metricsItems) {
+    const pill = document.createElement('span');
+    pill.className = 'tp-diff-pill tp-diff-metric';
+    pill.textContent = `${label}: ${value}`;
+    summary.appendChild(pill);
+  }
+
   element.appendChild(summary);
 
   // 4. Build body with legend and chunks

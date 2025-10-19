@@ -51,6 +51,13 @@ export interface DiffStats {
   text_removed: number;
 }
 
+export interface StructuredDiffMetrics {
+  edit_count: number;
+  span_chars: number;
+  char_ratio: number;
+  order_score: number;
+}
+
 /**
  * Data for StructuredPromptDiff widget
  */
@@ -58,6 +65,7 @@ export interface StructuredPromptDiffData {
   diff_type: 'structured';
   root: NodeDelta;
   stats: DiffStats;
+  metrics: StructuredDiffMetrics;
 }
 
 /**
@@ -88,6 +96,12 @@ export interface RenderedPromptDiffData {
     delete: number;
     replace: number;
     equal: number;
+  };
+  metrics: {
+    token_delta: number;
+    non_ws_delta: number;
+    ws_delta: number;
+    chunk_drift: number;
   };
 }
 

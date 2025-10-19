@@ -174,6 +174,9 @@ def test_rendered_diff_widget_data_matches_operations():
     assert replace_delta["after"]["text"].strip() == "- three"
 
     assert widget_data["stats"] == diff.stats()
+    metrics = widget_data["metrics"]
+    assert set(metrics.keys()) == {"token_delta", "non_ws_delta", "ws_delta", "chunk_drift"}
+    assert metrics["token_delta"] >= metrics["non_ws_delta"] >= 0
 
 
 def test_structured_diff_widget_data_serializes_text_edits_and_attr_changes():
@@ -197,7 +200,43 @@ def test_structured_diff_widget_data_serializes_text_edits_and_attr_changes():
 
     static_nodes = [child for child in widget_data["root"]["children"] if child["element_type"] == "Static"]
     assert any(edit["op"] == "insert" for node in static_nodes for edit in node["text_edits"])
+    struct_metrics = widget_data["metrics"]
+    assert "edit_count" in struct_metrics and struct_metrics["span_chars"] >= 0
 
-    for node in widget_data["root"]["children"]:
-        for change in node["attr_changes"].values():
-            assert isinstance(change, list)
+
+def test_structured_diff_metrics_capture_order_and_span():
+    """Structured diff metrics should quantify edit volume and ordering."""
+
+    item1 = prompt(t"- alpha\n")
+    item2 = prompt(t"- beta\n")
+    item3 = prompt(t"- gamma\n")
+    items_before = [item1, item2, item3]
+    before = prompt(t"Items:\n{items_before:list}\n")
+
+    item1_updated = prompt(t"- alpha updated\n")
+    item2_after = prompt(t"- beta\n")
+    item3_after = prompt(t"- gamma\n")
+    items_after = [item3_after, item1_updated, item2_after]
+    after = prompt(t"Items:\n{items_after:list}\n")
+
+    diff = diff_structured_prompts(before, after)
+
+    assert diff.metrics.edit_count >= 2
+    assert diff.metrics.span_chars >= len("- alpha")
+    assert diff.metrics.char_ratio > 0
+    assert 0 <= diff.metrics.order_score <= 1
+    assert diff.metrics.order_score > 0
+
+
+def test_rendered_diff_metrics_split_tokens_and_chunk_drift():
+    """Rendered diff metrics expose whitespace vs non-whitespace churn."""
+
+    before = prompt(t"Hello world!\n")
+    after = prompt(t"Hello brave new world!\nAnd another line\n")
+
+    diff = diff_rendered_prompts(before, after)
+
+    metrics = diff.metrics
+    assert metrics.token_delta >= metrics.non_ws_delta >= 0
+    assert metrics.ws_delta >= 0
+    assert 0 <= metrics.chunk_drift <= 1

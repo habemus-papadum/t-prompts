@@ -51,6 +51,30 @@ export function buildStructuredPromptDiffView(
     summary.appendChild(pill);
   }
 
+  const metricsItems = [
+    { label: 'Edit count', value: data.metrics.edit_count.toFixed(1) },
+    { label: 'Span chars', value: data.metrics.span_chars },
+    {
+      label: 'Char ratio',
+      value: Number.isFinite(data.metrics.char_ratio)
+        ? data.metrics.char_ratio.toFixed(2)
+        : '0.00',
+    },
+    {
+      label: 'Order score',
+      value: Number.isFinite(data.metrics.order_score)
+        ? data.metrics.order_score.toFixed(2)
+        : '0.00',
+    },
+  ];
+
+  for (const { label, value } of metricsItems) {
+    const pill = document.createElement('span');
+    pill.className = 'tp-diff-pill tp-diff-metric';
+    pill.textContent = `${label}: ${value}`;
+    summary.appendChild(pill);
+  }
+
   element.appendChild(summary);
 
   // 4. Build body with diff tree
