@@ -142,6 +142,15 @@ _DIFF_STYLE = """
   border-left: 3px solid #fb8c00;
 }
 
+.tp-diff-chunk[data-op="equal"] {
+  border-left: 3px solid rgba(3, 102, 214, 0.18);
+  background: rgba(3, 102, 214, 0.04);
+}
+
+.tp-diff-chunk[data-op="equal"] .tp-diff-chunk-text {
+  color: var(--tp-color-muted, #6a737d);
+}
+
 .tp-diff-chunk-text {
   white-space: pre-wrap;
   font-family: var(--tp-font-mono, 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
@@ -522,7 +531,9 @@ def diff_rendered_prompts(before: StructuredPrompt, after: StructuredPrompt) -> 
 
     before_chunks = before.ir().chunks
     after_chunks = after.ir().chunks
-    deltas = _diff_chunks(before_chunks, after_chunks)
+    before_signatures = _build_element_signature_map(before)
+    after_signatures = _build_element_signature_map(after)
+    deltas = _diff_chunks(before_chunks, after_chunks, before_signatures, after_signatures)
     per_element: dict[str, ElementRenderChange] = {}
     for delta in deltas:
         element_id = _chunk_element(delta)
@@ -720,20 +731,27 @@ def _match_children(
 def _diff_chunks(
     before: Iterable[TextChunk | ImageChunk],
     after: Iterable[TextChunk | ImageChunk],
+    before_signatures: dict[str, tuple[str, ...]],
+    after_signatures: dict[str, tuple[str, ...]],
 ) -> list[ChunkDelta]:
     from difflib import SequenceMatcher
 
     before_list = list(before)
     after_list = list(after)
-    before_keys = [_chunk_signature(chunk) for chunk in before_list]
-    after_keys = [_chunk_signature(chunk) for chunk in after_list]
+    before_keys = [_chunk_signature(chunk, before_signatures) for chunk in before_list]
+    after_keys = [_chunk_signature(chunk, after_signatures) for chunk in after_list]
     matcher = SequenceMatcher(a=before_keys, b=after_keys, autojunk=False)
     deltas: list[ChunkDelta] = []
 
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == "equal":
+            # Chunks matched by structure, but verify text equality
             for before_chunk, after_chunk in zip(before_list[i1:i2], after_list[j1:j2]):
-                deltas.append(ChunkDelta("equal", before_chunk, after_chunk))
+                if before_chunk.text == after_chunk.text:
+                    deltas.append(ChunkDelta("equal", before_chunk, after_chunk))
+                else:
+                    # Same structure, different text -> replace
+                    deltas.append(ChunkDelta("replace", before_chunk, after_chunk))
             continue
 
         if tag == "replace":
@@ -744,6 +762,9 @@ def _diff_chunks(
                     deltas.append(ChunkDelta("insert", None, after_chunk))
                 elif after_chunk is None:
                     deltas.append(ChunkDelta("delete", before_chunk, None))
+                elif before_chunk.text == after_chunk.text:
+                    # Different structure but same text -> still equal
+                    deltas.append(ChunkDelta("equal", before_chunk, after_chunk))
                 else:
                     deltas.append(ChunkDelta("replace", before_chunk, after_chunk))
             continue
@@ -768,8 +789,38 @@ def _chunk_element(delta: ChunkDelta) -> Optional[str]:
     return None
 
 
-def _chunk_signature(chunk: TextChunk | ImageChunk) -> tuple[str, str, str]:
-    return (type(chunk).__name__, chunk.element_id, chunk.text)
+def _build_element_signature_map(prompt: StructuredPrompt) -> dict[str, tuple[str, ...]]:
+    """
+    Build a stable signature map for elements within a prompt.
+
+    Chunk IDs change on clone, so we rely on structural paths composed of element type,
+    key, and index to align identical content between prompts.
+    """
+
+    signatures: dict[str, tuple[str, ...]] = {}
+
+    def visit(element: Element, path: tuple[str, ...]) -> None:
+        key_repr = "<root>" if element.key is None else str(element.key)
+        segment = f"{type(element).__name__}:{key_repr}:{element.index}"
+        current_path = path + (segment,)
+        signatures[element.id] = current_path
+        for child in _iter_children(element):
+            visit(child, current_path)
+
+    visit(prompt, ())
+    return signatures
+
+
+def _chunk_signature(chunk: TextChunk | ImageChunk, signatures: dict[str, tuple[str, ...]]) -> tuple[Any, ...]:
+    """
+    Generate a signature for chunk matching based on structural position only.
+
+    Text content is intentionally excluded so that chunks at the same structural
+    position can be matched together, even if their text differs. Text equality
+    is checked separately after matching.
+    """
+    path = signatures.get(chunk.element_id)
+    return (type(chunk).__name__, path)
 
 
 def _serialize_node_delta(delta: NodeDelta) -> dict[str, Any]:

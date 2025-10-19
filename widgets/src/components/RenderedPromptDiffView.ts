@@ -83,9 +83,7 @@ export function buildRenderedPromptDiffView(
   chunkList.className = 'tp-diff-chunks';
 
   for (const delta of data.chunk_deltas) {
-    if (delta.op !== 'equal') {
-      chunkList.appendChild(renderChunkDelta(delta));
-    }
+    chunkList.appendChild(renderChunkDelta(delta));
   }
 
   body.appendChild(chunkList);
@@ -113,7 +111,10 @@ function renderChunkDelta(delta: ChunkDelta): HTMLElement {
 
   let content = '';
 
-  if (delta.op === 'insert') {
+  if (delta.op === 'equal') {
+    const text = delta.after?.text ?? delta.before?.text ?? '';
+    content = text;
+  } else if (delta.op === 'insert') {
     content = `+ ${delta.after?.text || ''}`;
   } else if (delta.op === 'delete') {
     content = `- ${delta.before?.text || ''}`;

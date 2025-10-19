@@ -1138,6 +1138,15 @@
   margin: 0.25em auto;
 }
 
+.tp-diff-chunk[data-op="equal"] {
+  border-left: 3px solid rgba(3, 102, 214, 0.18);
+  background: rgba(3, 102, 214, 0.04);
+}
+
+.tp-diff-chunk[data-op="equal"] .tp-diff-chunk-text {
+  color: var(--tp-color-muted, #6a737d);
+}
+
 @media (prefers-color-scheme: dark) {
   .tp-markdown-collapsed-indicator {
     color: var(--tp-color-muted);
