@@ -99,22 +99,31 @@ export function buildMarkdownView(
       }
     });
 
-    const indicators = element.querySelectorAll(`.${COLLAPSED_INDICATOR_CLASS}`);
-    indicators.forEach((node) => node.remove());
+    const indicatorNodes = element.querySelectorAll(
+      `.${COLLAPSED_INDICATOR_CLASS}, .tp-markdown-collapsed-indicator-row`
+    );
+    indicatorNodes.forEach((node) => node.remove());
   }
 
-  function insertIndicator(target: HTMLElement, isImage: boolean): void {
+  function createCollapsedIndicator(target: HTMLElement, collapsedCount: number): HTMLElement | null {
     if (!target.parentNode) {
-      return;
+      return null;
     }
 
-    const indicator = document.createElement('span');
+    if (target.tagName === 'TR') {
+      return insertTableRowIndicator(target as HTMLTableRowElement, collapsedCount);
+    }
+
+    const doc = target.ownerDocument ?? document;
+    const indicator = doc.createElement('span');
     indicator.className = COLLAPSED_INDICATOR_CLASS;
-    indicator.textContent = isImage ? '▢⋯' : '⋯';
-    indicator.title = isImage ? 'Collapsed image content' : 'Collapsed content';
+
+    const containsImage = target.matches('img, figure') || !!target.querySelector('img');
+    indicator.textContent = containsImage ? '▢⋯' : '⋯';
+    indicator.title = containsImage ? 'Collapsed image content' : 'Collapsed content';
     indicator.setAttribute('aria-label', indicator.title);
 
-    const defaultView = target.ownerDocument?.defaultView;
+    const defaultView = doc.defaultView;
     const display = defaultView ? defaultView.getComputedStyle(target).display : '';
 
     if (display === 'list-item') {
@@ -126,17 +135,19 @@ export function buildMarkdownView(
     }
 
     target.insertAdjacentElement('beforebegin', indicator);
-    collapsedIndicators.set(target, indicator);
+    return indicator;
   }
 
-  function markCollapsedElement(target: HTMLElement): void {
+  function markCollapsedElement(target: HTMLElement, isPrimary: boolean, collapsedCount: number): void {
     target.classList.add(COLLAPSED_CLASS);
-    if (collapsedIndicators.has(target)) {
+    if (!isPrimary || collapsedIndicators.has(target)) {
       return;
     }
 
-    const containsImage = target.matches('img, figure') || !!target.querySelector('img');
-    insertIndicator(target, containsImage);
+    const indicator = createCollapsedIndicator(target, collapsedCount);
+    if (indicator) {
+      collapsedIndicators.set(target, indicator);
+    }
   }
 
   function applyCollapsedState(): void {
@@ -147,11 +158,13 @@ export function buildMarkdownView(
         continue;
       }
 
-      for (const el of elements) {
+      const totalElements = elements.length;
+      for (let index = 0; index < elements.length; index += 1) {
+        const el = elements[index];
         if (!el) {
           continue;
         }
-        markCollapsedElement(el);
+        markCollapsedElement(el, index === 0, totalElements);
       }
     }
   }
@@ -324,6 +337,11 @@ function buildChunkToElementMapping(
 
   let remainingChunks = chunkOrder.filter((chunkId) => !chunkIdToElements.has(chunkId));
   if (remainingChunks.length > 0) {
+    assignTableChunks(container, chunkPositions, positionToElements, chunkIdToElements, chunkTexts, remainingChunks);
+  }
+
+  remainingChunks = chunkOrder.filter((chunkId) => !chunkIdToElements.has(chunkId));
+  if (remainingChunks.length > 0) {
     assignCodeFenceChunks(
       container,
       remainingChunks,
@@ -372,6 +390,167 @@ function upsertChunkElement(
     return;
   }
   chunkIdToElements.set(chunkId, [element]);
+}
+
+function assignTableChunks(
+  container: HTMLElement,
+  chunkPositions: Map<string, PositionRange>,
+  positionToElements: ElementPositionMap,
+  chunkIdToElements: Map<string, HTMLElement[]>,
+  chunkTexts: Map<string, string>,
+  chunkIds: string[]
+): void {
+  if (chunkIds.length === 0) {
+    return;
+  }
+
+  const rowElements = Array.from(container.querySelectorAll<HTMLTableRowElement>('tr[data-md-id]'));
+
+  const rowRanges = rowElements
+    .map((row) => {
+      const elementId = row.getAttribute('data-md-id');
+      if (!elementId) {
+        return null;
+      }
+      const range = positionToElements.get(elementId);
+      if (!range) {
+        return null;
+      }
+      return { row, range };
+    })
+    .filter((value): value is { row: HTMLTableRowElement; range: PositionRange } => value !== null);
+
+  const cellElements = Array.from(
+    container.querySelectorAll<HTMLTableCellElement>('td[data-md-id], th[data-md-id]')
+  );
+
+  const cellRanges = cellElements
+    .map((cell) => {
+      const elementId = cell.getAttribute('data-md-id');
+      if (!elementId) {
+        return null;
+      }
+      const range = positionToElements.get(elementId);
+      if (!range) {
+        return null;
+      }
+      return { cell, range };
+    })
+    .filter((value): value is { cell: HTMLTableCellElement; range: PositionRange } => value !== null);
+
+  const tableElements = Array.from(container.querySelectorAll<HTMLTableElement>('table[data-md-id]'));
+  const tableRanges = tableElements
+    .map((table) => {
+      const elementId = table.getAttribute('data-md-id');
+      if (!elementId) {
+        return null;
+      }
+      const range = positionToElements.get(elementId);
+      if (!range) {
+        return null;
+      }
+      return { table, range };
+    })
+    .filter((value): value is { table: HTMLTableElement; range: PositionRange } => value !== null);
+
+  if (rowRanges.length === 0 && cellRanges.length === 0 && tableRanges.length === 0) {
+    return;
+  }
+
+  for (const chunkId of chunkIds) {
+    if (chunkIdToElements.has(chunkId)) {
+      continue;
+    }
+    const chunkRange = chunkPositions.get(chunkId);
+    if (!chunkRange) {
+      continue;
+    }
+
+    const chunkText = (chunkTexts.get(chunkId) ?? '').trim();
+    if (!chunkText) {
+      continue;
+    }
+
+    const pipeMatches = chunkText.match(/\|/g);
+    const hasTableStructure = (pipeMatches ? pipeMatches.length : 0) >= 2 || chunkText.includes('\n');
+
+    if (hasTableStructure && rowRanges.length > 0) {
+      for (const { row, range } of rowRanges) {
+        if (!rangesOverlap(chunkRange, range)) {
+          continue;
+        }
+        addChunkIdToElement(row, chunkId);
+        upsertChunkElement(chunkIdToElements, chunkId, row);
+      }
+      continue;
+    }
+
+    const matchingCells: HTMLTableCellElement[] = [];
+
+    for (const { cell, range } of cellRanges) {
+      if (rangesOverlap(chunkRange, range)) {
+        matchingCells.push(cell);
+      }
+    }
+
+    if (matchingCells.length === 0) {
+      const candidateTables =
+        tableRanges
+          .filter(({ range }) => rangesOverlap(chunkRange, range))
+          .map(({ table }) => table) ?? [];
+
+      const searchRoots = candidateTables.length > 0 ? candidateTables : tableElements;
+      for (const table of searchRoots) {
+        const candidates = Array.from(table.querySelectorAll<HTMLTableCellElement>('td, th')).filter((cell) => {
+          const cellText = cell.textContent?.trim() ?? '';
+          return cellText === chunkText;
+        });
+        if (candidates.length > 0) {
+          matchingCells.push(...candidates);
+          break;
+        }
+      }
+    }
+
+    if (matchingCells.length === 0) {
+      continue;
+    }
+
+    const seen = new Set<HTMLTableCellElement>();
+    for (const cell of matchingCells) {
+      if (seen.has(cell)) {
+        continue;
+      }
+      ensureCellChunkWrapper(cell, chunkId, chunkIdToElements);
+      seen.add(cell);
+    }
+  }
+}
+
+function ensureCellChunkWrapper(
+  cell: HTMLTableCellElement,
+  chunkId: string,
+  chunkIdToElements: Map<string, HTMLElement[]>
+): HTMLElement | null {
+  const existing = cell.querySelector<HTMLElement>(`[data-chunk-id="${chunkId}"]`);
+  if (existing) {
+    addChunkIdToElement(existing, chunkId);
+    upsertChunkElement(chunkIdToElements, chunkId, existing);
+    return existing;
+  }
+
+  const doc = cell.ownerDocument ?? document;
+  const wrapper = doc.createElement('span');
+  wrapper.classList.add(INLINE_CHUNK_CLASS, 'tp-table-cell-chunk');
+  addChunkIdToElement(wrapper, chunkId);
+
+  while (cell.firstChild) {
+    wrapper.appendChild(cell.firstChild);
+  }
+
+  cell.appendChild(wrapper);
+  upsertChunkElement(chunkIdToElements, chunkId, wrapper);
+  return wrapper;
 }
 
 function assignCodeFenceChunks(
@@ -1133,6 +1312,36 @@ function assignLatexChunks(
   }
 }
 
+function insertTableRowIndicator(row: HTMLTableRowElement, collapsedCount: number): HTMLElement | null {
+  const parent = row.parentElement;
+  const doc = row.ownerDocument;
+  if (!parent || !doc) {
+    return null;
+  }
+
+  const indicatorRow = doc.createElement('tr');
+  indicatorRow.classList.add('tp-markdown-collapsed-indicator-row');
+
+  const cellTemplate = row.querySelector('th, td');
+  const cellTag = cellTemplate?.tagName.toLowerCase() === 'th' ? 'th' : 'td';
+  const indicatorCell = doc.createElement(cellTag);
+  indicatorCell.colSpan = Math.max(1, getTableColumnCount(row));
+  indicatorCell.classList.add('tp-markdown-collapsed-indicator-cell');
+
+  const label = collapsedCount > 1 ? `${collapsedCount} rows collapsed` : 'Collapsed row';
+  const indicatorContent = doc.createElement('span');
+  indicatorContent.className = `${COLLAPSED_INDICATOR_CLASS} ${COLLAPSED_INDICATOR_CLASS}--block ${COLLAPSED_INDICATOR_CLASS}--table-row`;
+  indicatorContent.textContent = collapsedCount > 1 ? `⋯ (${collapsedCount} rows)` : '⋯';
+  indicatorContent.title = label;
+  indicatorContent.setAttribute('aria-label', label);
+
+  indicatorCell.appendChild(indicatorContent);
+  indicatorRow.appendChild(indicatorCell);
+
+  parent.insertBefore(indicatorRow, row);
+  return indicatorRow;
+}
+
 function buildDecoratedLatex(
   originalLatex: string,
   contentChunks: Array<{ chunkId: string; text: string }>
@@ -1187,6 +1396,20 @@ function wrapChunkLatex(chunkId: string, latex: string): string {
 
 function isMathDelimiter(value: string): boolean {
   return value === '$$' || value === '\\[' || value === '\\]' || value === '\\(' || value === '\\)';
+}
+
+function getTableColumnCount(row: HTMLTableRowElement): number {
+  const cells = Array.from(row.children).filter(
+    (child): child is HTMLTableCellElement => child instanceof HTMLTableCellElement
+  );
+  if (cells.length === 0) {
+    return 0;
+  }
+
+  return cells.reduce((total, cell) => {
+    const span = cell.colSpan && cell.colSpan > 0 ? cell.colSpan : 1;
+    return total + span;
+  }, 0);
 }
 
 function clamp(value: number, min: number, max: number): number {

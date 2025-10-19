@@ -9,6 +9,7 @@ import { computeWidgetMetadata } from '../metadata';
 import { FoldingController } from '../folding/controller';
 import { JSDOM } from 'jsdom';
 import demo01Data from '../../test-fixtures/demo-01.json';
+import tablesData from '../../test-fixtures/tables.json';
 
 // Setup JSDOM
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
@@ -248,6 +249,130 @@ describe('MarkdownView', () => {
         }
       }
     }
+  });
+
+  describe('tables', () => {
+    const tableData = tablesData as WidgetData;
+    const tableMetadata = computeWidgetMetadata(tableData);
+    const tableChunkIds = tableData.ir?.chunks?.map((chunk) => chunk.id) ?? [];
+
+    const singleCellChunkId =
+      tableData.ir?.chunks?.find((chunk) => chunk.text === '42')?.id ?? '';
+    const singleRowChunkId =
+      tableData.ir?.chunks?.find((chunk) => chunk.text?.includes('| July | 120 | 87 |'))?.id ?? '';
+    const multiRowChunkId =
+      tableData.ir?.chunks?.find((chunk) => chunk.text?.includes('| Region A |'))?.id ?? '';
+    const inlineSummaryChunkId =
+      tableData.ir?.chunks?.find((chunk) => chunk.text === 'Dynamic total')?.id ?? '';
+
+    it('maps interpolated rows to table row elements', () => {
+      expect(singleRowChunkId).toBeTruthy();
+      const controller = new FoldingController(tableChunkIds);
+      const view = buildMarkdownView(tableData, tableMetadata, controller);
+
+      const rowElements = view.chunkIdToElements.get(singleRowChunkId) ?? [];
+      expect(rowElements.length).toBeGreaterThan(0);
+      rowElements.forEach((element) => {
+        expect(element.tagName.toLowerCase()).toBe('tr');
+        const attr = element.getAttribute('data-chunk-ids') ?? '';
+        expect(attr.split(/\s+/).includes(singleRowChunkId)).toBe(true);
+      });
+
+      view.destroy();
+    });
+
+    it('collapses a table row with a dedicated indicator row', () => {
+      expect(singleRowChunkId).toBeTruthy();
+      const controller = new FoldingController(tableChunkIds);
+      const view = buildMarkdownView(tableData, tableMetadata, controller);
+
+      controller.selectByIds([singleRowChunkId]);
+      const [collapsedId] = controller.commitSelections();
+
+      const rowElements = view.chunkIdToElements.get(singleRowChunkId) ?? [];
+      expect(rowElements.length).toBeGreaterThan(0);
+      rowElements.forEach((row) => {
+        expect(row.classList.contains('tp-markdown-collapsed')).toBe(true);
+      });
+
+      const indicatorRows = view.element.querySelectorAll('.tp-markdown-collapsed-indicator-row');
+      expect(indicatorRows.length).toBe(1);
+      const indicatorLabel = indicatorRows[0]?.textContent?.trim() ?? '';
+      expect(indicatorLabel).toContain('⋯');
+
+      controller.expandChunk(collapsedId);
+      expect(view.element.querySelector('.tp-markdown-collapsed-indicator-row')).toBeNull();
+
+      view.destroy();
+    });
+
+    it('collapses multi-row chunks with a single indicator row', () => {
+      expect(multiRowChunkId).toBeTruthy();
+      const controller = new FoldingController(tableChunkIds);
+      const view = buildMarkdownView(tableData, tableMetadata, controller);
+
+      controller.selectByIds([multiRowChunkId]);
+      const [collapsedId] = controller.commitSelections();
+
+      const indicatorRows = view.element.querySelectorAll('.tp-markdown-collapsed-indicator-row');
+      expect(indicatorRows.length).toBe(1);
+      const indicatorLabel = indicatorRows[0]?.textContent?.trim() ?? '';
+      expect(indicatorLabel).toMatch(/2 rows/);
+
+      controller.expandChunk(collapsedId);
+      expect(view.element.querySelector('.tp-markdown-collapsed-indicator-row')).toBeNull();
+
+      view.destroy();
+    });
+
+    it('collapses interpolated table cells without affecting the row layout', () => {
+      expect(singleCellChunkId).toBeTruthy();
+      const controller = new FoldingController(tableChunkIds);
+      const view = buildMarkdownView(tableData, tableMetadata, controller);
+
+      controller.selectByIds([singleCellChunkId]);
+      const [collapsedId] = controller.commitSelections();
+
+      const cellElements = view.chunkIdToElements.get(singleCellChunkId) ?? [];
+      expect(cellElements.length).toBeGreaterThan(0);
+      const firstElement = cellElements[0];
+      const parentCell = firstElement?.closest('td, th') as HTMLElement | null;
+      expect(parentCell).toBeTruthy();
+      const cellIndicator = parentCell?.querySelector('.tp-markdown-collapsed-indicator') as HTMLElement | null;
+      expect(cellIndicator).toBeTruthy();
+
+      const parentRow = firstElement?.closest('tr');
+      expect(parentRow?.classList.contains('tp-markdown-collapsed')).toBe(false);
+      expect(view.element.querySelector('.tp-markdown-collapsed-indicator-row')).toBeNull();
+
+      controller.expandChunk(collapsedId);
+      expect(parentCell?.querySelector('.tp-markdown-collapsed-indicator')).toBeNull();
+
+      view.destroy();
+    });
+
+    it('collapses inline summary cells and restores them on expand', () => {
+      expect(inlineSummaryChunkId).toBeTruthy();
+      const controller = new FoldingController(tableChunkIds);
+      const view = buildMarkdownView(tableData, tableMetadata, controller);
+
+      controller.selectByIds([inlineSummaryChunkId]);
+      const [collapsedId] = controller.commitSelections();
+
+      const summaryElements = view.chunkIdToElements.get(inlineSummaryChunkId) ?? [];
+      expect(summaryElements.length).toBeGreaterThan(0);
+      summaryElements.forEach((node) => {
+        expect(node.classList.contains('tp-markdown-collapsed')).toBe(true);
+      });
+
+      controller.expandChunk(collapsedId);
+      summaryElements.forEach((node) => {
+        expect(node.classList.contains('tp-markdown-collapsed')).toBe(false);
+      });
+      expect(view.element.querySelector('.tp-markdown-collapsed-indicator-row')).toBeNull();
+
+      view.destroy();
+    });
   });
 
   it('should split and highlight code fence content per chunk', () => {

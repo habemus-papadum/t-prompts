@@ -161,6 +161,7 @@ def test_clone_multiple_times():
 
 def test_clone_template_pattern():
     """Test the template/instance pattern enabled by clone()."""
+
     # Create a template
     def task_template(task_name):
         task = task_name
@@ -215,6 +216,7 @@ def test_clone_with_format_spec():
 
 def test_clone_reused_in_demo():
     """Test the clone pattern from the 03_demo scenario."""
+
     # Simulate the helper function pattern
     def build_section(title):
         t = title
@@ -250,7 +252,7 @@ def test_clone_with_allow_duplicate_keys():
 
     cloned = original.clone()
 
-    assert cloned._allow_duplicates == True
+    assert cloned._allow_duplicates
     assert str(cloned) == str(original)
 
 

@@ -81,6 +81,13 @@ export function sourcePositionPlugin(md: MarkdownIt, positionMaps: SourcePositio
     'hr',
     'bullet_list_open',
     'ordered_list_open',
+    'table_open',
+    'thead_open',
+    'tbody_open',
+    'tfoot_open',
+    'tr_open',
+    'th_open',
+    'td_open',
     'image', // Track images for chunk mapping
     'math_block',
     'math_inline',

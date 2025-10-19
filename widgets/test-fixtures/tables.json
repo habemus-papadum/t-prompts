@@ -1,0 +1,258 @@
+{
+  "compiled_ir": {
+    "ir_id": "e3a71c89-968b-4388-849b-f5abd9eceac4",
+    "subtree_map": {
+      "dade2454-4f4c-4560-8819-7e12a42674d4": [
+        "12b13315-5e89-44a1-ba9d-f98b3c2c99a3"
+      ],
+      "b08402a9-e9d2-4108-ae9a-cace0eab27f3": [
+        "89b64705-559b-463d-81f7-4ce65a14761b"
+      ],
+      "479c6094-6b8f-49be-800d-dad58e150724": [
+        "d447ced7-135e-4764-a98c-2f3146bd1001"
+      ],
+      "5e7f4ebb-973e-43e3-8999-7a677da5f866": [
+        "20d0b90b-4f63-444a-8baa-d0395ac59119"
+      ],
+      "c930e119-6442-415a-9654-074be8ea6572": [
+        "c070b3d9-3a3f-48e7-8fea-b6d281e1cf98"
+      ],
+      "d6726639-bc03-4406-bd63-febf03eb638e": [
+        "dbac07e4-36d6-4b7f-a837-d3135cb7022c"
+      ],
+      "f4494b8b-74ff-4968-b811-a0f06c661551": [
+        "3b81899d-438f-49f5-a366-af0453d2431d"
+      ],
+      "e23e7466-72ae-46f0-bbe1-c1b011fa6b50": [
+        "afdac4e4-1366-4cba-8e53-75964371cd65"
+      ],
+      "1f5a9fe0-3fa3-41ed-a48a-42cd2b4a1047": [
+        "e4e048d5-ac7e-4ed8-8d5c-ba6056052641"
+      ],
+      "057bacd2-cccb-46ba-8eb6-65abff1bf796": [
+        "12b13315-5e89-44a1-ba9d-f98b3c2c99a3",
+        "89b64705-559b-463d-81f7-4ce65a14761b",
+        "d447ced7-135e-4764-a98c-2f3146bd1001",
+        "20d0b90b-4f63-444a-8baa-d0395ac59119",
+        "c070b3d9-3a3f-48e7-8fea-b6d281e1cf98",
+        "dbac07e4-36d6-4b7f-a837-d3135cb7022c",
+        "3b81899d-438f-49f5-a366-af0453d2431d",
+        "afdac4e4-1366-4cba-8e53-75964371cd65",
+        "e4e048d5-ac7e-4ed8-8d5c-ba6056052641"
+      ]
+    },
+    "num_elements": 10
+  },
+  "ir": {
+    "chunks": [
+      {
+        "type": "TextChunk",
+        "text": "# Table Fixtures\n\n## Mostly static table with dynamic cell\n\n| Metric | Value |\n| ------ | ----- |\n| Static | 100 |\n| Dynamic | ",
+        "element_id": "dade2454-4f4c-4560-8819-7e12a42674d4",
+        "id": "12b13315-5e89-44a1-ba9d-f98b3c2c99a3",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "42",
+        "element_id": "b08402a9-e9d2-4108-ae9a-cace0eab27f3",
+        "id": "89b64705-559b-463d-81f7-4ce65a14761b",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "|\n\n## Table with interpolated row\n\n| Month | New Users | Renewals |\n| ----- | --------- | -------- |\n| June | 98 | 73 |\n",
+        "element_id": "479c6094-6b8f-49be-800d-dad58e150724",
+        "id": "d447ced7-135e-4764-a98c-2f3146bd1001",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "| July | 120 | 87 |",
+        "element_id": "5e7f4ebb-973e-43e3-8999-7a677da5f866",
+        "id": "20d0b90b-4f63-444a-8baa-d0395ac59119",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "\n\n## Table with multi-row interpolation\n\n| Segment | Trials | Conversions |\n| ------- | ------ | ----------- |\n| Organic | 52 | 21 |\n",
+        "element_id": "c930e119-6442-415a-9654-074be8ea6572",
+        "id": "c070b3d9-3a3f-48e7-8fea-b6d281e1cf98",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "| Region A | 45 | 18 |\n| Region B | 38 | 22 |",
+        "element_id": "d6726639-bc03-4406-bd63-febf03eb638e",
+        "id": "dbac07e4-36d6-4b7f-a837-d3135cb7022c",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "\n| Paid | 61 | 28 |\n\n## Table with inline summary cell\n\n| Summary | Value |\n| ------- | ----- |\n| Static Total | 187 |\n| Inline Total | ",
+        "element_id": "f4494b8b-74ff-4968-b811-a0f06c661551",
+        "id": "3b81899d-438f-49f5-a366-af0453d2431d",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "Dynamic total",
+        "element_id": "e23e7466-72ae-46f0-bbe1-c1b011fa6b50",
+        "id": "afdac4e4-1366-4cba-8e53-75964371cd65",
+        "metadata": {}
+      },
+      {
+        "type": "TextChunk",
+        "text": "|",
+        "element_id": "1f5a9fe0-3fa3-41ed-a48a-42cd2b4a1047",
+        "id": "e4e048d5-ac7e-4ed8-8d5c-ba6056052641",
+        "metadata": {}
+      }
+    ],
+    "source_prompt_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+    "id": "e3a71c89-968b-4388-849b-f5abd9eceac4",
+    "metadata": {}
+  },
+  "source_prompt": {
+    "prompt_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+    "children": [
+      {
+        "type": "static",
+        "id": "dade2454-4f4c-4560-8819-7e12a42674d4",
+        "parent_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+        "key": 0,
+        "index": 0,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 95
+        },
+        "value": "# Table Fixtures\n\n## Mostly static table with dynamic cell\n\n| Metric | Value |\n| ------ | ----- |\n| Static | 100 |\n| Dynamic | "
+      },
+      {
+        "type": "interpolation",
+        "id": "b08402a9-e9d2-4108-ae9a-cace0eab27f3",
+        "parent_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+        "key": "cell_value",
+        "index": 1,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 95
+        },
+        "expression": "cell_value",
+        "conversion": null,
+        "format_spec": "",
+        "render_hints": "",
+        "value": "42"
+      },
+      {
+        "type": "static",
+        "id": "479c6094-6b8f-49be-800d-dad58e150724",
+        "parent_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+        "key": 1,
+        "index": 2,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 95
+        },
+        "value": "|\n\n## Table with interpolated row\n\n| Month | New Users | Renewals |\n| ----- | --------- | -------- |\n| June | 98 | 73 |\n"
+      },
+      {
+        "type": "interpolation",
+        "id": "5e7f4ebb-973e-43e3-8999-7a677da5f866",
+        "parent_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+        "key": "sales_row",
+        "index": 3,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 95
+        },
+        "expression": "sales_row",
+        "conversion": null,
+        "format_spec": "",
+        "render_hints": "",
+        "value": "| July | 120 | 87 |"
+      },
+      {
+        "type": "static",
+        "id": "c930e119-6442-415a-9654-074be8ea6572",
+        "parent_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+        "key": 2,
+        "index": 4,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 95
+        },
+        "value": "\n\n## Table with multi-row interpolation\n\n| Segment | Trials | Conversions |\n| ------- | ------ | ----------- |\n| Organic | 52 | 21 |\n"
+      },
+      {
+        "type": "interpolation",
+        "id": "d6726639-bc03-4406-bd63-febf03eb638e",
+        "parent_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+        "key": "double_rows",
+        "index": 5,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 95
+        },
+        "expression": "double_rows",
+        "conversion": null,
+        "format_spec": "",
+        "render_hints": "",
+        "value": "| Region A | 45 | 18 |\n| Region B | 38 | 22 |"
+      },
+      {
+        "type": "static",
+        "id": "f4494b8b-74ff-4968-b811-a0f06c661551",
+        "parent_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+        "key": 3,
+        "index": 6,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 95
+        },
+        "value": "\n| Paid | 61 | 28 |\n\n## Table with inline summary cell\n\n| Summary | Value |\n| ------- | ----- |\n| Static Total | 187 |\n| Inline Total | "
+      },
+      {
+        "type": "interpolation",
+        "id": "e23e7466-72ae-46f0-bbe1-c1b011fa6b50",
+        "parent_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+        "key": "summary_cell_value",
+        "index": 7,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 95
+        },
+        "expression": "summary_cell_value",
+        "conversion": "s",
+        "format_spec": "",
+        "render_hints": "",
+        "value": "Dynamic total"
+      },
+      {
+        "type": "static",
+        "id": "1f5a9fe0-3fa3-41ed-a48a-42cd2b4a1047",
+        "parent_id": "057bacd2-cccb-46ba-8eb6-65abff1bf796",
+        "key": 4,
+        "index": 8,
+        "source_location": {
+          "filename": "generate_test_data.py",
+          "filepath": "/Users/nehal/src/structured-prompts/widgets/generate_test_data.py",
+          "line": 95
+        },
+        "value": "|"
+      }
+    ]
+  },
+  "config": {
+    "wrapping": true,
+    "sourcePrefix": "/Users/nehal/src/structured-prompts"
+  }
+}

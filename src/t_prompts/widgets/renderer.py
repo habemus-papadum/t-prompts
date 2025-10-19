@@ -5,7 +5,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    pass
+    from .widget import Widget
 
 
 def _get_widget_bundle() -> str:
@@ -160,17 +160,17 @@ def _render_widget_html(data: dict[str, Any], mount_class: str, *, force_inject:
     # The helper message will be replaced by the widget when JavaScript initializes
     helper_message = (
         '<div class="tp-widget-helper" style="'
-        'padding: 1em; '
-        'border: 1px solid #e0e0e0; '
-        'border-radius: 4px; '
-        'background: #f9f9f9; '
-        'color: #666; '
-        'font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', sans-serif; '
+        "padding: 1em; "
+        "border: 1px solid #e0e0e0; "
+        "border-radius: 4px; "
+        "background: #f9f9f9; "
+        "color: #666; "
+        "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; "
         'font-size: 14px;">'
-        '<strong>Widget not initialized.</strong> '
+        "<strong>Widget not initialized.</strong> "
         'Run <code style="background: #fff; padding: 2px 6px; border-radius: 3px;">t_prompts.setup_notebook()</code> '
-        'at the top of your notebook to enable widget rendering.'
-        '</div>'
+        "at the top of your notebook to enable widget rendering."
+        "</div>"
     )
 
     return f"""

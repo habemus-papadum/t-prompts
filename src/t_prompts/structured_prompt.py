@@ -62,13 +62,13 @@ class StructuredPrompt(Element, Mapping[str, InterpolationType]):
     """
 
     __slots__ = (
-        '_template',
-        '_processed_strings',
-        '_children',
-        '_interps',
-        '_allow_duplicates',
-        '_index',
-        '_creation_location',
+        "_template",
+        "_processed_strings",
+        "_children",
+        "_interps",
+        "_allow_duplicates",
+        "_index",
+        "_creation_location",
     )
 
     def __init__(
@@ -185,12 +185,14 @@ class StructuredPrompt(Element, Mapping[str, InterpolationType]):
                     if val.parent is not None:
                         # Already attached elsewhere - find old parent element for error message
                         old_parent_element = val.parent[val.key] if val.key and val.key in val.parent else None
+
                         # Create a temporary wrapper-like object for error message compatibility
                         # This is needed because PromptReuseError expects elements with parent/key
                         class _TempWrapper:
                             def __init__(self, parent, key):
                                 self.parent = parent
                                 self.key = key
+
                         new_wrapper = _TempWrapper(self, key)
                         raise PromptReuseError(val, old_parent_element, new_wrapper)
 
@@ -410,7 +412,7 @@ class StructuredPrompt(Element, Mapping[str, InterpolationType]):
             ctx = RenderContext(
                 path=ctx.path + (self.key,) if self.key is not None else ctx.path,
                 header_level=next_level,
-                max_header_level=ctx.max_header_level
+                max_header_level=ctx.max_header_level,
             )
 
         # Convert each element to IR
@@ -493,48 +495,56 @@ class StructuredPrompt(Element, Mapping[str, InterpolationType]):
             elif isinstance(element, StructuredPrompt):
                 # StructuredPrompt is now stored directly as a child element
                 base["type"] = "nested_prompt"
-                base.update({
-                    "expression": element.expression,
-                    "conversion": element.conversion,
-                    "format_spec": element.format_spec,
-                    "render_hints": element.render_hints,
-                    "prompt_id": element.id,  # Element itself is the prompt
-                    "creation_location": _serialize_source_location(element.creation_location),
-                })
+                base.update(
+                    {
+                        "expression": element.expression,
+                        "conversion": element.conversion,
+                        "format_spec": element.format_spec,
+                        "render_hints": element.render_hints,
+                        "prompt_id": element.id,  # Element itself is the prompt
+                        "creation_location": _serialize_source_location(element.creation_location),
+                    }
+                )
                 # Nested prompt - recurse into its children
                 base["children"] = _build_children_tree(element, element.id)
 
             elif isinstance(element, TextInterpolation):
                 base["type"] = "interpolation"
-                base.update({
-                    "expression": element.expression,
-                    "conversion": element.conversion,
-                    "format_spec": element.format_spec,
-                    "render_hints": element.render_hints,
-                    "value": element.value,
-                })
+                base.update(
+                    {
+                        "expression": element.expression,
+                        "conversion": element.conversion,
+                        "format_spec": element.format_spec,
+                        "render_hints": element.render_hints,
+                        "value": element.value,
+                    }
+                )
 
             elif isinstance(element, ListInterpolation):
                 base["type"] = "list"
-                base.update({
-                    "expression": element.expression,
-                    "conversion": element.conversion,
-                    "format_spec": element.format_spec,
-                    "render_hints": element.render_hints,
-                    "separator": element.separator,
-                })
+                base.update(
+                    {
+                        "expression": element.expression,
+                        "conversion": element.conversion,
+                        "format_spec": element.format_spec,
+                        "render_hints": element.render_hints,
+                        "separator": element.separator,
+                    }
+                )
                 # Build array of list items (StructuredPrompts now stored directly)
                 base["children"] = [_build_element_tree(item, element.id) for item in element.item_elements]
 
             elif isinstance(element, ImageInterpolation):
                 base["type"] = "image"
-                base.update({
-                    "expression": element.expression,
-                    "conversion": element.conversion,
-                    "format_spec": element.format_spec,
-                    "render_hints": element.render_hints,
-                    "image_data": _serialize_image(element.value),
-                })
+                base.update(
+                    {
+                        "expression": element.expression,
+                        "conversion": element.conversion,
+                        "format_spec": element.format_spec,
+                        "render_hints": element.render_hints,
+                        "image_data": _serialize_image(element.value),
+                    }
+                )
 
             return base
 
@@ -612,10 +622,10 @@ class StructuredPrompt(Element, Mapping[str, InterpolationType]):
             cloned_value = clone_value(itp.value)
             cloned_interps.append(
                 Interpolation(
-                    cloned_value,      # value comes first
+                    cloned_value,  # value comes first
                     itp.expression,
                     itp.conversion,
-                    itp.format_spec
+                    itp.format_spec,
                 )
             )
 
@@ -855,11 +865,11 @@ def dedent(
     Please respond.
     """
     # Capture source location here (caller of dedent) if not explicitly disabled
-    capture = opts.get('capture_source_location', True)
+    capture = opts.get("capture_source_location", True)
     if capture:
         # Skip 2 frames: _capture_source_location + dedent
         source_loc = _capture_source_location(skip_frames=2)
-        opts['_source_location'] = source_loc
+        opts["_source_location"] = source_loc
 
     return prompt(
         template,
