@@ -11,6 +11,7 @@ describe('WidgetContainer', () => {
     // Create fresh container for each test
     container = document.createElement('div');
     container.setAttribute('data-tp-widget', 'true');
+    window.sessionStorage.clear();
   });
 
   it('should wrap long lines at 90 characters', () => {

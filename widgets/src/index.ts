@@ -36,6 +36,8 @@ export type {
   ImageData,
   ChunkSize,
   WidgetMetadata,
+  DiffContext,
+  DiffContextPayload,
 } from './types';
 
 export type { Component } from './components/base';

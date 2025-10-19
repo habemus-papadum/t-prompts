@@ -7,6 +7,7 @@
 
 import type { TransformState } from './base';
 import type { ChunkDelta } from '../diff-types';
+import { resolveDiffContext } from '../types';
 
 /**
  * Apply diff overlay styling to chunks
@@ -14,12 +15,12 @@ import type { ChunkDelta } from '../diff-types';
 export function applyTransform_DiffOverlay(state: TransformState): TransformState {
   const { chunks, data } = state;
 
-  // Only apply if we have rendered diff data
-  if (!data.rendered_diff || data.rendered_diff.diff_type !== 'rendered') {
+  const diffPayload = resolveDiffContext(data);
+  if (!diffPayload || diffPayload.rendered.diff_type !== 'rendered') {
     return state;
   }
 
-  const renderedDiff = data.rendered_diff;
+  const renderedDiff = diffPayload.rendered;
   const chunkDeltas = renderedDiff.chunk_deltas;
 
   // Build a map from chunk text to delta operation for "after" chunks

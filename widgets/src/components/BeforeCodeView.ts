@@ -7,6 +7,7 @@
 
 import type { Component } from './base';
 import type { WidgetData, WidgetMetadata } from '../types';
+import { resolveDiffContext } from '../types';
 import type { TransformState } from '../transforms/base';
 import { applyTransform_CreateChunks } from '../transforms/createChunks';
 import { applyTransform_AddTyping } from '../transforms/typing';
@@ -46,10 +47,15 @@ export function buildBeforeCodeView(
   // 2. Build chunk ID to top-level elements map
   const chunkIdToTopElements = new Map<string, HTMLElement[]>();
 
-  // 3. Create a modified data object that uses before_prompt_ir as the primary IR
+  // 3. Create a modified data object that uses the before diff IR as the primary IR
+  const diffPayload = resolveDiffContext(data);
+  if (!diffPayload) {
+    throw new Error('BeforeCodeView requires diff context but none was provided.');
+  }
+
   const beforeData: WidgetData = {
     ...data,
-    ir: data.before_prompt_ir, // Use before IR as the primary IR
+    ir: diffPayload.before_prompt, // Use before IR as the primary IR
   };
 
   // 4. Apply transformation pipeline

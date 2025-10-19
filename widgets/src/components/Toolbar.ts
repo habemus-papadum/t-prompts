@@ -32,6 +32,7 @@ export interface DiffMetrics {
 export interface ToolbarOptions {
   currentMode: ViewMode;
   diffEnabled?: boolean;
+  beforeVisible?: boolean;
   callbacks: ToolbarCallbacks;
   foldingController: FoldingController;
   metrics: ToolbarMetrics;
@@ -41,6 +42,8 @@ export interface ToolbarOptions {
 export interface ToolbarComponent {
   element: HTMLElement;
   setScrollSyncEnabled(enabled: boolean): void;
+  setDiffEnabled(enabled: boolean): void;
+  setBeforeVisible(visible: boolean): void;
   destroy(): void;
 }
 
@@ -160,15 +163,17 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
   rightContainer.appendChild(visibilityMeter.element);
 
   // Add before view toggle if callback is available (before the main view toggles)
+  let beforeToggleButton: HTMLButtonElement | undefined;
+
   if (callbacks.onBeforeToggle) {
-    const beforeToggleButton = createBeforeToggleButton(false); // Initially hidden
+    beforeToggleButton = createBeforeToggleButton(options.beforeVisible ?? false);
     rightContainer.appendChild(beforeToggleButton);
 
     beforeToggleButton.addEventListener('click', () => {
-      const newState = !beforeToggleButton.classList.contains('active');
-      beforeToggleButton.classList.toggle('active', newState);
-      beforeToggleButton.setAttribute('aria-pressed', newState ? 'true' : 'false');
-      beforeToggleButton.title = newState ? 'Hide before view' : 'Show before view';
+      const newState = !beforeToggleButton!.classList.contains('active');
+      beforeToggleButton!.classList.toggle('active', newState);
+      beforeToggleButton!.setAttribute('aria-pressed', newState ? 'true' : 'false');
+      beforeToggleButton!.title = newState ? 'Hide before view' : 'Show before view';
       callbacks.onBeforeToggle?.(newState);
     });
   }
@@ -195,18 +200,20 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
   rightContainer.appendChild(viewToggle);
 
   // Add diff metrics and toggle if diff data is available
+  let diffToggleButton: HTMLButtonElement | undefined;
+
   if (options.diffData) {
     const diffMetrics = createDiffMetricsDisplay(options.diffData);
     rightContainer.appendChild(diffMetrics);
 
-    const diffToggleButton = createDiffToggleButton(options.diffEnabled ?? true);
+    diffToggleButton = createDiffToggleButton(options.diffEnabled ?? true);
     rightContainer.appendChild(diffToggleButton);
 
     diffToggleButton.addEventListener('click', () => {
-      const newState = !diffToggleButton.classList.contains('active');
-      diffToggleButton.classList.toggle('active', newState);
-      diffToggleButton.setAttribute('aria-pressed', newState ? 'true' : 'false');
-      diffToggleButton.title = newState ? 'Hide diff overlay' : 'Show diff overlay';
+      const newState = !diffToggleButton!.classList.contains('active');
+      diffToggleButton!.classList.toggle('active', newState);
+      diffToggleButton!.setAttribute('aria-pressed', newState ? 'true' : 'false');
+      diffToggleButton!.title = newState ? 'Hide diff overlay' : 'Show diff overlay';
       callbacks.onDiffToggle?.(newState);
     });
   }
@@ -290,6 +297,22 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
     element: toolbar,
     setScrollSyncEnabled(enabled: boolean): void {
       applyScrollSyncState(enabled);
+    },
+    setDiffEnabled(enabled: boolean): void {
+      if (!diffToggleButton) {
+        return;
+      }
+      diffToggleButton.classList.toggle('active', enabled);
+      diffToggleButton.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      diffToggleButton.title = enabled ? 'Hide diff overlay' : 'Show diff overlay';
+    },
+    setBeforeVisible(visible: boolean): void {
+      if (!beforeToggleButton) {
+        return;
+      }
+      beforeToggleButton.classList.toggle('active', visible);
+      beforeToggleButton.setAttribute('aria-pressed', visible ? 'true' : 'false');
+      beforeToggleButton.title = visible ? 'Hide before view' : 'Show before view';
     },
     destroy(): void {
       foldingController.removeClient(foldingClient);

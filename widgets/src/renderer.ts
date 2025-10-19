@@ -9,6 +9,7 @@
  */
 
 import type { WidgetData } from './types';
+import { resolveDiffContext } from './types';
 import type { DiffData, StructuredPromptDiffData, RenderedPromptDiffData } from './diff-types';
 import { computeWidgetMetadata } from './metadata';
 import { buildWidgetContainer } from './components/WidgetContainer';
@@ -72,6 +73,9 @@ export function initWidget(container: HTMLElement): void {
         container.innerHTML = '<div class="tp-error">No chunks found in widget data</div>';
         return;
       }
+
+      // Normalize diff payload for downstream consumers
+      resolveDiffContext(widgetData);
 
       // 3. Compute metadata (Phase 1 & 2)
       const metadata = computeWidgetMetadata(widgetData);

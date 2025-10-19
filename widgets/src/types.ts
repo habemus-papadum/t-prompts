@@ -8,15 +8,36 @@
 export type ViewMode = 'code' | 'markdown' | 'split';
 
 // Widget data structures
+export interface DiffContextPayload {
+  before_prompt: IRData;
+  structured: import('./diff-types').StructuredPromptDiffData;
+  rendered: import('./diff-types').RenderedPromptDiffData;
+}
+
+export interface DiffContext {
+  payload: DiffContextPayload;
+  beforePrompt: IRData;
+  structured: import('./diff-types').StructuredPromptDiffData;
+  rendered: import('./diff-types').RenderedPromptDiffData;
+  beforeIdToNode: Record<string, import('./diff-types').NodeDelta>;
+  afterIdToNode: Record<string, import('./diff-types').NodeDelta>;
+}
+
 export interface WidgetData {
   compiled_ir?: CompiledIRData;
   ir?: IRData;
   source_prompt?: PromptData;
   config?: ConfigData;
-  // Optional diff overlay data
+  // Optional diff overlay data (legacy fields kept for backward compatibility)
   before_prompt_ir?: IRData;
   structured_diff?: import('./diff-types').StructuredPromptDiffData;
   rendered_diff?: import('./diff-types').RenderedPromptDiffData;
+  diff?: DiffContextPayload;
+  /**
+   * Raw diff context field emitted by Python (snake_case).
+   * Copied into `diff` during initialization for easier consumption.
+   */
+  diff_context?: DiffContextPayload;
 }
 
 export interface ConfigData {
@@ -103,4 +124,28 @@ export interface WidgetMetadata {
     source?: SourceLocationData | null;
     creation?: SourceLocationData | null;
   }>;
+}
+
+export function resolveDiffContext(data: WidgetData): DiffContextPayload | null {
+  if (data.diff && data.diff.before_prompt && data.diff.structured && data.diff.rendered) {
+    return data.diff;
+  }
+
+  const raw = data.diff_context;
+  if (raw && raw.before_prompt && raw.structured && raw.rendered) {
+    data.diff = raw;
+    return raw;
+  }
+
+  if (data.before_prompt_ir && data.structured_diff && data.rendered_diff) {
+    const legacy: DiffContextPayload = {
+      before_prompt: data.before_prompt_ir,
+      structured: data.structured_diff,
+      rendered: data.rendered_diff,
+    };
+    data.diff = legacy;
+    return legacy;
+  }
+
+  return null;
 }

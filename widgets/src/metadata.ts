@@ -14,7 +14,10 @@ import type {
   ChunkSize,
   IRData,
   ElementLocationDetails,
+  DiffContext,
 } from './types';
+import { resolveDiffContext } from './types';
+import type { NodeDelta } from './diff-types';
 
 /**
  * Trim the source prefix from a file path to make it relative
@@ -261,6 +264,50 @@ function buildChunkLocationMap(
   }
 
   return map;
+}
+
+function indexNodeDeltas(
+  node: NodeDelta,
+  beforeMap: Record<string, NodeDelta>,
+  afterMap: Record<string, NodeDelta>
+): void {
+  if (node.before_id) {
+    beforeMap[node.before_id] = node;
+  }
+  if (node.after_id) {
+    afterMap[node.after_id] = node;
+  }
+
+  for (const child of node.children) {
+    indexNodeDeltas(child, beforeMap, afterMap);
+  }
+}
+
+/**
+ * Build a normalized diff context from widget data.
+ *
+ * This consumes the structured payload emitted by Python (either via the new
+ * `diff_context` field or the legacy optional properties) and produces lookup
+ * tables that views can consume without bespoke plumbing.
+ */
+export function buildDiffContext(data: WidgetData): DiffContext | null {
+  const payload = resolveDiffContext(data);
+  if (!payload) {
+    return null;
+  }
+
+  const beforeIdToNode: Record<string, NodeDelta> = {};
+  const afterIdToNode: Record<string, NodeDelta> = {};
+  indexNodeDeltas(payload.structured.root, beforeIdToNode, afterIdToNode);
+
+  return {
+    payload,
+    beforePrompt: payload.before_prompt,
+    structured: payload.structured,
+    rendered: payload.rendered,
+    beforeIdToNode,
+    afterIdToNode,
+  };
 }
 
 /**

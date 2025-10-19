@@ -815,9 +815,18 @@ class CompiledIR:
         rendered_diff = diff_rendered_prompts(before, after)
 
         # Add diff overlay data
-        data["before_prompt_ir"] = before.ir().toJSON()
-        data["structured_diff"] = structured_diff.to_widget_data()
-        data["rendered_diff"] = rendered_diff.to_widget_data()
+        before_json = before.ir().toJSON()
+        structured_json = structured_diff.to_widget_data()
+        rendered_json = rendered_diff.to_widget_data()
+
+        data["before_prompt_ir"] = before_json
+        data["structured_diff"] = structured_json
+        data["rendered_diff"] = rendered_json
+        data["diff_context"] = {
+            "before_prompt": before_json,
+            "structured": structured_json,
+            "rendered": rendered_json,
+        }
 
         # Render to HTML
         html = _render_widget_html(data, "tp-widget-mount")
