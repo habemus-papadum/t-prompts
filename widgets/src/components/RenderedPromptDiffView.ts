@@ -35,14 +35,18 @@ export function buildRenderedPromptDiffView(
   const summary = document.createElement('div');
   summary.className = 'tp-diff-summary';
 
-  const statsItems = [
-    { label: 'Insert', value: data.stats.insert },
-    { label: 'Delete', value: data.stats.delete },
-    { label: 'Replace', value: data.stats.replace },
-    { label: 'Equal', value: data.stats.equal },
+  const summaryItems: Array<{ label: string; value: string }> = [
+    { label: 'Insert', value: String(data.stats.insert) },
+    { label: 'Delete', value: String(data.stats.delete) },
+    { label: 'Replace', value: String(data.stats.replace) },
+    { label: 'Equal', value: String(data.stats.equal) },
+    { label: 'Visible Δ', value: String(data.metrics.render_token_delta) },
+    { label: 'Non-WS Δ', value: String(data.metrics.render_non_ws_delta) },
+    { label: 'WS Δ', value: String(data.metrics.render_ws_delta) },
+    { label: 'Chunk drift', value: formatPercent(data.metrics.render_chunk_drift) },
   ];
 
-  for (const { label, value } of statsItems) {
+  for (const { label, value } of summaryItems) {
     const pill = document.createElement('span');
     pill.className = 'tp-diff-pill';
     pill.textContent = `${label}: ${value}`;
@@ -142,4 +146,12 @@ function renderChunkDelta(delta: ChunkDelta): HTMLElement {
   li.appendChild(textDiv);
 
   return li;
+}
+
+function formatPercent(value: number, fractionDigits = 1): string {
+  if (!Number.isFinite(value)) {
+    return '0%';
+  }
+  const clamped = Math.min(Math.max(value, 0), 1);
+  return `${(clamped * 100).toFixed(fractionDigits)}%`;
 }

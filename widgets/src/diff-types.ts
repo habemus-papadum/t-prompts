@@ -51,6 +51,13 @@ export interface DiffStats {
   text_removed: number;
 }
 
+export interface StructuredDiffMetrics {
+  struct_edit_count: number;
+  struct_span_chars: number;
+  struct_char_ratio: number;
+  struct_order_score: number;
+}
+
 /**
  * Data for StructuredPromptDiff widget
  */
@@ -58,6 +65,7 @@ export interface StructuredPromptDiffData {
   diff_type: 'structured';
   root: NodeDelta;
   stats: DiffStats;
+  metrics: StructuredDiffMetrics;
 }
 
 /**
@@ -77,6 +85,13 @@ export interface ChunkDelta {
   after: ChunkReference | null;
 }
 
+export interface RenderedDiffMetrics {
+  render_token_delta: number;
+  render_non_ws_delta: number;
+  render_ws_delta: number;
+  render_chunk_drift: number;
+}
+
 /**
  * Data for RenderedPromptDiff widget
  */
@@ -89,6 +104,7 @@ export interface RenderedPromptDiffData {
     replace: number;
     equal: number;
   };
+  metrics: RenderedDiffMetrics;
 }
 
 /**

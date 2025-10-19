@@ -20,6 +20,8 @@ def test_structured_prompt_diff_detects_text_changes():
 
     assert diff.stats.text_added > 0
     assert diff.stats.nodes_modified >= 1
+    assert diff.metrics.struct_span_chars >= diff.stats.text_added
+    assert diff.metrics.struct_edit_count >= 0.5
 
     static = next(
         (child for child in diff.root.children if child.element_type.startswith("Static") and child.status != "equal"),
@@ -50,6 +52,7 @@ def test_structured_prompt_diff_detects_structure_changes():
     assert diff.stats.nodes_added >= 1
     statuses = {child.status for child in diff.root.children}
     assert "inserted" in statuses or "modified" in statuses
+    assert diff.metrics.struct_edit_count >= 1
 
 
 def test_structured_prompt_diff_handles_nested_prompts_and_lists():
@@ -81,6 +84,7 @@ def test_rendered_diff_tracks_chunk_operations():
     stats = diff.stats()
     assert stats["insert"] >= 1 or stats["replace"] >= 1
     assert diff.per_element
+    assert diff.metrics.render_token_delta >= diff.metrics.render_non_ws_delta
 
     html = diff._repr_html_()
     assert "tp-rendered-diff-mount" in html
@@ -101,8 +105,14 @@ def test_diff_objects_are_json_serializable_roundtrip():
     from dataclasses import asdict
 
     payload = {
-        "structured": asdict(structured.stats),
-        "rendered": {k: asdict(v) for k, v in rendered.per_element.items()},
+        "structured": {
+            "stats": asdict(structured.stats),
+            "metrics": asdict(structured.metrics),
+        },
+        "rendered": {
+            "metrics": asdict(rendered.metrics),
+            "per_element": {k: asdict(v) for k, v in rendered.per_element.items()},
+        },
     }
     json.dumps(payload)
 
@@ -141,6 +151,7 @@ def test_structured_prompt_diff_handles_various_sizes(builder):
     diff = diff_structured_prompts(before, after)
     assert diff.root is not None
     assert isinstance(diff.stats.nodes_added, int)
+    assert diff.metrics.struct_edit_count >= 0
 
 
 def test_rendered_diff_widget_data_matches_operations():
@@ -164,6 +175,8 @@ def test_rendered_diff_widget_data_matches_operations():
     assert ops.count("insert") == 1
     assert ops.count("replace") == 1
     assert ops.count("equal") >= 1
+    assert "metrics" in widget_data
+    assert widget_data["metrics"]["render_token_delta"] >= widget_data["metrics"]["render_non_ws_delta"]
 
     tail_insert = next(delta for delta in widget_data["chunk_deltas"] if delta["op"] == "insert")
     assert tail_insert["before"] is None
@@ -197,6 +210,7 @@ def test_structured_diff_widget_data_serializes_text_edits_and_attr_changes():
 
     static_nodes = [child for child in widget_data["root"]["children"] if child["element_type"] == "Static"]
     assert any(edit["op"] == "insert" for node in static_nodes for edit in node["text_edits"])
+    assert widget_data["metrics"]["struct_span_chars"] >= 0
 
     for node in widget_data["root"]["children"]:
         for change in node["attr_changes"].values():

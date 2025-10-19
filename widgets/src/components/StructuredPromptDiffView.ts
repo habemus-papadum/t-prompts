@@ -35,16 +35,20 @@ export function buildStructuredPromptDiffView(
   const summary = document.createElement('div');
   summary.className = 'tp-diff-summary';
 
-  const statsItems = [
-    { label: 'Added', value: data.stats.nodes_added },
-    { label: 'Removed', value: data.stats.nodes_removed },
-    { label: 'Modified', value: data.stats.nodes_modified },
-    { label: 'Moved', value: data.stats.nodes_moved },
-    { label: 'Δ+', value: data.stats.text_added },
-    { label: 'Δ-', value: data.stats.text_removed },
+  const summaryItems: Array<{ label: string; value: string }> = [
+    { label: 'Added', value: String(data.stats.nodes_added) },
+    { label: 'Removed', value: String(data.stats.nodes_removed) },
+    { label: 'Modified', value: String(data.stats.nodes_modified) },
+    { label: 'Moved', value: String(data.stats.nodes_moved) },
+    { label: 'Δ+', value: String(data.stats.text_added) },
+    { label: 'Δ-', value: String(data.stats.text_removed) },
+    { label: 'Edit volume', value: formatDecimal(data.metrics.struct_edit_count, 1) },
+    { label: 'Span chars', value: String(data.metrics.struct_span_chars) },
+    { label: 'Span %', value: formatPercent(data.metrics.struct_char_ratio) },
+    { label: 'Order', value: formatDecimal(data.metrics.struct_order_score, 2) },
   ];
 
-  for (const { label, value } of statsItems) {
+  for (const { label, value } of summaryItems) {
     const pill = document.createElement('span');
     pill.className = 'tp-diff-pill';
     pill.textContent = `${label}: ${value}`;
@@ -168,4 +172,22 @@ function formatNodeKey(key: NodeDelta['key']): string {
     return 'None';
   }
   return String(key);
+}
+
+function formatDecimal(value: number, fractionDigits: number): string {
+  if (!Number.isFinite(value)) {
+    if (fractionDigits <= 0) {
+      return '0';
+    }
+    return `0.${'0'.repeat(fractionDigits)}`;
+  }
+  return value.toFixed(fractionDigits);
+}
+
+function formatPercent(value: number, fractionDigits = 1): string {
+  if (!Number.isFinite(value)) {
+    return '0%';
+  }
+  const clamped = Math.min(Math.max(value, 0), 1);
+  return `${(clamped * 100).toFixed(fractionDigits)}%`;
 }
