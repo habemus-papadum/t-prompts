@@ -171,9 +171,9 @@ def test_compiled_ir_get_chunks_for_subtree_with_render_hints():
     interp_element = p["v"]
     chunks = compiled.get_chunks_for_subtree(interp_element.id)
     assert len(chunks) == 3
-    assert chunks[0].text == "<wrapper>\n"
+    assert chunks[0].text == "<wrapper>"
     assert chunks[1].text == "test"
-    assert chunks[2].text == "\n</wrapper>"
+    assert chunks[2].text == "</wrapper>"
 
     # All chunks should point back to the interpolation element
     assert all(chunk.element_id == interp_element.id for chunk in chunks)
