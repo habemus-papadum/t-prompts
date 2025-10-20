@@ -33,6 +33,16 @@ print(node.expression)  # "instructions"
 print(node.value)       # "Always answer politely."
 ```
 
+This enables riching tooling:
+![Widget](screenshot.png)
+
+
+## Targeted Use Cases
+
+- Prompt Debugging ("What exactly did this tangle of code render too?")
+- Prompt Optimization ("What wording and supporting best achieves my goal?")
+- Prompt compaction ("How do I get the same result with fewer word?")
+
 ## Get Started
 
 - [Installation](installation.md) - Install the library

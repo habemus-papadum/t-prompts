@@ -17,53 +17,7 @@ pip install t-prompts
 [UV](https://docs.astral.sh/uv/) is a fast Python package installer and resolver:
 
 ```bash
-uv pip install t-prompts
-```
-
-## Optional Dependencies
-
-### Image Support
-
-To use PIL Image interpolation in your prompts:
-
-```bash
-pip install t-prompts[image]
-```
-
-Or with uv:
-
-```bash
-uv pip install t-prompts[image]
-```
-
-This installs Pillow (PIL) for image handling.
-
-## Verifying Installation
-
-After installation, verify that it works:
-
-```python
-from t_prompts import prompt
-
-# Test basic functionality
-p = prompt(t"Hello {name:n}")
-print(p['n'].key)  # Should print: n
-```
-
-If you see the output, you're ready to go!
-
-## Upgrading
-
-To upgrade to the latest version:
-
-```bash
-pip install --upgrade t-prompts
-```
-
-Or with uv:
-
-```bash
-uv pip install --upgrade t-prompts
+uv add t-prompts
 ```
 
 ## Next Steps

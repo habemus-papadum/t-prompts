@@ -43,15 +43,20 @@ print(node.expression)  # "instructions" (original variable name)
 print(node.value)       # "Always answer politely."
 ```
 
+This enables riching tooling:
+![Widget](docs/screenshot.png)
+
+## Targeted Use Cases
+
+- Prompt Debugging ("What exactly did this tangle of code render too?")
+- Prompt Optimization ("What wording and supporting best achieves my goal?")
+- Prompt compaction ("How do I get the same result with fewer word?")
+
+
 ## Documentation
 
 📚 **Full documentation:** https://habemus-papadum.github.io/t-prompts/
 
-- [Installation](https://habemus-papadum.github.io/t-prompts/installation/) - Install the library
-- [Quick Start](https://habemus-papadum.github.io/t-prompts/quick-start/) - Learn the basics
-- [Use Cases](https://habemus-papadum.github.io/t-prompts/use-cases/) - See what you can build
-- [Features](https://habemus-papadum.github.io/t-prompts/features/) - Explore all capabilities
-- [Tutorials](https://habemus-papadum.github.io/t-prompts/demos/01-basic/) - Interactive guides
 
 ## Installation
 

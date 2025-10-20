@@ -41,12 +41,7 @@ nav:
     - Testing: developer/testing.md
     - JSON Format: developer/json-format.md
     - Widget Architecture: developer/widget-architecture.md
-  - Design Proposals:
-    - Implementation Plan: implementation-plan.md
-    - Dedent Implementation: dedent-implementation-plan.md
-    - Widget Proposal: Widget proposal.md
-  - Code Reviews:
-    - Code Review: code-review.md
+  - Roadmap: Roadmap.md
   - API Reference: reference.md
 
 
