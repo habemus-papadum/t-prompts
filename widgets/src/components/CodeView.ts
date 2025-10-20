@@ -14,7 +14,6 @@ import { applyTransform_ImageTruncate } from '../transforms/imageTruncate';
 import { applyTransform_LineWrap, unwrapLineWrapping } from '../transforms/lineWrap';
 import { applyTransform_ImageHoverPreview } from '../transforms/imageHoverPreview';
 import { applyTransform_MarkBoundaries } from '../transforms/boundaries';
-import { applyTransform_DiffOverlay } from '../transforms/diffOverlay';
 import type { FoldingController } from '../folding/controller';
 import type { FoldingEvent, FoldingClient } from '../folding/types';
 import { activateChunkNavigation, type NavigationActivation } from '../utils/chunkNavigation';
@@ -55,7 +54,6 @@ export function buildCodeView(
   state = applyTransform_ImageTruncate(state);
   state = applyTransform_LineWrap(state);
   state = applyTransform_ImageHoverPreview(state);
-  state = applyTransform_DiffOverlay(state); // Add diff markers before boundaries
   state = applyTransform_MarkBoundaries(state);
 
   const navigationActivation: NavigationActivation | undefined = activateChunkNavigation(element, {

@@ -772,57 +772,6 @@ class CompiledIR:
         html = _render_widget_html(data, "tp-widget-mount")
         return Widget(html)
 
-    def widget_with_diff(
-        self,
-        before: "StructuredPrompt",
-        config: Optional["WidgetConfig"] = None,
-    ) -> "Widget":
-        """
-        Create a Widget with diff overlay showing changes from a previous version.
-
-        This creates an enhanced widget that displays the current prompt with
-        visual diff overlays showing what changed from the 'before' version.
-        Both structural and rendered diffs are computed and included.
-
-        Parameters
-        ----------
-        before : StructuredPrompt
-            The previous version of the prompt to compare against.
-        config : WidgetConfig | None, optional
-            Widget configuration. If None, uses the package default config.
-
-        Returns
-        -------
-        Widget
-            Widget instance with rendered HTML including diff overlays.
-
-        Examples
-        --------
-        >>> before = prompt(t"Hello {name}")
-        >>> after = prompt(t"Hello {name}! Welcome.")
-        >>> compiled = after.ir().compile()
-        >>> widget = compiled.widget_with_diff(before)
-        """
-        from .diff import diff_rendered_prompts, diff_structured_prompts
-        from .widgets import Widget, _render_widget_html
-
-        # Get the base widget data
-        data = self.widget_data(config)
-
-        # Compute diffs
-        after = self._ir.source_prompt
-        structured_diff = diff_structured_prompts(before, after)
-        rendered_diff = diff_rendered_prompts(before, after)
-
-        # Add diff overlay data
-        data["before_prompt_ir"] = before.ir().toJSON()
-        data["structured_diff"] = structured_diff.to_widget_data()
-        data["rendered_diff"] = rendered_diff.to_widget_data()
-
-        # Render to HTML
-        html = _render_widget_html(data, "tp-widget-mount")
-        return Widget(html)
-
     def _repr_html_(self) -> str:
         """
         Return HTML representation for Jupyter notebook display.

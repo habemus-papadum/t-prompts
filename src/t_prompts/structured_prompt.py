@@ -688,39 +688,6 @@ class StructuredPrompt(Element, Mapping[str, InterpolationType]):
         compiled = ir.compile()
         return compiled.widget(config)
 
-    def widget_with_diff(
-        self,
-        before: "StructuredPrompt",
-        config: Optional["WidgetConfig"] = None,
-    ) -> "Widget":
-        """
-        Create a Widget with diff overlay showing changes from a previous version.
-
-        This creates an enhanced widget that displays the current prompt with
-        visual diff overlays showing what changed from the 'before' version.
-
-        Parameters
-        ----------
-        before : StructuredPrompt
-            The previous version of the prompt to compare against.
-        config : WidgetConfig | None, optional
-            Widget configuration. If None, uses the package default config.
-
-        Returns
-        -------
-        Widget
-            Widget instance with rendered HTML including diff overlays.
-
-        Examples
-        --------
-        >>> before = prompt(t"Hello {name}")
-        >>> after = prompt(t"Hello {name}! Welcome.")
-        >>> widget = after.widget_with_diff(before)
-        """
-        ir = self.ir()
-        compiled = ir.compile()
-        return compiled.widget_with_diff(before, config)
-
     def _repr_html_(self) -> str:
         """
         Return HTML representation for Jupyter notebook display.

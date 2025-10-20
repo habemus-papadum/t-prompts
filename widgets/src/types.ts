@@ -13,10 +13,6 @@ export interface WidgetData {
   ir?: IRData;
   source_prompt?: PromptData;
   config?: ConfigData;
-  // Optional diff overlay data
-  before_prompt_ir?: IRData;
-  structured_diff?: import('./diff-types').StructuredPromptDiffData;
-  rendered_diff?: import('./diff-types').RenderedPromptDiffData;
 }
 
 export interface ConfigData {
