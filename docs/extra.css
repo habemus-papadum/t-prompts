@@ -1,0 +1,10 @@
+/* custom.css */
+.md-main__inner.md-grid {
+    max-width: initial; /* Removes the maximum width constraint */
+}
+
+/* Optional: Adjust main content width if needed */
+.md-content {
+    max-width: 90%; /* Example: set a specific max-width for the content area */
+    margin: 0 auto; /* Center the content */
+}

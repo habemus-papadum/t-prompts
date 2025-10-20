@@ -3,7 +3,8 @@ site_description: Structured prompts using template strings
 site_author: Nehal Patel
 repo_url: https://github.com/habemus-papadum/t-prompts
 repo_name: t-prompts
-
+extra_css:
+  - extra.css
 theme:
   name: "material"
   custom_dir: docs/overrides
@@ -13,28 +14,11 @@ theme:
     - navigation.instant
     - navigation.tracking
 
-
-
 nav:
   - Home: index.md
   - Installation: installation.md
-  - Quick Start: quick-start.md
-  - Use Cases: use-cases.md
-  - Features: features.md
-  - Tutorials:
-    - Basic: demos/01-basic.ipynb
-    - Intermediate: demos/02-intermediate.ipynb
-    - IR Visualization: demos/03-ir-visualization.ipynb
-  - Topics:
-    - Widget Interaction: demos/topics/widget-interaction.ipynb
-    - Few-Shot Prompts: demos/topics/few-shot-prompts.ipynb
-    - Source Mapping: demos/topics/source-mapping.ipynb
-    - Source Location: demos/topics/source-location.ipynb
-    - Format Spec Mini-Language: demos/topics/format-spec-mini-language.ipynb
-    - Render Hints: demos/topics/render-hints.ipynb
-    - Image Interpolation: demos/topics/image-interpolation.ipynb
-    - Dedenting: demos/topics/dedenting.ipynb
-    - Advanced Composition: demos/topics/advanced-composition.ipynb
+  - Quick Demo: demos/quick_demo.ipynb
+  - Tutorials: demos/tutorials.ipynb
   - Architecture: Architecture.md
   - Developer:
     - Setup: developer/setup.md
