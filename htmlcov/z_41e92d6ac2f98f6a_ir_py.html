@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for src/t_prompts/ir.py: 88%</title>
+    <title>Coverage for src/t_prompts/ir.py: 93%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
     <link rel="stylesheet" href="style_cb_6b508a39.css" type="text/css">
     <script src="coverage_html_cb_6fb7b396.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>src/t_prompts/ir.py</b>:
-            <span class="pc_cov">88%</span>
+            <span class="pc_cov">93%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -54,9 +54,9 @@
             </div>
         </aside>
         <h2>
-            <span class="text">193 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">170<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">23<span class="text"> missing</span></button>
+            <span class="text">181 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">169<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">12<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">5<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_41e92d6ac2f98f6a_parsing_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.10.7">coverage.py v7.10.7</a>,
-            created at 2025-10-19 22:19 +0000
+            created at 2025-10-20 10:09 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -854,70 +854,19 @@
     <p class="run"><span class="n"><a id="t772" href="#t772">772</a></span><span class="t">        <span class="nam">html</span> <span class="op">=</span> <span class="nam">_render_widget_html</span><span class="op">(</span><span class="nam">data</span><span class="op">,</span> <span class="str">"tp-widget-mount"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t773" href="#t773">773</a></span><span class="t">        <span class="key">return</span> <span class="nam">Widget</span><span class="op">(</span><span class="nam">html</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t774" href="#t774">774</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t775" href="#t775">775</a></span><span class="t">    <span class="key">def</span> <span class="nam">widget_with_diff</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t776" href="#t776">776</a></span><span class="t">        <span class="nam">self</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t777" href="#t777">777</a></span><span class="t">        <span class="nam">before</span><span class="op">:</span> <span class="str">"StructuredPrompt"</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t778" href="#t778">778</a></span><span class="t">        <span class="nam">config</span><span class="op">:</span> <span class="nam">Optional</span><span class="op">[</span><span class="str">"WidgetConfig"</span><span class="op">]</span> <span class="op">=</span> <span class="key">None</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t779" href="#t779">779</a></span><span class="t">    <span class="op">)</span> <span class="op">-></span> <span class="str">"Widget"</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t780" href="#t780">780</a></span><span class="t">        <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t781" href="#t781">781</a></span><span class="t"><span class="str">        Create a Widget with diff overlay showing changes from a previous version.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t782" href="#t782">782</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t783" href="#t783">783</a></span><span class="t"><span class="str">        This creates an enhanced widget that displays the current prompt with</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t784" href="#t784">784</a></span><span class="t"><span class="str">        visual diff overlays showing what changed from the 'before' version.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t785" href="#t785">785</a></span><span class="t"><span class="str">        Both structural and rendered diffs are computed and included.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t786" href="#t786">786</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t787" href="#t787">787</a></span><span class="t"><span class="str">        Parameters</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t788" href="#t788">788</a></span><span class="t"><span class="str">        ----------</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t789" href="#t789">789</a></span><span class="t"><span class="str">        before : StructuredPrompt</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t790" href="#t790">790</a></span><span class="t"><span class="str">            The previous version of the prompt to compare against.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t791" href="#t791">791</a></span><span class="t"><span class="str">        config : WidgetConfig | None, optional</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t792" href="#t792">792</a></span><span class="t"><span class="str">            Widget configuration. If None, uses the package default config.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t793" href="#t793">793</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t794" href="#t794">794</a></span><span class="t"><span class="str">        Returns</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t795" href="#t795">795</a></span><span class="t"><span class="str">        -------</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t796" href="#t796">796</a></span><span class="t"><span class="str">        Widget</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t797" href="#t797">797</a></span><span class="t"><span class="str">            Widget instance with rendered HTML including diff overlays.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t798" href="#t798">798</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t799" href="#t799">799</a></span><span class="t"><span class="str">        Examples</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t800" href="#t800">800</a></span><span class="t"><span class="str">        --------</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t801" href="#t801">801</a></span><span class="t"><span class="str">        >>> before = prompt(t"Hello {name}")</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t802" href="#t802">802</a></span><span class="t"><span class="str">        >>> after = prompt(t"Hello {name}! Welcome.")</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t803" href="#t803">803</a></span><span class="t"><span class="str">        >>> compiled = after.ir().compile()</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t804" href="#t804">804</a></span><span class="t"><span class="str">        >>> widget = compiled.widget_with_diff(before)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t805" href="#t805">805</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t806" href="#t806">806</a></span><span class="t">        <span class="key">from</span> <span class="op">.</span><span class="nam">diff</span> <span class="key">import</span> <span class="nam">diff_rendered_prompts</span><span class="op">,</span> <span class="nam">diff_structured_prompts</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t807" href="#t807">807</a></span><span class="t">        <span class="key">from</span> <span class="op">.</span><span class="nam">widgets</span> <span class="key">import</span> <span class="nam">Widget</span><span class="op">,</span> <span class="nam">_render_widget_html</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t808" href="#t808">808</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t809" href="#t809">809</a></span><span class="t">        <span class="com"># Get the base widget data</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t810" href="#t810">810</a></span><span class="t">        <span class="nam">data</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">widget_data</span><span class="op">(</span><span class="nam">config</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t811" href="#t811">811</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t812" href="#t812">812</a></span><span class="t">        <span class="com"># Compute diffs</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t813" href="#t813">813</a></span><span class="t">        <span class="nam">after</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">_ir</span><span class="op">.</span><span class="nam">source_prompt</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t814" href="#t814">814</a></span><span class="t">        <span class="nam">structured_diff</span> <span class="op">=</span> <span class="nam">diff_structured_prompts</span><span class="op">(</span><span class="nam">before</span><span class="op">,</span> <span class="nam">after</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t815" href="#t815">815</a></span><span class="t">        <span class="nam">rendered_diff</span> <span class="op">=</span> <span class="nam">diff_rendered_prompts</span><span class="op">(</span><span class="nam">before</span><span class="op">,</span> <span class="nam">after</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t816" href="#t816">816</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t817" href="#t817">817</a></span><span class="t">        <span class="com"># Add diff overlay data</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t818" href="#t818">818</a></span><span class="t">        <span class="nam">data</span><span class="op">[</span><span class="str">"before_prompt_ir"</span><span class="op">]</span> <span class="op">=</span> <span class="nam">before</span><span class="op">.</span><span class="nam">ir</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">toJSON</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t819" href="#t819">819</a></span><span class="t">        <span class="nam">data</span><span class="op">[</span><span class="str">"structured_diff"</span><span class="op">]</span> <span class="op">=</span> <span class="nam">structured_diff</span><span class="op">.</span><span class="nam">to_widget_data</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t820" href="#t820">820</a></span><span class="t">        <span class="nam">data</span><span class="op">[</span><span class="str">"rendered_diff"</span><span class="op">]</span> <span class="op">=</span> <span class="nam">rendered_diff</span><span class="op">.</span><span class="nam">to_widget_data</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t821" href="#t821">821</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t822" href="#t822">822</a></span><span class="t">        <span class="com"># Render to HTML</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t823" href="#t823">823</a></span><span class="t">        <span class="nam">html</span> <span class="op">=</span> <span class="nam">_render_widget_html</span><span class="op">(</span><span class="nam">data</span><span class="op">,</span> <span class="str">"tp-widget-mount"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t824" href="#t824">824</a></span><span class="t">        <span class="key">return</span> <span class="nam">Widget</span><span class="op">(</span><span class="nam">html</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t825" href="#t825">825</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t826" href="#t826">826</a></span><span class="t">    <span class="key">def</span> <span class="nam">_repr_html_</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-></span> <span class="nam">str</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t827" href="#t827">827</a></span><span class="t">        <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t828" href="#t828">828</a></span><span class="t"><span class="str">        Return HTML representation for Jupyter notebook display.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t829" href="#t829">829</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t830" href="#t830">830</a></span><span class="t"><span class="str">        This method is automatically called by Jupyter/IPython when displaying</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t831" href="#t831">831</a></span><span class="t"><span class="str">        a CompiledIR in a notebook cell.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t832" href="#t832">832</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t833" href="#t833">833</a></span><span class="t"><span class="str">        Returns</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t834" href="#t834">834</a></span><span class="t"><span class="str">        -------</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t835" href="#t835">835</a></span><span class="t"><span class="str">        str</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t836" href="#t836">836</a></span><span class="t"><span class="str">            HTML string with widget visualization.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t837" href="#t837">837</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t838" href="#t838">838</a></span><span class="t">        <span class="key">return</span> <span class="nam">self</span><span class="op">.</span><span class="nam">widget</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">_repr_html_</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t775" href="#t775">775</a></span><span class="t">    <span class="key">def</span> <span class="nam">_repr_html_</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-></span> <span class="nam">str</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t776" href="#t776">776</a></span><span class="t">        <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t777" href="#t777">777</a></span><span class="t"><span class="str">        Return HTML representation for Jupyter notebook display.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t778" href="#t778">778</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t779" href="#t779">779</a></span><span class="t"><span class="str">        This method is automatically called by Jupyter/IPython when displaying</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t780" href="#t780">780</a></span><span class="t"><span class="str">        a CompiledIR in a notebook cell.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t781" href="#t781">781</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t782" href="#t782">782</a></span><span class="t"><span class="str">        Returns</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t783" href="#t783">783</a></span><span class="t"><span class="str">        -------</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t784" href="#t784">784</a></span><span class="t"><span class="str">        str</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t785" href="#t785">785</a></span><span class="t"><span class="str">            HTML string with widget visualization.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t786" href="#t786">786</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t787" href="#t787">787</a></span><span class="t">        <span class="key">return</span> <span class="nam">self</span><span class="op">.</span><span class="nam">widget</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">_repr_html_</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -927,7 +876,7 @@
             <a class="nav" href="z_41e92d6ac2f98f6a_parsing_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.10.7">coverage.py v7.10.7</a>,
-            created at 2025-10-19 22:19 +0000
+            created at 2025-10-20 10:09 +0000
         </p>
     </div>
 </footer>
