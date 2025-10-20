@@ -48,10 +48,13 @@ This enables riching tooling:
 
 ## Targeted Use Cases
 
-- Prompt Debugging ("What exactly did this tangle of code render to?")
-- Prompt Optimization
-  - Performance ("What wording / content best achieves my goal?")
-  - Size ("How do I get the same result with fewer words?")
+- *Prompt Debugging:* "What exactly did this tangle of code render to?"
+- *Prompt Optimization (Performance):* "What wording / content best achieves my goal?"
+- *Prompt Optimization (Size):* "How do I get the same result with fewer words?"
+- *Prompt Compacting:* "LLM tells me to keep it short, now what do I do?"
+
+## Caveats
+While this library targets the creation of structured multi-modal prompts, despite the name, there is nothing in particular tying this library to LLMs / Generative models.  (It is more "t" than "prompts") To use it for an actual LLM call, you would need to convert the IR into a model specific form (though for text, it could be as simple as `str(prompt)`)
 
 ## Documentation
 
