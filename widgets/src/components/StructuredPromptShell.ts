@@ -12,6 +12,9 @@ const TREE_MAX_WIDTH = 480;
 const SPLIT_DEFAULT_RATIO = 0.5;
 const SPLIT_MIN_RATIO = 0.25;
 const SPLIT_MAX_RATIO = 0.75;
+const BEFORE_DEFAULT_RATIO = 0.3;
+const BEFORE_MIN_RATIO = 0.18;
+const BEFORE_MAX_RATIO = 0.45;
 
 export interface ShellMetrics {
   totalCharacters: number;
@@ -32,6 +35,7 @@ export interface StructuredPromptShellOptions {
   treeStorageKey: string;
   treeWidthStorageKey: string;
   splitRatioStorageKey: string;
+  beforeWidthStorageKey?: string;
   toolbarFactory: (context: StructuredPromptShellContext) => ToolbarComponent;
   diffController?: DiffOverlayController;
 }
@@ -58,6 +62,7 @@ export interface StructuredPromptShell extends Component {
   collapseTree(): void;
   expandTree(): void;
   beforePanel: HTMLElement | null;
+  setBeforeVisible(visible: boolean): void;
 }
 
 export function buildStructuredPromptShell(options: StructuredPromptShellOptions): StructuredPromptShell {
@@ -73,6 +78,7 @@ export function buildStructuredPromptShell(options: StructuredPromptShellOptions
     treeStorageKey,
     treeWidthStorageKey,
     splitRatioStorageKey,
+    beforeWidthStorageKey,
     toolbarFactory,
     diffController,
   } = options;
@@ -136,11 +142,20 @@ export function buildStructuredPromptShell(options: StructuredPromptShellOptions
   contentArea.appendChild(treeResizer);
 
   let beforePanel: HTMLElement | null = null;
+  let beforeResizer: HTMLElement | null = null;
   if (beforeView) {
     beforePanel = document.createElement('div');
     beforePanel.className = 'tp-panel tp-before-panel hidden';
     beforePanel.appendChild(beforeView.element);
+    beforeResizer = document.createElement('div');
+    beforeResizer.className = 'tp-before-resizer tp-before-resizer--hidden';
+    beforeResizer.setAttribute('role', 'separator');
+    beforeResizer.setAttribute('aria-orientation', 'vertical');
+    beforeResizer.setAttribute('aria-hidden', 'true');
+    beforeResizer.setAttribute('aria-label', 'Resize before view panel');
+    beforeResizer.tabIndex = -1;
     contentArea.appendChild(beforePanel);
+    contentArea.appendChild(beforeResizer);
   }
 
   contentArea.appendChild(mainSplit);
@@ -149,6 +164,7 @@ export function buildStructuredPromptShell(options: StructuredPromptShellOptions
 
   let currentTreeWidth = TREE_DEFAULT_WIDTH;
   let currentSplitRatio = SPLIT_DEFAULT_RATIO;
+  let currentBeforeRatio = BEFORE_DEFAULT_RATIO;
 
   function applyTreeWidth(width: number): void {
     currentTreeWidth = clamp(width, TREE_MIN_WIDTH, TREE_MAX_WIDTH);
@@ -175,6 +191,40 @@ export function buildStructuredPromptShell(options: StructuredPromptShellOptions
     storeNumberInSession(splitRatioStorageKey, Number(currentSplitRatio.toFixed(3)));
   }
 
+  function applyBeforeRatio(ratio: number): void {
+    currentBeforeRatio = clamp(ratio, BEFORE_MIN_RATIO, BEFORE_MAX_RATIO);
+    if (beforePanel) {
+      const percent = `${(currentBeforeRatio * 100).toFixed(1)}%`;
+      beforePanel.style.flexBasis = percent;
+      beforePanel.style.width = percent;
+      beforePanel.style.maxWidth = percent;
+    }
+    if (beforeResizer) {
+      beforeResizer.setAttribute('aria-valuemin', BEFORE_MIN_RATIO.toString());
+      beforeResizer.setAttribute('aria-valuemax', BEFORE_MAX_RATIO.toString());
+      beforeResizer.setAttribute('aria-valuenow', currentBeforeRatio.toFixed(2));
+    }
+  }
+
+  function persistBeforeRatio(): void {
+    if (!beforeWidthStorageKey) {
+      return;
+    }
+    storeNumberInSession(beforeWidthStorageKey, Number(currentBeforeRatio.toFixed(3)));
+  }
+
+  function updateBeforeResizerState(visible: boolean): void {
+    if (!beforeResizer) {
+      return;
+    }
+    beforeResizer.classList.toggle('tp-before-resizer--hidden', !visible);
+    beforeResizer.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    beforeResizer.tabIndex = visible ? 0 : -1;
+    if (visible) {
+      applyBeforeRatio(currentBeforeRatio);
+    }
+  }
+
   currentTreeWidth = clamp(
     readNumberFromSession(treeWidthStorageKey) ?? TREE_DEFAULT_WIDTH,
     TREE_MIN_WIDTH,
@@ -189,6 +239,15 @@ export function buildStructuredPromptShell(options: StructuredPromptShellOptions
 
   applyTreeWidth(currentTreeWidth);
   applySplitRatio(currentSplitRatio);
+  if (beforePanel) {
+    const storedBeforeRatio = beforeWidthStorageKey ? readNumberFromSession(beforeWidthStorageKey) : null;
+    currentBeforeRatio = clamp(
+      storedBeforeRatio ?? BEFORE_DEFAULT_RATIO,
+      BEFORE_MIN_RATIO,
+      BEFORE_MAX_RATIO
+    );
+    applyBeforeRatio(currentBeforeRatio);
+  }
 
   function updateTreeResizerState(collapsed: boolean): void {
     treeResizer.classList.toggle('tp-tree-resizer--hidden', collapsed);
@@ -264,6 +323,83 @@ export function buildStructuredPromptShell(options: StructuredPromptShellOptions
     if (handled) {
       event.preventDefault();
       persistTreeWidth();
+    }
+  };
+
+  const onBeforeResizerPointerDown = (event: PointerEvent): void => {
+    if (!beforePanel || beforePanel.classList.contains('hidden') || !beforeResizer) {
+      return;
+    }
+
+    event.preventDefault();
+    const pointerId = event.pointerId;
+    const startX = event.clientX;
+    const containerRect = contentArea.getBoundingClientRect();
+
+    if (containerRect.width <= 0) {
+      return;
+    }
+
+    const startRatio = currentBeforeRatio;
+    beforeResizer.classList.add('tp-before-resizer--active');
+    beforeResizer.setPointerCapture(pointerId);
+
+    const handleMove = (moveEvent: PointerEvent): void => {
+      const delta = moveEvent.clientX - startX;
+      const nextRatio = startRatio + delta / containerRect.width;
+      applyBeforeRatio(nextRatio);
+    };
+
+    const handleUp = (): void => {
+      beforeResizer.classList.remove('tp-before-resizer--active');
+      try {
+        beforeResizer.releasePointerCapture(pointerId);
+      } catch {
+        // ignore release errors
+      }
+      beforeResizer.removeEventListener('pointermove', handleMove);
+      beforeResizer.removeEventListener('pointerup', handleUp);
+      beforeResizer.removeEventListener('pointercancel', handleUp);
+      persistBeforeRatio();
+    };
+
+    beforeResizer.addEventListener('pointermove', handleMove);
+    beforeResizer.addEventListener('pointerup', handleUp);
+    beforeResizer.addEventListener('pointercancel', handleUp);
+  };
+
+  const onBeforeResizerKeyDown = (event: KeyboardEvent): void => {
+    if (!beforePanel || beforePanel.classList.contains('hidden')) {
+      return;
+    }
+
+    const step = event.shiftKey ? 0.1 : 0.05;
+    let handled = false;
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        applyBeforeRatio(currentBeforeRatio - step);
+        handled = true;
+        break;
+      case 'ArrowRight':
+        applyBeforeRatio(currentBeforeRatio + step);
+        handled = true;
+        break;
+      case 'Home':
+        applyBeforeRatio(BEFORE_MIN_RATIO);
+        handled = true;
+        break;
+      case 'End':
+        applyBeforeRatio(BEFORE_MAX_RATIO);
+        handled = true;
+        break;
+      default:
+        break;
+    }
+
+    if (handled) {
+      event.preventDefault();
+      persistBeforeRatio();
     }
   };
 
@@ -346,10 +482,17 @@ export function buildStructuredPromptShell(options: StructuredPromptShellOptions
 
   treeResizer.addEventListener('pointerdown', onTreeResizerPointerDown);
   treeResizer.addEventListener('keydown', onTreeResizerKeyDown);
+  if (beforeResizer) {
+    beforeResizer.addEventListener('pointerdown', onBeforeResizerPointerDown);
+    beforeResizer.addEventListener('keydown', onBeforeResizerKeyDown);
+  }
   splitResizer.addEventListener('pointerdown', onSplitResizerPointerDown);
   splitResizer.addEventListener('keydown', onSplitResizerKeyDown);
 
   updateTreeResizerState(false);
+  if (beforeResizer) {
+    updateBeforeResizerState(false);
+  }
 
   let currentViewMode: ViewMode = 'split';
   let scrollSyncEnabled = true;
@@ -397,6 +540,7 @@ export function buildStructuredPromptShell(options: StructuredPromptShellOptions
         return;
       }
       beforePanel.classList.toggle('hidden', !visible);
+      updateBeforeResizerState(visible);
     },
   });
 
@@ -475,12 +619,23 @@ export function buildStructuredPromptShell(options: StructuredPromptShellOptions
     setViewMode,
     collapseTree: collapseTreePanel,
     expandTree: expandTreePanel,
+    setBeforeVisible(visible: boolean): void {
+      if (!beforePanel) {
+        return;
+      }
+      beforePanel.classList.toggle('hidden', !visible);
+      updateBeforeResizerState(visible);
+    },
     destroy(): void {
       views.forEach((view) => view.destroy());
       toolbarComponent.destroy();
       scrollSyncManager.destroy();
       treeResizer.removeEventListener('pointerdown', onTreeResizerPointerDown);
       treeResizer.removeEventListener('keydown', onTreeResizerKeyDown);
+      if (beforeResizer) {
+        beforeResizer.removeEventListener('pointerdown', onBeforeResizerPointerDown);
+        beforeResizer.removeEventListener('keydown', onBeforeResizerKeyDown);
+      }
       splitResizer.removeEventListener('pointerdown', onSplitResizerPointerDown);
       splitResizer.removeEventListener('keydown', onSplitResizerKeyDown);
       codePanel.removeEventListener('load', handleAssetLoad, true);

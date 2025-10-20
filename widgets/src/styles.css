@@ -459,18 +459,8 @@
 
 /* Before panel - special styling to distinguish from main view */
 .tp-before-panel {
-  background: rgba(251, 140, 0, 0.02);
+  background: rgba(251, 140, 0, 0.04);
   border-left: 2px solid rgba(251, 140, 0, 0.2);
-}
-
-.tp-before-panel .tp-output-container::before {
-  content: 'BEFORE';
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(251, 140, 0, 0.8);
-  margin-bottom: calc(var(--tp-spacing) * 0.5);
-  letter-spacing: 0.5px;
 }
 
 .tp-tree-container {
@@ -535,10 +525,47 @@
 }
 
 .tp-before-panel {
-  flex: 0 0 auto;
-  width: var(--tp-before-width, 33%);
-  min-width: 160px;
-  max-width: none;
+  flex: 0 0 var(--tp-before-width, 30%);
+  width: var(--tp-before-width, 30%);
+  max-width: var(--tp-before-width, 30%);
+  min-width: 200px;
+}
+
+.tp-before-resizer {
+  flex: 0 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 0;
+  touch-action: none;
+}
+
+.tp-before-resizer::before {
+  content: '';
+  width: 2px;
+  height: 28px;
+  border-radius: 1px;
+  background: var(--tp-color-border);
+  transition: background 0.15s ease;
+}
+
+.tp-before-resizer:hover::before,
+.tp-before-resizer:focus-visible::before,
+.tp-before-resizer--active::before {
+  background: var(--tp-color-accent);
+}
+
+.tp-before-resizer--hidden {
+  display: none;
+}
+
+.tp-before-resizer:focus-visible {
+  outline: 2px solid var(--tp-color-accent);
+  outline-offset: -2px;
 }
 
 .tp-tree-expand-strip {
@@ -1505,16 +1532,15 @@
 
 /* Before view diff overlays - special styling for "before" state */
 .tp-diff-enabled .tp-diff-replace-before {
-  border-left: 3px solid #fb8c00;
-  background: rgba(251, 140, 0, 0.12);
+  border-left: 3px solid #f29f05;
+  background: rgba(242, 159, 5, 0.18);
   padding-left: 4px;
-  opacity: 0.85;
 }
 
 /* More prominent delete styling for before panel */
 .tp-before-panel .tp-diff-delete {
   border-left: 4px solid #d73a49;
-  background: rgba(215, 58, 73, 0.18);
+  background: rgba(215, 58, 73, 0.15);
   padding-left: 4px;
   text-decoration: line-through;
   opacity: 1;
@@ -1685,16 +1711,15 @@
 
   /* Before view diff overlays - special styling for "before" state */
   .tp-diff-enabled .tp-diff-replace-before {
-    border-left: 3px solid #ffb86c;
-    background: rgba(255, 184, 108, 0.15);
+    border-left: 3px solid #ffc066;
+    background: rgba(255, 192, 102, 0.24);
     padding-left: 4px;
-    opacity: 0.85;
   }
 
   /* More prominent delete styling for before panel (dark mode) */
   .tp-before-panel .tp-diff-delete {
     border-left: 4px solid #ff7b72;
-    background: rgba(255, 123, 114, 0.20);
+    background: rgba(255, 123, 114, 0.18);
     padding-left: 4px;
     text-decoration: line-through;
     opacity: 1;
@@ -1703,11 +1728,7 @@
 
   /* Before panel dark mode adjustments */
   .tp-before-panel {
-    background: rgba(255, 184, 108, 0.03);
-    border-left-color: rgba(255, 184, 108, 0.25);
-  }
-
-  .tp-before-panel .tp-output-container::before {
-    color: rgba(255, 184, 108, 0.9);
+    background: rgba(255, 192, 102, 0.06);
+    border-left-color: rgba(255, 192, 102, 0.35);
   }
 }

@@ -432,11 +432,16 @@ function createDiffMetricsDisplay(diffData: DiffMetrics): HTMLElement {
   const renderStats = rendered.stats;
   const insertChunks = renderStats.insert || 0;
   const deleteChunks = renderStats.delete || 0;
+  const replaceChunks = renderStats.replace || 0;
 
   const metricsText = document.createElement('span');
   metricsText.className = 'tp-diff-metrics-text';
-  metricsText.textContent = `${addedNodes}+ ${removedNodes}− nodes, ${insertChunks}+ ${deleteChunks}− chunks`;
-  metricsText.title = `Structural: ${addedNodes} added, ${removedNodes} removed, ${modifiedNodes} modified\nRendered: ${insertChunks} inserted, ${deleteChunks} deleted`;
+  metricsText.textContent =
+    `${addedNodes}+ ${removedNodes}− ${modifiedNodes}~ nodes, ` +
+    `${insertChunks}+ ${deleteChunks}− ${replaceChunks}~ chunks`;
+  metricsText.title =
+    `Structural: ${addedNodes} added, ${removedNodes} removed, ${modifiedNodes} modified\n` +
+    `Rendered: ${insertChunks} inserted, ${deleteChunks} deleted, ${replaceChunks} replaced`;
 
   container.appendChild(metricsText);
 

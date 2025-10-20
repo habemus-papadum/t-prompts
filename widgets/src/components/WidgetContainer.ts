@@ -79,6 +79,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
   const treeStorageKey = `tp-tree-collapsed:${data.compiled_ir?.ir_id ?? 'default'}`;
   const treeWidthStorageKey = `tp-tree-width:${data.compiled_ir?.ir_id ?? 'default'}`;
   const splitRatioStorageKey = `tp-split-ratio:${data.compiled_ir?.ir_id ?? 'default'}`;
+  const beforeWidthStorageKey = diffContext ? `tp-before-width:${data.compiled_ir?.ir_id ?? 'default'}` : undefined;
   const toolbarStoragePrefix = `tp-diff:${data.compiled_ir?.ir_id ?? 'default'}`;
 
   let diffController: DiffOverlayController | undefined;
@@ -96,6 +97,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
     treeStorageKey,
     treeWidthStorageKey,
     splitRatioStorageKey,
+    beforeWidthStorageKey,
     diffController: undefined,
     toolbarFactory(context: StructuredPromptShellContext): ToolbarComponent {
       if (diffContext && !diffController) {
@@ -143,9 +145,7 @@ export function buildWidgetContainer(data: WidgetData, metadata: WidgetMetadata)
 
   if (diffController) {
     diffController.on((state) => {
-      if (shell.beforePanel) {
-        shell.beforePanel.classList.toggle('hidden', !state.beforeVisible);
-      }
+      shell.setBeforeVisible(state.beforeVisible);
       activeToolbar?.setBeforeVisible(state.beforeVisible);
       activeToolbar?.setDiffEnabled(state.diffEnabled);
     });

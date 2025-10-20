@@ -140,4 +140,38 @@ describe('Toolbar', () => {
 
     toolbar.destroy();
   });
+
+  it('renders diff metrics including replacements', () => {
+    const toolbar = createToolbar({
+      currentMode: 'split',
+      diffEnabled: true,
+      callbacks: {
+        onViewModeChange: () => {},
+      },
+      foldingController,
+      metrics: {
+        totalCharacters: 150,
+        totalPixels: 400,
+        chunkIds,
+        chunkSizeMap: {
+          ...chunkSizeMap,
+        },
+      },
+      diffData: {
+        structured: {
+          stats: { nodes_added: 1, nodes_removed: 0, nodes_modified: 2 },
+        } as any,
+        rendered: {
+          stats: { insert: 0, delete: 0, replace: 3 },
+        } as any,
+      },
+    });
+
+    document.body.appendChild(toolbar.element);
+
+    const metricsText = toolbar.element.querySelector('.tp-diff-metrics-text');
+    expect(metricsText?.textContent).toBe('1+ 0− 2~ nodes, 0+ 0− 3~ chunks');
+
+    toolbar.destroy();
+  });
 });
