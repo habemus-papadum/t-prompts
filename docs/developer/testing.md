@@ -417,7 +417,6 @@ uv run playwright install chromium
 
 - [Developer Setup](setup.md) - Development environment setup
 - [Architecture](../Architecture.md) - System architecture
-- [Widget Proposal](../Widget%20proposal.md) - Widget design and implementation
 
 ## Need Help?
 

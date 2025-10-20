@@ -17,8 +17,8 @@ theme:
 nav:
   - Home: index.md
   - Installation: installation.md
-  - Quick Demo: demos/quick_demo.ipynb
-  - Tutorial: demos/tutorials.ipynb
+  - Quick Interactive Demo: quick_demo.ipynb
+  - Tutorial: tutorial.ipynb
   - Architecture: Architecture.md
   - Developer:
     - Setup: developer/setup.md
@@ -50,3 +50,7 @@ plugins:
 # Hooks to inject version from pyproject.toml
 hooks:
   - docs/hooks.py
+
+exclude_docs: |
+  /planning
+  hooks.py

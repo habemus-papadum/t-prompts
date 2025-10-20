@@ -1,7 +1,7 @@
 # t-prompts
 
 [![CI](https://github.com/habemus-papadum/t-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/habemus-papadum/t-prompts/actions/workflows/ci.yml)
-[![Coverage](https://raw.githubusercontent.com/habemus-papadum/t-prompts/python-coverage-comment-action-data/badge.svg)](htmlpreview.github.io/?https://github.com/habemus-papadum/t-prompts/blob/python-coverage-comment-action-data/htmlcov/index.html)
+[![Coverage](https://raw.githubusercontent.com/habemus-papadum/t-prompts/python-coverage-comment-action-data/badge.svg)](https://htmlpreview.github.io/?https://github.com/habemus-papadum/t-prompts/blob/python-coverage-comment-action-data/htmlcov/index.html)
 [![TypeScript Coverage](https://raw.githubusercontent.com/habemus-papadum/t-prompts/typescript-coverage-badge/typescript-coverage.svg)](https://github.com/habemus-papadum/t-prompts/tree/main/widgets)
 [![Documentation](https://img.shields.io/badge/Documentation-blue.svg)](https://habemus-papadum.github.io/t-prompts/)
 [![PyPI](https://img.shields.io/pypi/v/t-prompts.svg)](https://pypi.org/project/t-prompts/)
@@ -39,12 +39,14 @@ This enables riching tooling:
 
 ## Targeted Use Cases
 
-- Prompt Debugging ("What exactly did this tangle of code render too?")
-- Prompt Optimization ("What wording and supporting best achieves my goal?")
-- Prompt compaction ("How do I get the same result with fewer word?")
+- Prompt Debugging ("What exactly did this tangle of code render to?")
+- Prompt Optimization
+  - Performance ("What wording / content best achieves my goal?")
+  - Size ("How do I get the same result with fewer words?")
 
 ## Get Started
 
 - [Installation](installation.md) - Install the library
-- [Quick Demo](demo/quick-demo.ipynb) - Quick Interactive Demo
-- [Tutorials](demos/tutorial.ipynb) - Tutorial
+- [Quick Demo](quick_demo.ipynb) - Quick Interactive Demo
+- [Tutorials](tutorial.ipynb) - Tutorial
+- [Architecture](Architecture.md)

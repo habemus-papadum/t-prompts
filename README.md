@@ -48,14 +48,17 @@ This enables riching tooling:
 
 ## Targeted Use Cases
 
-- Prompt Debugging ("What exactly did this tangle of code render too?")
-- Prompt Optimization ("What wording and supporting best achieves my goal?")
-- Prompt compaction ("How do I get the same result with fewer word?")
-
+- Prompt Debugging ("What exactly did this tangle of code render to?")
+- Prompt Optimization
+  - Performance ("What wording / content best achieves my goal?")
+  - Size ("How do I get the same result with fewer words?")
 
 ## Documentation
 
 📚 **Full documentation:** https://habemus-papadum.github.io/t-prompts/
+
+- [Quick Interactive Demo](https://habemus-papadum.github.io/t-prompts/quick_demo/)
+- [Tutorial](https://habemus-papadum.github.io/t-prompts/tutorial/)
 
 
 ## Installation

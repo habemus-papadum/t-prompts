@@ -1,0 +1,6 @@
+- inline xml tags
+- revamp diffing
+- diff views
+  - unified
+  - side-by-side
+  - merge view

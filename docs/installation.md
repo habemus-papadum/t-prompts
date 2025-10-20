@@ -22,6 +22,6 @@ uv add t-prompts
 
 ## Next Steps
 
-- [Quick Start](quick-start.md) - Learn the basics
-- [Use Cases](use-cases.md) - See what you can build
-- [Features](features.md) - Explore all capabilities
+- [Quick Demo](quick_demo.ipynb) - Quick Interactive Demo
+- [Tutorials](tutorial.ipynb) - Tutorial
+- [Architecture](Architecture.md)

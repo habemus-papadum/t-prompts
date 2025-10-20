@@ -234,7 +234,7 @@ def create_quantum_workflow_demo():
     # -------------------------------------------------------------------------
     from PIL import Image
 
-    image_path = Path(__file__).parent.parent.parent.parent.parent / "docs" / "demos" / "assets" / "warps-and-wefts.png"
+    image_path = Path(__file__).parent.parent.parent.parent.parent / "docs" / "assets" / "warps-and-wefts.png"
     visualization_image = Image.open(image_path)
     visualization_image = visualization_image.resize((300, 300))
 
