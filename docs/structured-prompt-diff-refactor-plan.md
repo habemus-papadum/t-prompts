@@ -13,7 +13,7 @@ Deliver a refactor of the Structured Prompt widget code that preserves today\'s 
 ### 1. Explicit Diff Context Model
 - Introduce a `DiffContext` interface in `widgets/src/types.ts` that groups `beforePrompt`, `structured`, and `rendered` payloads plus derived helpers (e.g., node/element lookup tables). Replace `hasDiffData` with a type guard that returns a structured object instead of ad-hoc truthiness checks.
 - Update `WidgetData` to hold `diff?: DiffContextPayload` while keeping legacy optional fields for backward compatibility (Python can populate both during migration). `metadata.ts` should export builders that consume the combined payload and produce diff-aware maps used by all views.
-- On the Python side, extend the serializer to emit `diff_context` with explicit keys that match the TypeScript interface. Keep existing fields populated (to avoid breaking older front-ends) until the new container is fully rolled out.  the data test generation tool at widgets/generate_test_data.py will need to be run at the correct point to regenerate data for unit tests, and unit tests will need to be updated to reflect the new data layout.  Similarly the python unit tests will need updating.
+- On the Python side, extend the serializer to emit `diff_context` with explicit keys that match the TypeScript interface. Keep existing fields populated (to avoid breaking older front-ends) until the new container is fully rolled out.
 
 ### 2. Presentation Layer Separation
 - Extract a `StructuredPromptShell` component responsible only for layout (tree gutter, main split, panel resizing) and toolbar composition. It accepts render callbacks for `before`, `after`, and `markdown` regions plus an optional diff controller object.

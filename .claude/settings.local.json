@@ -84,8 +84,7 @@
       "Bash(cloc --include-lang=TypeScript widgets/src/transforms/*.ts --vcs=git --quiet)",
       "Bash(cloc --include-lang=TypeScript widgets/src/folding/*.ts --vcs=git --quiet)",
       "Bash(cloc --include-lang=TypeScript widgets/src/utils/*.ts --vcs=git --quiet)",
-      "Bash(cloc --include-lang=TypeScript widgets/src/*.ts --vcs=git --quiet)",
-      "Bash(./scripts/mitm-it node test-mitm.js)"
+      "Bash(cloc --include-lang=TypeScript widgets/src/*.ts --vcs=git --quiet)"
     ],
     "deny": [],
     "ask": []
