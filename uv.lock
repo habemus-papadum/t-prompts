@@ -2035,7 +2035,7 @@ wheels = [
 
 [[package]]
 name = "t-prompts"
-version = "0.18.0a0"
+version = "0.18.0"
 source = { editable = "." }
 dependencies = [
     { name = "pillow" },
