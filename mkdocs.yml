@@ -18,7 +18,7 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Quick Demo: demos/quick_demo.ipynb
-  - Tutorials: demos/tutorials.ipynb
+  - Tutorial: demos/tutorials.ipynb
   - Architecture: Architecture.md
   - Developer:
     - Setup: developer/setup.md

@@ -46,7 +46,5 @@ This enables riching tooling:
 ## Get Started
 
 - [Installation](installation.md) - Install the library
-- [Quick Start](quick-start.md) - Learn the basics
-- [Use Cases](use-cases.md) - See what you can build
-- [Features](features.md) - Explore all capabilities
-- [Tutorials](demos/01-basic.ipynb) - Step-by-step guides
+- [Quick Demo](demo/quick-demo.ipynb) - Quick Interactive Demo
+- [Tutorials](demos/tutorial.ipynb) - Tutorial
