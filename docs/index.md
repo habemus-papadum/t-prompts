@@ -34,6 +34,7 @@ print(node.value)       # "Always answer politely."
 ```
 
 This enables riching tooling:
+
 ![Widget](screenshot.png)
 
 
