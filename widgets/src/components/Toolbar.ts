@@ -14,7 +14,6 @@ export interface ToolbarCallbacks {
   onViewModeChange: (mode: ViewMode) => void;
   onScrollSyncToggle?: (enabled: boolean) => void;
   onDiffToggle?: (enabled: boolean) => void;
-  onBeforeToggle?: (show: boolean) => void;
 }
 
 export interface ToolbarMetrics {
@@ -111,18 +110,6 @@ const icons = {
       '<path d="M11 10h2v1h-2v2h-1v-2H8v-1h2V8h1v2z" fill="none" stroke="currentColor" stroke-width="0.5"/>';
     return svg;
   },
-  before: (): SVGElement => {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', '16');
-    svg.setAttribute('height', '16');
-    svg.setAttribute('viewBox', '0 0 16 16');
-    svg.setAttribute('fill', 'currentColor');
-    // Icon representing "before" version - document with left arrow
-    svg.innerHTML =
-      '<path d="M4 1.5v13h8v-13H4zm7 12H5v-11h6v11z"/>' +
-      '<path d="M7.5 8H10V7H7.5V5.5L5.5 7.5 7.5 9.5V8z" fill="currentColor"/>';
-    return svg;
-  },
 };
 
 /**
@@ -158,20 +145,6 @@ export function createToolbar(options: ToolbarOptions): ToolbarComponent {
 
   // Add visibility meter first (leftmost in right container)
   rightContainer.appendChild(visibilityMeter.element);
-
-  // Add before view toggle if callback is available (before the main view toggles)
-  if (callbacks.onBeforeToggle) {
-    const beforeToggleButton = createBeforeToggleButton(false); // Initially hidden
-    rightContainer.appendChild(beforeToggleButton);
-
-    beforeToggleButton.addEventListener('click', () => {
-      const newState = !beforeToggleButton.classList.contains('active');
-      beforeToggleButton.classList.toggle('active', newState);
-      beforeToggleButton.setAttribute('aria-pressed', newState ? 'true' : 'false');
-      beforeToggleButton.title = newState ? 'Hide before view' : 'Show before view';
-      callbacks.onBeforeToggle?.(newState);
-    });
-  }
 
   const viewToggle = document.createElement('div');
   viewToggle.className = 'tp-view-toggle';
@@ -367,26 +340,6 @@ function createDiffToggleButton(initiallyEnabled: boolean): HTMLButtonElement {
   button.appendChild(icon);
 
   if (initiallyEnabled) {
-    button.classList.add('active');
-  }
-
-  return button;
-}
-
-/**
- * Create before view toggle button
- */
-function createBeforeToggleButton(initiallyShown: boolean): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'tp-toolbar-before-btn tp-view-toggle-btn';
-  button.setAttribute('aria-pressed', initiallyShown ? 'true' : 'false');
-  button.title = initiallyShown ? 'Hide before view' : 'Show before view';
-
-  const icon = icons.before();
-  button.appendChild(icon);
-
-  if (initiallyShown) {
     button.classList.add('active');
   }
 
