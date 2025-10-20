@@ -28,12 +28,16 @@ class TextChunk:
         Unique identifier for this chunk (UUID4 string).
     metadata : dict[str, Any]
         Metadata dictionary for storing analysis results and other information.
+    needs_html_escape : bool
+        If True, this chunk should be HTML-escaped when rendering as markdown.
+        Used for XML wrapper tags from render hints (e.g., <system>, </system>).
     """
 
     text: str
     element_id: str
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     metadata: dict[str, Any] = field(default_factory=dict)
+    needs_html_escape: bool = False
 
     def toJSON(self) -> dict[str, Any]:
         """
@@ -42,7 +46,7 @@ class TextChunk:
         Returns
         -------
         dict[str, Any]
-            Dictionary with type, text, element_id, id, metadata.
+            Dictionary with type, text, element_id, id, metadata, needs_html_escape.
         """
         return {
             "type": "TextChunk",
@@ -50,6 +54,7 @@ class TextChunk:
             "element_id": self.element_id,
             "id": self.id,
             "metadata": self.metadata,
+            "needs_html_escape": self.needs_html_escape,
         }
 
 
@@ -248,7 +253,9 @@ class IntermediateRepresentation:
         chunk = ImageChunk(image=image, element_id=element_id)
         return cls(chunks=[chunk], source_prompt=None)
 
-    def wrap(self, prefix: str, suffix: str, wrapper_element_id: str) -> "IntermediateRepresentation":
+    def wrap(
+        self, prefix: str, suffix: str, wrapper_element_id: str, escape_wrappers: bool = False
+    ) -> "IntermediateRepresentation":
         """
         Wrap this IR by prepending/appending text chunks.
 
@@ -263,6 +270,9 @@ class IntermediateRepresentation:
             Text to append (creates new chunk if non-empty).
         wrapper_element_id : str
             Element ID for the prefix/suffix chunks (e.g., element with render hints).
+        escape_wrappers : bool, optional
+            If True, mark prefix/suffix chunks with needs_html_escape=True.
+            Used for XML wrapper tags that should be escaped in markdown rendering.
 
         Returns
         -------
@@ -272,18 +282,21 @@ class IntermediateRepresentation:
         if not self._chunks:
             # Empty IR: just create a text chunk with prefix+suffix
             if prefix or suffix:
-                return IntermediateRepresentation.from_text(prefix + suffix, wrapper_element_id)
+                chunk = TextChunk(
+                    text=prefix + suffix, element_id=wrapper_element_id, needs_html_escape=escape_wrappers
+                )
+                return IntermediateRepresentation(chunks=[chunk], source_prompt=None)
             return self
 
         new_chunks = list(self._chunks)
 
         # Always insert new chunks for prefix/suffix (never modify existing)
         if prefix:
-            prefix_chunk = TextChunk(text=prefix, element_id=wrapper_element_id)
+            prefix_chunk = TextChunk(text=prefix, element_id=wrapper_element_id, needs_html_escape=escape_wrappers)
             new_chunks.insert(0, prefix_chunk)
 
         if suffix:
-            suffix_chunk = TextChunk(text=suffix, element_id=wrapper_element_id)
+            suffix_chunk = TextChunk(text=suffix, element_id=wrapper_element_id, needs_html_escape=escape_wrappers)
             new_chunks.append(suffix_chunk)
 
         return IntermediateRepresentation(

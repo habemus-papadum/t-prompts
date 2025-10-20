@@ -253,6 +253,11 @@ function generateMarkdownWithPositions(data: WidgetData): {
     } else {
       // Text chunk
       text = chunk.text || '';
+
+      // Escape HTML if chunk is marked for escaping (e.g., XML wrapper tags)
+      if (chunk.needs_html_escape) {
+        text = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
     }
 
     markdownText += text;

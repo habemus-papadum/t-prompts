@@ -12,7 +12,7 @@ def test_xml_hint_basic():
     content = "This is some content"
     p = t_prompts.prompt(t"{content:c:xml=tag}")
 
-    expected = "<tag>\nThis is some content\n</tag>"
+    expected = "<tag>This is some content</tag>"
     assert str(p) == expected
 
 
@@ -23,7 +23,7 @@ def test_xml_hint_nested_prompt():
 
     outer = t_prompts.prompt(t"{inner:i:xml=section}")
 
-    expected = "<section>\ninner content\n</section>"
+    expected = "<section>inner content</section>"
     assert str(outer) == expected
 
 
@@ -32,7 +32,7 @@ def test_xml_hint_multiline_content():
     content = "Line 1\nLine 2\nLine 3"
     p = t_prompts.prompt(t"{content:c:xml=data}")
 
-    expected = "<data>\nLine 1\nLine 2\nLine 3\n</data>"
+    expected = "<data>Line 1\nLine 2\nLine 3</data>"
     assert str(p) == expected
 
 
@@ -41,7 +41,7 @@ def test_xml_hint_empty_content():
     content = ""
     p = t_prompts.prompt(t"{content:c:xml=empty}")
 
-    expected = "<empty>\n\n</empty>"
+    expected = "<empty></empty>"
     assert str(p) == expected
 
 
@@ -51,7 +51,7 @@ def test_xml_hint_with_whitespace_trimming():
     # Leading/trailing spaces in hint specification should be trimmed
     p = t_prompts.prompt(t"{content:c:xml= tag }")
 
-    expected = "<tag>\ncontent\n</tag>"
+    expected = "<tag>content</tag>"
     assert str(p) == expected
 
 
@@ -88,7 +88,7 @@ def test_xml_hint_with_list():
 
     p = t_prompts.prompt(t"{items:list:xml=fruits}")
 
-    expected = "<fruits>\napple\nbanana\ncherry\n</fruits>"
+    expected = "<fruits>apple\nbanana\ncherry</fruits>"
     assert str(p) == expected
 
 
@@ -226,7 +226,7 @@ def test_combined_xml_and_header():
     p = t_prompts.prompt(t"{content:c:header=Section:xml=content}")
 
     # Header should be outer, XML should be inner
-    expected = "# Section\n<content>\nSome content\n</content>"
+    expected = "# Section\n<content>Some content</content>"
     assert str(p) == expected
 
 
@@ -236,7 +236,7 @@ def test_combined_header_and_xml():
     p = t_prompts.prompt(t"{content:c:xml=data:header=Section}")
 
     # Order in format spec shouldn't matter - header is always outer
-    expected = "# Section\n<data>\nSome content\n</data>"
+    expected = "# Section\n<data>Some content</data>"
     assert str(p) == expected
 
 
@@ -255,7 +255,7 @@ def test_combined_hints_nested():
     # inner interpolation has header hint, so gets # at level 1, wrapped in XML
     assert "# inner\n<outer_tag>" in result
     # Inner content has header at level 2 (because inner interpolation has header hint)
-    assert "## Inner\n<inner_tag>\nInner text\n</inner_tag>" in result
+    assert "## Inner\n<inner_tag>Inner text</inner_tag>" in result
 
 
 def test_combined_hints_with_list():
@@ -264,7 +264,7 @@ def test_combined_hints_with_list():
 
     p = t_prompts.prompt(t"{items:list:header=Items:xml=list}")
 
-    expected = "# Items\n<list>\nA\nB\nC\n</list>"
+    expected = "# Items\n<list>A\nB\nC</list>"
     assert str(p) == expected
 
 
@@ -273,7 +273,7 @@ def test_combined_hints_multiline():
     content = "Line 1\nLine 2\nLine 3"
     p = t_prompts.prompt(t"{content:c:header=Multi:xml=lines}")
 
-    expected = "# Multi\n<lines>\nLine 1\nLine 2\nLine 3\n</lines>"
+    expected = "# Multi\n<lines>Line 1\nLine 2\nLine 3</lines>"
     assert str(p) == expected
 
 
@@ -286,7 +286,7 @@ def test_xml_hint_with_custom_separator():
 
     p = t_prompts.prompt(t"{items:list:xml=fruits:sep=, }")
 
-    expected = "<fruits>\napple, banana, cherry\n</fruits>"
+    expected = "<fruits>apple, banana, cherry</fruits>"
     assert str(p) == expected
 
 
@@ -306,7 +306,7 @@ def test_all_hints_combined():
 
     p = t_prompts.prompt(t"{items:list:header=Letters:xml=letters:sep=,}")
 
-    expected = "# Letters\n<letters>\nX,Y,Z\n</letters>"
+    expected = "# Letters\n<letters>X,Y,Z</letters>"
     assert str(p) == expected
 
 
@@ -331,7 +331,7 @@ def test_xml_hint_with_dedent():
         {content:c:xml=section}
         """)
 
-    expected = "<section>\nContent\n</section>"
+    expected = "<section>Content</section>"
     assert str(p) == expected
 
 
@@ -342,7 +342,7 @@ def test_combined_hints_with_dedent():
         {content:c:header=Section:xml=data}
         """)
 
-    expected = "# Section\n<data>\nContent\n</data>"
+    expected = "# Section\n<data>Content</data>"
     assert str(p) == expected
 
 
@@ -352,5 +352,5 @@ def test_hints_with_conversions():
     p = t_prompts.prompt(t"{content!r:c:header=Section:xml=data}")
 
     # Conversion should be applied to content
-    expected = "# Section\n<data>\n'test'\n</data>"
+    expected = "# Section\n<data>'test'</data>"
     assert str(p) == expected

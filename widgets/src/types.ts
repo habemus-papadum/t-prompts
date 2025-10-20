@@ -68,6 +68,7 @@ export interface ChunkData {
   element_id: string;
   id: string;
   metadata: Record<string, unknown>;
+  needs_html_escape?: boolean;
 }
 
 export interface ImageData {

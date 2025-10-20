@@ -69,12 +69,12 @@ def apply_render_hints(
     # Apply XML wrapper (inner) - wraps the entire content
     if "xml" in hints:
         xml_tag = hints["xml"]
-        ir = ir.wrap(f"<{xml_tag}>\n", f"\n</{xml_tag}>", element_id)
+        ir = ir.wrap(f"<{xml_tag}>", f"</{xml_tag}>", element_id, escape_wrappers=True)
 
     # Apply header (outer) - wraps after XML, only prepends
     if "header" in hints:
         header_level = min(level, max_level)
-        ir = ir.wrap(f"{'#' * header_level} {hints['header']}\n", "", element_id)
+        ir = ir.wrap(f"{'#' * header_level} {hints['header']}\n", "", element_id, escape_wrappers=False)
 
     return ir
 
