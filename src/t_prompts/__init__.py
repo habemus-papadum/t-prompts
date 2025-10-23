@@ -42,7 +42,7 @@ from .widgets import (
     setup_notebook,
 )
 
-__version__ = "0.18.1-alpha"
+__version__ = "0.18.1"
 __all__ = [
     "StructuredPrompt",
     "TextInterpolation",
