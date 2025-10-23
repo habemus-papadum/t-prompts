@@ -25,6 +25,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
+    "test:fixtures": "uv run python generate_test_data.py --list",
+    "test:fixtures:generate": "uv run python generate_test_data.py --overwrite",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "typecheck": "tsc --noEmit"
