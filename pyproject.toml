@@ -1,6 +1,6 @@
 [project]
 name = "t-prompts"
-version = "0.18.1"
+version = "0.18.2-alpha"
 description = "Structured prompts using template strings"
 readme = "README.md"
 license = { file = "LICENSE" }
