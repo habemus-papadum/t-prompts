@@ -137,33 +137,35 @@ class WidgetPreviewHandler(SimpleHTTPRequestHandler):
             print(f"GET {self.path} -> {args[1]}")
 
 
-class FileChangeHandler(FileSystemEventHandler):
-    """Handler for file system changes."""
+if WATCHDOG_AVAILABLE:
 
-    def __init__(self, callback, watch_extensions=None):
-        self.callback = callback
-        self.last_modified = time.time()
-        self.debounce_seconds = 0.5
-        self.watch_extensions = watch_extensions or {".py", ".js", ".ts"}
+    class FileChangeHandler(FileSystemEventHandler):
+        """Handler for file system changes."""
 
-    def on_modified(self, event):
-        """Called when a file is modified."""
-        if event.is_directory:
-            return
+        def __init__(self, callback, watch_extensions=None):
+            self.callback = callback
+            self.last_modified = time.time()
+            self.debounce_seconds = 0.5
+            self.watch_extensions = watch_extensions or {".py", ".js", ".ts"}
 
-        # Debounce: ignore events that happen too quickly
-        now = time.time()
-        if now - self.last_modified < self.debounce_seconds:
-            return
+        def on_modified(self, event):
+            """Called when a file is modified."""
+            if event.is_directory:
+                return
 
-        # Filter for relevant files
-        path = Path(event.src_path)
-        if path.suffix in self.watch_extensions and not any(
-            part.startswith(".") or part == "__pycache__" for part in path.parts
-        ):
-            self.last_modified = now
-            print(f"\nFile changed: {path}")
-            self.callback()
+            # Debounce: ignore events that happen too quickly
+            now = time.time()
+            if now - self.last_modified < self.debounce_seconds:
+                return
+
+            # Filter for relevant files
+            path = Path(event.src_path)
+            if path.suffix in self.watch_extensions and not any(
+                part.startswith(".") or part == "__pycache__" for part in path.parts
+            ):
+                self.last_modified = now
+                print(f"\nFile changed: {path}")
+                self.callback()
 
 
 def _generate_html(generator_func: Callable[[], Any], reload_script: str = "", show_banner: bool = True) -> str:
@@ -527,7 +529,7 @@ def run_preview(
     observer = None
     reload_trigger = {"last_reload": time.time()} if watch else None
 
-    if watch:
+    if watch and WATCHDOG_AVAILABLE:
         observer = Observer()
 
         def trigger_reload():
