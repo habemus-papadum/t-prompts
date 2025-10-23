@@ -16,11 +16,11 @@
 | src/t\_prompts/widgets/\_\_init\_\_.py |        7 |        0 |    100% |           |
 | src/t\_prompts/widgets/config.py       |       17 |        1 |     94% |        72 |
 | src/t\_prompts/widgets/export.py       |       30 |        0 |    100% |           |
-| src/t\_prompts/widgets/preview.py      |      252 |      222 |     12% |37-38, 45-47, 51-113, 117-128, 133-137, 144-147, 151-166, 193-319, 335, 395-402, 462-589, 597-633, 643 |
+| src/t\_prompts/widgets/preview.py      |      253 |      222 |     12% |37-38, 45-47, 51-113, 117-128, 133-137, 146-149, 153-168, 195-321, 337, 397-404, 464-591, 599-635, 645 |
 | src/t\_prompts/widgets/renderer.py     |       26 |        6 |     77% |     27-43 |
 | src/t\_prompts/widgets/utils.py        |        9 |        4 |     56% |     48-53 |
 | src/t\_prompts/widgets/widget.py       |        5 |        0 |    100% |           |
-|                              **TOTAL** | **1498** |  **345** | **77%** |           |
+|                              **TOTAL** | **1499** |  **345** | **77%** |           |
 
 
 ## Setup coverage badge
